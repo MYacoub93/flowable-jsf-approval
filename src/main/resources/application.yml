@@ -1,0 +1,85 @@
+spring:
+  application:
+    name: flowable-jsf-approval
+  datasource:
+    # =========================================================
+    # 2. قاعدة بيانات Flowable المنفصلة
+    # =========================================================
+    url: jdbc:mysql://localhost:3307/approvaldb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: root
+    password: root
+    hikari:
+      pool-name: PrimaryHikariPool
+      maximum-pool-size: 10
+
+app:
+  datasource:
+    external:
+      # =========================================================
+      # 1. قاعدة بيانات المستخدمين (المستخدمة عبر MyBatis)
+      # =========================================================
+      jdbc-url: jdbc:mysql://localhost:3307/approvaldb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      username: root
+      password: root
+      driver-class-name:  com.mysql.cj.jdbc.Driver
+      hikari:
+        pool-name: ExternalHikariPool
+        maximum-pool-size: 5
+#  datasource:
+#    url: jdbc:mysql://localhost:3307/approvaldb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+#    username: root
+#    password: root
+#    url: jdbc:h2:mem:approvaldb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+#    driver-class-name: org.h2.Driver
+#    username: sa
+#    password:
+#  h2:
+#    console:
+#      enabled: true
+#      path: /h2-console
+#  sql:
+#    init:
+#      mode: always
+#      schema-locations: classpath:schema.sql
+#      data-locations: classpath:data.sql
+
+# Flowable configuration
+flowable:
+  database-schema-update: true
+  check-process-definitions: true
+  process-definition-location-prefix: classpath*:/processes/
+  async-executor-activate: true
+  # Use same datasource
+  # identity service is available
+
+# MyBatis
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.example.approval.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    default-fetch-size: 100
+    default-statement-timeout: 30
+
+# JoinFaces / JSF
+joinfaces:
+  faces:
+    PROJECT_STAGE: Development
+    FACELETS_SKIP_COMMENTS: true
+    automatic-extensionless-mapping: true
+  faces-servlet:
+    enabled: true
+
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+logging:
+  level:
+    org.flowable: INFO
+    com.example.approval: DEBUG
+    org.mybatis: DEBUG

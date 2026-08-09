@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+<h:head>
+    <title>Start Approval Request</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 560px; margin: 40px auto; padding: 20px; }
+        .form-group { margin-bottom: 14px; }
+        label { display: block; font-weight: 600; margin-bottom: 4px; }
+        input, textarea, select { width: 100%; padding: 8px; box-sizing: border-box; }
+        textarea { height: 100px; }
+        .btn { padding: 10px 18px; background: #2563eb; color: white; border: none; cursor: pointer; border-radius: 4px; margin-right: 8px; }
+        .btn-secondary { background: #64748b; }
+        .msg { color: #b91c1c; }
+    </style>
+</h:head>
+<h:body>
+    <h1>Start Approval Request</h1>
+
+    <h:panelGroup rendered="#{!loginBean.loggedIn}">
+        <p>Please <h:link outcome="/login" value="login"/> first.</p>
+    </h:panelGroup>
+
+    <h:panelGroup rendered="#{loginBean.loggedIn}">
+        <h:messages styleClass="msg"/>
+        <h:form id="startForm">
+            <div class="form-group">
+                <h:outputLabel for="title" value="Title *"/>
+                <h:inputText id="title" value="#{startProcessBean.title}" required="true"/>
+            </div>
+            <div class="form-group">
+                <h:outputLabel for="description" value="Description"/>
+                <h:inputTextarea id="description" value="#{startProcessBean.description}"/>
+            </div>
+            <div class="form-group">
+                <h:outputLabel for="amount" value="Requested Amount *"/>
+                <h:inputText id="amount" value="#{startProcessBean.amount}" required="true"
+                             converterMessage="Please enter a valid number"/>
+            </div>
+            <div class="form-group">
+                <h:outputLabel for="department" value="Department *"/>
+                <h:selectOneMenu id="department" value="#{startProcessBean.department}" required="true">
+                    <f:selectItem itemValue="" itemLabel="-- select --"/>
+                    <f:selectItem itemValue="IT" itemLabel="IT"/>
+                    <f:selectItem itemValue="HR" itemLabel="HR"/>
+                    <f:selectItem itemValue="Finance" itemLabel="Finance"/>
+                </h:selectOneMenu>
+            </div>
+            <h:commandButton value="Submit Request" action="#{startProcessBean.submit}" styleClass="btn"/>
+            <h:link outcome="/dashboard" value="Cancel" styleClass="btn btn-secondary"/>
+        </h:form>
+    </h:panelGroup>
+</h:body>
+</html>

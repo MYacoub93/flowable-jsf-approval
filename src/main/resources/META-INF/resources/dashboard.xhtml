@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+<h:head>
+    <title>Dashboard - Approval Workflow</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 960px; margin: 40px auto; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+        th { background: #f1f5f9; }
+        .btn { padding: 8px 14px; background: #2563eb; color: white; border: none; cursor: pointer; border-radius: 4px; text-decoration: none; display: inline-block; }
+        .btn-secondary { background: #64748b; }
+        .btn-danger { background: #dc2626; }
+        .empty { color: #94a3b8; font-style: italic; }
+    </style>
+</h:head>
+<h:body>
+    <f:metadata>
+        <f:viewAction action="#{dashboardBean.init}" />
+    </f:metadata>
+
+    <h:panelGroup rendered="#{!loginBean.loggedIn}">
+        <p>You are not logged in. <h:link outcome="/login" value="Login"/></p>
+    </h:panelGroup>
+
+    <h:panelGroup rendered="#{loginBean.loggedIn}">
+        <header>
+            <div>
+                <h1>Dashboard</h1>
+                <p>Welcome, <strong>#{loginBean.currentUser.fullName}</strong>
+                    (#{loginBean.currentUser.role} / #{loginBean.currentUser.department})</p>
+            </div>
+            <h:form>
+                <h:commandButton value="Logout" action="#{loginBean.logout}" styleClass="btn btn-danger"/>
+            </h:form>
+        </header>
+
+        <h:messages globalOnly="true"/>
+
+        <p>
+            <h:link outcome="/start-process" value="Start New Approval Request" styleClass="btn"/>
+        </p>
+
+        <h2>My Tasks</h2>
+        <h:form>
+            <h:dataTable value="#{dashboardBean.myTasks}" var="t"
+                         rendered="#{not empty dashboardBean.myTasks}"
+                         style="width:100%">
+                <h:column>
+                    <f:facet name="header">Task</f:facet>
+                    #{t.name}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Created</f:facet>
+                    #{t.createTime}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Process Instance</f:facet>
+                    #{t.processInstanceId}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Action</f:facet>
+                    <h:commandButton value="Open" action="#{dashboardBean.openTask(t.id)}" styleClass="btn"/>
+                </h:column>
+            </h:dataTable>
+        </h:form>
+        <p class="empty" rendered="#{empty dashboardBean.myTasks}">No tasks assigned to you.</p>
+
+        <h2>My Started Processes</h2>
+        <h:dataTable value="#{dashboardBean.myProcesses}" var="p"
+                     rendered="#{not empty dashboardBean.myProcesses}"
+                     style="width:100%">
+            <h:column>
+                <f:facet name="header">Business Key</f:facet>
+                #{p.businessKey}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Instance ID</f:facet>
+                #{p.id}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Started</f:facet>
+                #{p.startTime}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Ended?</f:facet>
+                #{p.ended}
+            </h:column>
+        </h:dataTable>
+        <p class="empty" rendered="#{empty dashboardBean.myProcesses}">You have not started any processes yet.</p>
+    </h:panelGroup>
+</h:body>
+</html>

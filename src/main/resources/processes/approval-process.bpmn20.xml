@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI"
+             typeLanguage="http://www.w3.org/2001/XMLSchema"
+             expressionLanguage="http://www.w3.org/1999/XPath"
+             targetNamespace="http://www.example.com/approval">
+
+    <process id="approvalProcess" name="Purchase Approval Process" isExecutable="true">
+
+        <!-- Start Event -->
+        <startEvent id="startEvent" name="Start"/>
+
+        <!-- Sequence to Manager Approval -->
+        <sequenceFlow id="flow_start_to_manager" sourceRef="startEvent" targetRef="managerApprovalTask"/>
+
+        <!-- Manager Approval User Task - dynamic assignee via Spring bean expression -->
+        <userTask id="managerApprovalTask"
+                  name="Manager Approval"
+                  flowable:assignee="${approvalService.getManager(execution)}">
+            <documentation>Manager reviews the request for their department.</documentation>
+        </userTask>
+
+        <sequenceFlow id="flow_manager_to_gateway" sourceRef="managerApprovalTask" targetRef="managerDecisionGateway"/>
+
+        <!-- Exclusive Gateway after Manager -->
+        <exclusiveGateway id="managerDecisionGateway" name="Manager Decision"/>
+
+        <!-- Approve path -->
+        <sequenceFlow id="flow_manager_approve" sourceRef="managerDecisionGateway" targetRef="financeApprovalTask">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${approved == true}]]></conditionExpression>
+        </sequenceFlow>
+
+        <!-- Reject path - back to initiator -->
+        <sequenceFlow id="flow_manager_reject" sourceRef="managerDecisionGateway" targetRef="updateRequestTask">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${approved == false}]]></conditionExpression>
+        </sequenceFlow>
+
+        <!-- Finance Approval User Task -->
+        <userTask id="financeApprovalTask"
+                  name="Finance Approval"
+                  flowable:assignee="${approvalService.getFinanceApprover(execution)}">
+            <documentation>Finance reviews the amount and approves/rejects.</documentation>
+        </userTask>
+
+        <sequenceFlow id="flow_finance_to_gateway" sourceRef="financeApprovalTask" targetRef="financeDecisionGateway"/>
+
+        <!-- Exclusive Gateway after Finance -->
+        <exclusiveGateway id="financeDecisionGateway" name="Finance Decision"/>
+
+        <!-- Finance Approve -> End -->
+        <sequenceFlow id="flow_finance_approve" sourceRef="financeDecisionGateway" targetRef="endEvent">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${approved == true}]]></conditionExpression>
+        </sequenceFlow>
+
+        <!-- Finance Reject -> back to initiator -->
+        <sequenceFlow id="flow_finance_reject" sourceRef="financeDecisionGateway" targetRef="updateRequestTask">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${approved == false}]]></conditionExpression>
+        </sequenceFlow>
+
+        <!-- Update Request Task (for initiator after rejection) -->
+        <userTask id="updateRequestTask"
+                  name="Update Request"
+                  flowable:assignee="${initiator}">
+            <documentation>Initiator updates the request after rejection and resubmits.</documentation>
+        </userTask>
+
+        <!-- After update, decide where to go back based on rejectedBy variable -->
+        <sequenceFlow id="flow_update_to_gateway" sourceRef="updateRequestTask" targetRef="resubmitGateway"/>
+
+        <exclusiveGateway id="resubmitGateway" name="Resubmit Decision"/>
+
+        <!-- If rejected by manager -> back to manager -->
+        <sequenceFlow id="flow_back_to_manager" sourceRef="resubmitGateway" targetRef="managerApprovalTask">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${rejectedBy == 'manager'}]]></conditionExpression>
+        </sequenceFlow>
+
+        <!-- If rejected by finance -> back to finance -->
+        <sequenceFlow id="flow_back_to_finance" sourceRef="resubmitGateway" targetRef="financeApprovalTask">
+            <conditionExpression xsi:type="tFormalExpression"><![CDATA[${rejectedBy == 'finance'}]]></conditionExpression>
+        </sequenceFlow>
+
+        <!-- End Event -->
+        <endEvent id="endEvent" name="End"/>
+
+    </process>
+
+    <!-- BPMN Diagram (optional visual layout) -->
+    <bpmndi:BPMNDiagram id="BPMNDiagram_approvalProcess">
+        <bpmndi:BPMNPlane id="BPMNPlane_approvalProcess" bpmnElement="approvalProcess">
+            <bpmndi:BPMNShape id="shape_start" bpmnElement="startEvent">
+                <omgdc:Bounds x="100" y="200" width="30" height="30"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="shape_manager" bpmnElement="managerApprovalTask">
+                <omgdc:Bounds x="200" y="180" width="120" height="70"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="shape_manager_gw" bpmnElement="managerDecisionGateway">
+                <omgdc:Bounds x="370" y="195" width="40" height="40"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="shape_finance" bpmnElement="financeApprovalTask">
+                <omgdc:Bounds x="470" y="180" width="120" height="70"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="shape_finance_gw" bpmnElement="financeDecisionGateway">
+                <omgdc:Bounds x="640" y="195" width="40" height="40"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="shape_update" bpmnElement="updateRequestTask">
+                <omgdc:Bounds x="370" y="320" width="120" height="70"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="shape_resubmit_gw" bpmnElement="resubmitGateway">
+                <omgdc:Bounds x="400" y="430" width="40" height="40"/>
+            </bpmndi:BPMNShape>
+            <bpmndi:BPMNShape id="shape_end" bpmnElement="endEvent">
+                <omgdc:Bounds x="740" y="200" width="30" height="30"/>
+            </bpmndi:BPMNShape>
+        </bpmndi:BPMNPlane>
+    </bpmndi:BPMNDiagram>
+</definitions>
