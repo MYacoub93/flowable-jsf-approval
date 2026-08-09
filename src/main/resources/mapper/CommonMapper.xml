@@ -1,0 +1,1448 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!DOCTYPE mapper PUBLIC '-//mybatis.org//DTD Mapper 3.0//EN'
+  'http://mybatis.org/dtd/mybatis-3-mapper.dtd'>
+
+<mapper namespace="com.ats.bpm.common.service.CommonMapper">
+    
+    <cache type="org.mybatis.caches.ehcache.EhcacheCache"/>
+    
+    
+    
+    <insert  id="processSynchUser"        
+             statementType="PREPARED"
+             flushCache="true"
+             parameterType="map">       
+          
+        INSERT INTO BPM_SYNCH_LOG (
+        USERNAME, STATUS, ENTRY_DATE) 
+        VALUES ( #{username}, 1,sysdate)
+        
+    </insert>
+      
+      
+    <select id="pingDB"        
+            statementType="PREPARED"
+            useCache="true"
+            resultType="String">
+        select 1 from dual
+        
+    </select>
+    
+    <select id="getValidatedManager"        
+            statementType="PREPARED"
+            useCache="false"
+            parameterType="string"
+            resultType="ValidatedManagerBean">
+       
+        SELECT DECODE (
+        a.staff_id,
+        B.STAFF_ID, (SELECT X.STAFF_ID
+        FROM HRS_STAFF x, hrs_sections z
+        WHERE     z.SECTION_NO = B.PARENT_SECTION
+        AND X.STAFF_ID = Z.STAFF_ID),
+        (SELECT X.STAFF_ID
+        FROM HRS_STAFF x
+        WHERE X.STAFF_ID = B.STAFF_ID))
+        managerId,
+        lower(DECODE (
+        a.staff_id,
+        B.STAFF_ID, (SELECT X.SAM_ACCOUNT_NAME
+        FROM HRS_STAFF x, hrs_sections z
+        WHERE     z.SECTION_NO = B.PARENT_SECTION
+        AND X.STAFF_ID = Z.STAFF_ID),
+        (SELECT X.SAM_ACCOUNT_NAME
+        FROM HRS_STAFF x
+        WHERE X.STAFF_ID = B.STAFF_ID)))
+        managerUsername,
+        DECODE (
+        (SELECT DECODE (B.PARENT_SECTION,
+        1, DECODE (A.STAFF_ID, B.STAFF_ID, 1, 0),
+        0)
+        FROM hrs_staff x, hrs_sections b
+        WHERE     x.section_no = b.section_no
+        AND x.sam_account_name IS NOT NULL
+        AND x.STAFF_ID = A.STAFF_ID),
+        1, B.PARENT_SECTION,
+        B.SECTION_NO)
+        managerSection,
+        (SELECT DECODE (B.PARENT_SECTION,
+        1, DECODE (A.STAFF_ID, B.STAFF_ID, 1, 0),
+        0)
+        FROM hrs_staff x, hrs_sections b
+        WHERE     x.section_no = b.section_no
+        AND x.sam_account_name IS NOT NULL
+        AND x.STAFF_ID = A.STAFF_ID)
+        topDirector
+        FROM HRS_STAFF a, HRS_SECTIONS b
+        WHERE A.STAFF_ID = #{userId} AND A.SECTION_NO = B.SECTION_NO
+        
+        
+    </select>
+    
+    <select id="getUserDepts"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="String">
+        select A.DEPT_CODE deptCode from sis_depts a
+        where A.INSTRUCTOR_ID = #{userId}
+        
+    </select>
+    
+    <select id="getUserFaculties"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="String">
+        
+        select A.FACULTY_CODE facultyCode from SIS_FACULTIES  a
+        where A.INSTRUCTOR_ID = #{userId}
+        
+    </select>
+    
+    <select id="getDeanOfCollege"        
+            statementType="PREPARED"
+            useCache="true"
+            parameterType="Map"
+            resultType="string">
+        
+        
+        SELECT lower(B.WEB_NAME) 
+        FROM SIS_FACULTIES a, SIS_INSTRUCTORS B
+        where a.faculty_no = #{facultyNo}
+        and A.INSTRUCTOR_ID = B.INSTRUCTOR_ID
+       
+    </select>
+    <select id="getCollegeCode"        
+            statementType="PREPARED"
+            useCache="true"
+            parameterType="Map"
+            resultType="string">
+        
+        
+        SELECT A.FACULTY_CODE facultyCode
+        FROM SIS_FACULTIES a 
+        where a.faculty_no = #{facultyNo}
+       
+    </select>
+    
+    <select id="getDepartments"        
+            statementType="PREPARED"
+            useCache="true"
+            parameterType="Map"
+            resultType="DepartmentBean">
+    
+        SELECT A.DEPT_NO deptNo,
+        A.DEPT_CODE deptCode,
+        A.DEPT_NAME deptName,
+        A.DEPT_NAME_S deptNameS,
+        A.INSTRUCTOR_ID managerId
+        FROM SIS_DEPTS a 
+        where a.FACULTY_NO = #{facultyNo}
+            
+    </select>
+    
+    <select id="getHeadOfDepartment"        
+            statementType="PREPARED"
+            useCache="true"
+            parameterType="Map"
+            resultType="string">
+    
+        SELECT lower(B.WEB_NAME)
+        FROM SIS_DEPTS a, SIS_INSTRUCTORS B 
+        where a.FACULTY_NO = #{facultyNo}
+        and a.dept_no = #{deptNo}
+        and A.INSTRUCTOR_ID = B.INSTRUCTOR_ID
+            
+    </select>
+    
+    <select id="getDepartmentCode"        
+            statementType="PREPARED"
+            useCache="true"
+            parameterType="Map"
+            resultType="string">
+    
+        SELECT A.DEPT_CODE  deptCode
+        FROM SIS_DEPTS a 
+        where a.FACULTY_NO = #{facultyNo}
+        and a.dept_no = #{deptNo}
+            
+    </select>
+    
+    <select id="getRoles"        
+            statementType="PREPARED"
+            useCache="true"
+            parameterType="Map"
+            resultType="RoleBean">
+    
+        SELECT ROLE_ID jobNo,
+        ROLE_NAME jobName,
+        ROLE_NAME_S jobNameS,
+        ROLE_CODE jobCode
+        FROM web_roles
+        
+            
+    </select>
+    
+    <select id="getSISUsers"        
+            statementType="PREPARED"
+            useCache="true"
+            parameterType="Map"
+            resultType="UserBean">
+    
+        SELECT default_role defaultRole,
+        key_type keyType,
+        username,
+        trim(DECODE (INSTR (pass, CHR (10)),
+        0, pass,
+        SUBSTR (pass, 0, INSTR (pass, CHR (10)))))
+        password,
+        web_enabled webEnabled,
+        user_id userId
+        FROM (SELECT default_role,
+        key_type,
+        lower(web_name) username,
+        nvl(dic_pkg.decrypt_data ('a1t1s25375752334', web_password), trim(web_name)) pass,
+        NVL (is_web_enabled, 0) web_enabled,
+        a.user_id user_id
+        FROM web_users_vw a, web_roles b
+        WHERE     b.role_id = a.default_role
+        AND A.IS_WEB_ENABLED = 1
+        and A.WEB_NAME is not null
+        and not exists (select 1 from bpm_synch_log x where LOWER (web_name) = lower(x.username) and x.status = 1))
+           
+    </select>
+    
+    <select id="getFaculties"        
+            statementType="PREPARED"
+            useCache="true"
+            parameterType="Map"
+            resultType="FacultyBean">
+        
+        
+        SELECT A.FACULTY_NO facultyNo,
+        A.FACULTY_CODE facultyCode,
+        A.FACULTY_NAME facultyName,
+        A.FACULTY_NAME_S facultyNameS,
+        A.INSTRUCTOR_ID managerId
+        FROM SIS_FACULTIES a 
+       
+    </select>
+    
+    <select id="getStudentAcademicSemester"        
+            statementType="PREPARED"
+            useCache="true"
+            parameterType="Map"
+            resultType="SemesterBean">
+        
+        select semester, 
+        sis_getters.get_semester_desc(semester, #{arabicLang}) semesterDesc,      
+        sis_getters.get_semester_desc(semester, #{englishLang}) semesterDescS      
+        from    sis_academic_records
+        where   student_id  =   #{studentId}
+        order by semester desc
+        
+    </select>
+    
+    <select id="getSemestersLookup" 
+            statementType="PREPARED" 
+            parameterType="map"
+            resultType="SemestersLookupBean" 
+            useCache="false">
+        
+        SELECT prev_semester previousSemester,
+        sis_getters.get_semester_desc (prev_semester, #{arabicLang}) previousSemesterDesc,
+        sis_getters.get_semester_desc (prev_semester, #{englishLang}) previousSemesterDescS,
+        current_semester currentSemester,
+        sis_getters.get_semester_desc (current_semester, #{arabicLang}) currentSemesterDesc,
+        sis_getters.get_semester_desc (current_semester, #{englishLang}) currentSemesterDescS,
+        reg_semester regSemester,
+        sis_getters.get_semester_desc (reg_semester, #{arabicLang}) regSemesterDesc,
+        sis_getters.get_semester_desc (reg_semester, #{englishLang}) regSemesterDescS,
+        activated_semester activatedSemester,
+        sis_getters.get_semester_desc (activated_semester, #{arabicLang}) activatedSemesterDesc,
+        sis_getters.get_semester_desc (activated_semester, #{englishLang}) activatedSemesterDescS,
+        admission_semester admissionSemester,
+        sis_getters.get_semester_desc(admission_semester, #{arabicLang}) admissionSemesterDesc,
+        sis_getters.get_semester_desc(admission_semester, #{englishLang}) admissionSemesterDescS,
+        prepared_semester preparedSemester,
+        sis_getters.get_semester_desc(prepared_semester, #{arabicLang}) preparedSemesterDesc,
+        sis_getters.get_semester_desc(prepared_semester, #{englishLang}) preparedSemesterDescS
+        from (select (select max (semester)
+        from sis_semesters
+        where semester &lt; sis_getters.get_semester ())
+        prev_semester,
+        sis_getters.get_semester () current_semester,
+        (select max (semester)
+        from sis_semesters
+        where is_prepared = 1)
+        reg_semester,
+        (select max (semester)
+        from sis_semesters
+        where is_activated = 1)
+        activated_semester,
+        (select max (semester)
+        from sis_academic_calendar
+        where item_code = 15
+        and      trunc(sysdate) between  start_date and end_date)
+        admission_semester,
+        (select max(semester) semester
+        from    sis_semesters
+        where nvl(is_prepared, 0) = 1) prepared_semester
+        from dual)
+        
+    </select>
+    
+    
+    <select   id="getEmployeeInfo" 
+              parameterType="Map" 
+              statementType="PREPARED" 
+              resultType="EmployeeInfoBean"
+              useCache="false">
+        select user_id userId, 
+        user_name userName,
+        user_name_s userNameS,
+        web_admin_type webAdminType
+        from   dic_users
+        where  lower(NICK_NAME)  = lower(#{username})
+    </select>
+        
+    <select   id="getStaffInfo" 
+              parameterType="Map" 
+              statementType="PREPARED" 
+              resultType="StaffInfoBean"
+              useCache="false">
+        
+        select  a.instructor_id instructorId, 
+        instructor_name instructorName,
+        instructor_name_s instructorNameS,
+        a.degree_code degreeCode, 
+        a.faculty_no facultyNo, 
+        a.gender gender,a.dept_no departmentNo,
+        sis_getters.get_faculty(a.faculty_no, #{arabicLang}) facultyName,
+        sis_getters.get_faculty(a.faculty_no, #{englishLang}) facultyNameS,
+        sis_getters.get_dept(a.faculty_no, a.dept_no, #{arabicLang}) departmentName,
+        sis_getters.get_dept(a.faculty_no, a.dept_no, #{englishLang}) departmentNameS, 
+        nvl(a.is_active, 0) status,
+        a.email email, 
+        b.instructor_id deanOfFaculty, 
+        c.instructor_id headOfDepartment,
+        lower(A.WEB_NAME) username
+        from    sis_instructors a, sis_faculties b, sis_depts c
+        where   lower(a.WEB_NAME) = lower(#{userName})
+        and     a.faculty_no = b.faculty_no
+        and     b.faculty_no = c.faculty_no
+        and     a.dept_no = c.dept_no
+        
+    </select>
+        
+
+    <select   id="getStudentTotalBalance" 
+              parameterType="string" 
+              statementType="PREPARED" 
+              resultType="String"
+              useCache="false">
+      
+        Select round(web_pkg.get_cum_balance(#{studentId}, 99999), 2) totalBalance from dual
+
+    </select>
+
+        
+    <select   id="getStudentInfo" 
+              parameterType="Map" 
+              statementType="PREPARED" 
+              resultType="StudentInfoBean"
+              useCache="false">
+        
+        select a.student_id studentId, 
+        (a.first_name || ' ' || a.father_name || ' ' || a.mid_name || ' ' || a.last_name) studentName,
+        (a.first_name_s || ' ' || a.father_name_s || ' ' || a.mid_name_s || ' ' || a.last_name_s) studentNameS,
+        a.degree_code degreeCode, 
+        a.study_code studyCode, 
+        a.status_code statusCode,
+        a.campus_no campusNo, 
+        a.faculty_no facultyNo,
+        a.gender gender,
+        b.plan_type planType, 
+        b.edition planEdition,
+        c.major_no majorNo,
+        c.dept_no deptNo,
+        sis_getters.get_faculty(a.faculty_no, #{arabicLang}) facultyName, 
+        sis_getters.get_faculty(a.faculty_no, #{englishLang}) facultyNameS, 
+        major_name majorName,
+        major_name_s majorNameS,
+        sis_getters.get_dept(a.faculty_no, c.dept_no, #{arabicLang}) deptName,
+        sis_getters.get_dept(a.faculty_no, c.dept_no, #{englishLang}) deptNameS,
+        sis_getters.get_campus(a.campus_no, #{arabicLang}) campusName, 
+        sis_getters.get_campus(a.campus_no, #{englishLang}) campusNameS, 
+        d.total_hrs totalHours, 
+        sis_getters.get_ststatus(a.status_code, #{arabicLang})statusDesc, 
+        sis_getters.get_ststatus(a.status_code, #{englishLang})statusDescS, 
+        sis_getters.get_study_type(a.study_code, #{arabicLang}) studyDesc,
+        sis_getters.get_study_type(a.study_code, #{englishLang}) studyDescS,
+        a.email email,
+        a.MOBILE_PHONE as mobile,
+        a.perm_mobile as permMobile,
+        a.PERM_ADDRESS as address,
+        sis_reg_pkg.get_std_system_edition(A.STUDENT_ID, null) edition,
+        sis_reg_pkg.get_std_system(A.STUDENT_ID, null) systemCode,
+        A.JOIN_SEMESTER joinSemester,
+        sis_getters.get_semester_desc (A.JOIN_SEMESTER, #{arabicLang}) joinSemesterDesc,
+        sis_getters.get_semester_desc (A.JOIN_SEMESTER, #{englishLang}) joinSemesterDescS,
+        A.GRADUATION_SEMESTER graduationSemester,
+        sis_getters.get_semester_desc (A.GRADUATION_SEMESTER, #{arabicLang}) graduationSemesterDesc,
+        sis_getters.get_semester_desc (A.GRADUATION_SEMESTER, #{englishLang}) graduationSemesterDescS,
+        a.photo_path systemPhoto,
+        (select SIS_GETTERS.GET_INSTRUCTOR_NAME(E.INSTRUCTOR_ID,#{arabicLang}) from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID) advisorName,
+        (select SIS_GETTERS.GET_INSTRUCTOR_NAME(E.INSTRUCTOR_ID,#{englishLang}) from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID) advisorNameS,
+        (select lower(web_name) from sis_instructors z where instructor_id = (select E.INSTRUCTOR_ID from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID)) advisorWebName ,
+        (select instructor_id from sis_instructors z where instructor_id = (select E.INSTRUCTOR_ID from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID)) advisorId ,
+        A.NATIONALITY_CODE nationality,
+        e.NATIONALITY nationalityDesc,
+        e.NATIONALITY_S nationalityDescS,
+        decode(e.IS_HOME_LAND, 1, 1, 0) isCitizen,
+        (SELECT A.YEAR_DESC 
+        FROM SIS_STUDY_YEARS a, SIS_STUDY_SEMESTERS b
+        WHERE A.YEAR_CODE = B.YEAR_CODE AND B.SEMESTER = SIS_GETTERS.GET_SEMESTER) academicYear,
+        (SELECT A.YEAR_DESC_S
+        FROM SIS_STUDY_YEARS a, SIS_STUDY_SEMESTERS b
+        WHERE A.YEAR_CODE = B.YEAR_CODE AND B.SEMESTER = SIS_GETTERS.GET_SEMESTER) academicYearS,
+        sis_reg_pkg.get_student_gpa(a.student_id, 99999) cumStudentGPA,
+        SIS_GETTERS.GET_CUM_EARNED_HRS(a.student_id,99999) cumEarnedHours
+        from   sis_students a, sis_student_majors b, sis_majors c, sis_degree_plans d, GEN_COUNTRIES e
+        where  lower(A.WEB_NAME) = lower(#{userName})
+        and    b.is_active  = 1
+        and    a.student_id = b.student_id        
+        and    b.major_no   = c.major_no
+        and    b.major_no   = d.major_no
+        and    b.plan_type  = d.plan_type
+        and    b.edition    = d.edition
+        and   A.NATIONALITY_CODE = e.COUNTRY_NO (+)
+
+    </select>
+    
+    <select   id="getStudentById" 
+              parameterType="Map" 
+              statementType="PREPARED" 
+              resultType="StudentInfoBean"
+              useCache="false">
+        
+        select a.student_id studentId, 
+        (a.first_name || ' ' || a.father_name || ' ' || a.mid_name || ' ' || a.last_name) studentName,
+        (a.first_name_s || ' ' || a.father_name_s || ' ' || a.mid_name_s || ' ' || a.last_name_s) studentNameS,
+        a.degree_code degreeCode, 
+        a.study_code studyCode, 
+        a.status_code statusCode,
+        a.campus_no campusNo, 
+        a.faculty_no facultyNo,
+        a.gender gender,
+        b.plan_type planType, 
+        b.edition planEdition,
+        c.major_no majorNo,
+        c.dept_no deptNo,
+        sis_getters.get_faculty(a.faculty_no, #{arabicLang}) facultyName, 
+        sis_getters.get_faculty(a.faculty_no, #{englishLang}) facultyNameS, 
+        major_name majorName,
+        major_name_s majorNameS,
+        sis_getters.get_dept(a.faculty_no, c.dept_no, #{arabicLang}) deptName,
+        sis_getters.get_dept(a.faculty_no, c.dept_no, #{englishLang}) deptNameS,
+        sis_getters.get_campus(a.campus_no, #{arabicLang}) campusName, 
+        sis_getters.get_campus(a.campus_no, #{englishLang}) campusNameS, 
+        d.total_hrs totalHours, 
+        sis_getters.get_ststatus(a.status_code, #{arabicLang})statusDesc, 
+        sis_getters.get_ststatus(a.status_code, #{englishLang})statusDescS, 
+        sis_getters.get_study_type(a.study_code, #{arabicLang}) studyDesc,
+        sis_getters.get_study_type(a.study_code, #{englishLang}) studyDescS,
+        a.email email,
+        a.MOBILE_PHONE as mobile,
+        a.perm_mobile as permMobile,
+        a.PERM_ADDRESS as address,
+        sis_reg_pkg.get_std_system_edition(A.STUDENT_ID, null) edition,
+        sis_reg_pkg.get_std_system(A.STUDENT_ID, null) systemCode,
+        A.JOIN_SEMESTER joinSemester,
+        sis_getters.get_semester_desc (A.JOIN_SEMESTER, #{arabicLang}) joinSemesterDesc,
+        sis_getters.get_semester_desc (A.JOIN_SEMESTER, #{englishLang}) joinSemesterDescS,
+        A.GRADUATION_SEMESTER graduationSemester,
+        sis_getters.get_semester_desc (A.GRADUATION_SEMESTER, #{arabicLang}) graduationSemesterDesc,
+        sis_getters.get_semester_desc (A.GRADUATION_SEMESTER, #{englishLang}) graduationSemesterDescS,
+        a.photo_path systemPhoto,
+        (select SIS_GETTERS.GET_INSTRUCTOR_NAME(E.INSTRUCTOR_ID,#{arabicLang}) from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID) advisorName,
+        (select SIS_GETTERS.GET_INSTRUCTOR_NAME(E.INSTRUCTOR_ID,#{englishLang}) from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID) advisorNameS,
+        (select lower(web_name) from sis_instructors z where instructor_id = (select E.INSTRUCTOR_ID from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID)) advisorWebName ,
+        (select instructor_id from sis_instructors z where instructor_id = (select E.INSTRUCTOR_ID from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID)) advisorId ,
+        A.NATIONALITY_CODE nationality,
+        e.NATIONALITY nationalityDesc,
+        e.NATIONALITY_S nationalityDescS,
+        decode(e.IS_HOME_LAND, 1, 1, 0) isCitizen,
+        sis_reg_pkg.get_student_gpa(a.student_id, 99999) cumStudentGPA,
+        SIS_GETTERS.GET_CUM_EARNED_HRS(a.student_id,99999) cumEarnedHours
+        from   sis_students a, sis_student_majors b, sis_majors c, sis_degree_plans d, GEN_COUNTRIES e
+        where  A.student_id = #{studentId}
+        and    b.is_active  = 1
+        and    a.student_id = b.student_id        
+        and    b.major_no   = c.major_no
+        and    b.major_no   = d.major_no
+        and    b.plan_type  = d.plan_type
+        and    b.edition    = d.edition
+        and   A.NATIONALITY_CODE = e.COUNTRY_NO (+)
+
+    </select>
+    
+    <select id="getHrsUsers" 
+            parameterType="Map" 
+            statementType="PREPARED" 
+            useCache="false" 
+            resultType="UserInfoBean">
+        
+        SELECT a.staff_id staffId,
+        a.first_name firstName,
+        a.last_name lastName,
+        a.first_name
+        || ' '
+        || a.father_name
+        || ' '
+        || a.mid_name
+        || ' '
+        || a.last_name
+        staffName,
+        a.first_name_s
+        || ' '
+        || a.father_name_s
+        || ' '
+        || a.mid_name_s
+        || ' '
+        || a.last_name_s
+        staffNameS,
+        TO_CHAR (a.begin_work_date, 'dd-mm-yyyy') workStartDate,
+        lower(a.sam_account_name) samAccountName,
+        d.STATUS_DESC statusDesc,
+        d.STATUS_DESC_S statusDescS,
+        a.category_code userType,
+        e.category_desc roleDesc,
+        e.category_desc_s roleDescS,
+        B.STAFF_ID managerId,
+        lower ((SELECT X.SAM_ACCOUNT_NAME
+        FROM HRS_STAFF x
+        WHERE X.STAFF_ID = B.STAFF_ID))
+        managerUsername,
+        B.SECTION_NO sectionNo,
+        REPLACE(b.SECTION_DESC, '/', ' - ') sectionDesc, 
+        REPLACE(b.SECTION_DESC_S, '/', ' - ') sectionDescS, 
+        c.JOB_NAME jobName,
+        c.JOB_NAME_S jobNameS,
+        A.E_MAIL email,
+        A.MARITAL_STATUS martialStatus,
+        A.BLOOD_GROUP bloodGroup,
+        TO_CHAR (A.MARRIAGE_DATE, 'dd-mm-yyyy') marriageDate,
+        A.HOME_TEL homeTel,
+        A.ZIP_CODE zipCode,
+        A.POBOX poBox,
+        a.GENDER gender,
+        A.MOBILE mobile,
+        A.ADDRESS address,
+        A.FIXED_MOBILE fixMobile,
+        A.FIXED_POBOX fixPoBox,
+        A.FIXED_ZIP_CODE fixZipCode,
+        A.FIXED_ADDRESS fixAddress,
+        A.FIXED_HOME_TELL fixHomeTel,
+        a.USER_ID userId,
+        A.NATIONALITY nationality,
+        F.NATIONALITY nationalityDesc,
+        F.NATIONALITY_S nationalityDescS,
+        decode(F.IS_HOME_LAND, 1, 1, 0) isCitizen
+        FROM hrs_staff a, 
+        hrs_sections b,
+        hrs_jobs c,
+        hrs_assign_status d,
+        hrs_employment_categories e,
+        GEN_COUNTRIES f
+        WHERE     a.section_no = b.section_no
+        AND a.job_no = c.job_no
+        AND a.status_code = d.status_code
+        AND a.category_code = e.category_code
+        AND a.sam_account_name IS NOT NULL
+        and A.NATIONALITY = F.COUNTRY_NO (+)
+        AND HRS_PKG.IS_ON_DUTY(a.staff_id) = 1
+        AND A.SAM_ACCOUNT_NAME IS NOT NULL
+        and not exists (select 1 from bpm_synch_log x where LOWER (a.sam_account_name) = lower(x.username) and x.status = 1)
+        ORDER BY staffId
+        
+    </select>
+    
+    <select id="getSubsitituteUsers" 
+            parameterType="Map" 
+            statementType="PREPARED" 
+            useCache="false" 
+            resultType="UserInfoBean">
+        
+        SELECT a.staff_id staffId,
+        a.first_name
+        || ' '
+        || a.father_name
+        || ' '
+        || a.mid_name
+        || ' '
+        || a.last_name
+        staffName,
+        a.first_name_s
+        || ' '
+        || a.father_name_s
+        || ' '
+        || a.mid_name_s
+        || ' '
+        || a.last_name_s
+        staffNameS,
+        LOWER (a.sam_account_name) samAccountName,
+        nvl(c.JOB_NAME, c.JOB_NAME_S) jobName,
+        nvl(c.JOB_NAME_S, C.JOB_NAME) jobNameS,
+        A.E_MAIL email,
+        A.MOBILE mobile
+        FROM hrs_staff a,
+        hrs_sections b,
+        hrs_jobs c,
+        hrs_assign_status d,
+        hrs_employment_categories e,
+        GEN_COUNTRIES f
+        WHERE     a.section_no = b.section_no
+        AND a.job_no = c.job_no
+        AND a.status_code = d.status_code
+        AND a.category_code = e.category_code
+        AND a.sam_account_name IS NOT NULL
+        AND A.NATIONALITY = F.COUNTRY_NO(+)
+        AND D.STATUS_CODE IN (1,
+        2,
+        3,
+        4,
+        10,
+        11,
+        12)
+        AND A.SAM_ACCOUNT_NAME IS NOT NULL
+        AND EXISTS
+        (SELECT 1
+        FROM bpm_synch_log x
+        WHERE     LOWER (a.sam_account_name) = LOWER (x.username)
+        AND x.status = 1)
+        ORDER BY 2
+    </select>
+    
+    
+    <select id="getHrsGroups"        
+            statementType="PREPARED"
+            useCache="true"
+            resultType="GroupBean">
+        
+        select A.SECTION_NO sectionNo,
+        REPLACE(A.SECTION_DESC, '/', ' - ') sectionName, 
+        REPLACE(A.SECTION_DESC_S, '/', ' - ') sectionNameS, 
+        A.PARENT_SECTION parentSection,
+        A.STAFF_ID managerId
+        from hrs_sections a
+        
+    </select>
+    
+    <select id="getSectionLookup"        
+            statementType="PREPARED"
+            useCache="true"
+            resultType="EventSectionBean">
+        
+        select A.SECTION_NO sectionNo,
+        A.SECTION_DESC sectionDesc, 
+        nvl(A.SECTION_DESC_S,A.SECTION_DESC)  sectionDescS, 
+        A.PARENT_SECTION parentSection,
+        A.STAFF_ID managerId,
+        HRS_PKG.GET_STAFF_NAME(staff_id,4) managerName,
+        lower((select B.SAM_ACCOUNT_NAME from hrs_staff b where A.STAFF_ID = B.STAFF_ID)) managerUsername
+        FROM hrs_sections A
+        WHERE A.IS_ASSIGN_JOB = 1
+        AND A.STAFF_ID IS NOT NULL
+        CONNECT BY
+        PRIOR A.SECTION_NO = A.PARENT_SECTION
+        START WITH
+        A.SECTION_NO = 1
+        
+    </select>
+    
+    <select id="getHrsGroupManager"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="GroupBean">
+        
+        select A.SECTION_NO sectionNo,
+        REPLACE(A.SECTION_DESC, '/', ' - ') sectionName, 
+        REPLACE(A.SECTION_DESC_S, '/', ' - ') sectionNameS, 
+        A.PARENT_SECTION parentSection,
+        A.STAFF_ID managerId,
+        lower((select X.SAM_ACCOUNT_NAME from HRS_STAFF x where X.STAFF_ID = A.STAFF_ID)) managerUsername, 
+        decode(A.PARENT_SECTION, 1 , 1 , 0 ) director
+        from hrs_sections a
+        where A.SECTION_NO = #{sectionNo}
+        
+    </select>
+    
+    <select id="getHrsRoles"        
+            statementType="PREPARED"
+            useCache="true"
+            resultType="RoleBean">
+        
+        select A.JOB_NO jobNo, 
+        A.JOB_NAME jobName, 
+        A.JOB_NAME_S jobNameS
+        from hrs_jobs a
+        
+    </select>
+    
+    <select id="getWorkFlowRequestNo"
+            resultType="String"
+            useCache="false"
+            statementType="PREPARED">
+        
+        select nvl(max(REQUEST_NO),0) + 1 from WOF_STUDENT_REQUESTS
+        
+    </select>
+    
+    <select id="getTransactionSeqNo"
+            resultType="String"
+            useCache="false"
+            statementType="PREPARED"> 
+        
+        select nvl(max(SEQ),0) + 1 from sas_wof_transactions
+        
+    </select>
+   
+    <select id="validateUserInfo"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="UserInfoBean">
+    
+        SELECT DECODE (B.PARENT_SECTION, 1, DECODE (A.STAFF_ID, B.STAFF_ID, 1, 0), 0)
+        isDirector,
+        B.SECTION_NO sectionNo
+        FROM hrs_staff a, hrs_sections b
+        WHERE     a.section_no = b.section_no
+        AND a.sam_account_name IS NOT NULL
+        AND A.STAFF_ID = #{staffId}
+    </select>
+    
+    
+    <select id="getHrsUserInfo"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="UserInfoBean">
+        
+        SELECT a.staff_id staffId,
+        a.first_name firstName,
+        a.last_name lastName,
+        a.first_name
+        || ' '
+        || a.father_name
+        || ' '
+        || a.mid_name
+        || ' '
+        || a.last_name
+        staffName,
+        a.first_name_s
+        || ' '
+        || a.father_name_s
+        || ' '
+        || a.mid_name_s
+        || ' '
+        || a.last_name_s
+        staffNameS,
+        TO_CHAR (a.begin_work_date, 'dd-mm-yyyy') workStartDate,
+        LOWER (a.sam_account_name) samAccountName,
+        d.STATUS_DESC statusDesc,
+        d.STATUS_DESC_S statusDescS,
+        a.category_code userType,
+        e.category_desc roleDesc,
+        e.category_desc_s roleDescS,
+        DECODE (a.staff_id,
+        B.STAFF_ID, (SELECT X.STAFF_ID
+        FROM HRS_STAFF x, hrs_sections z
+        where z.SECTION_NO = B.PARENT_SECTION
+        and X.STAFF_ID = Z.STAFF_ID),
+        (SELECT X.STAFF_ID
+        FROM HRS_STAFF x
+        WHERE X.STAFF_ID = B.STAFF_ID))
+        managerId,
+        lower (DECODE (a.staff_id,
+        B.STAFF_ID, (SELECT X.SAM_ACCOUNT_NAME
+        FROM HRS_STAFF x, hrs_sections z
+        where  z.SECTION_NO = B.PARENT_SECTION
+        and X.STAFF_ID = Z.STAFF_ID),
+        (SELECT X.SAM_ACCOUNT_NAME
+        FROM HRS_STAFF x
+        WHERE X.STAFF_ID = B.STAFF_ID)))
+        managerUsername,
+        B.SECTION_NO sectionNo,
+        REPLACE (b.SECTION_DESC, '/', ' - ') sectionDesc,
+        REPLACE (b.SECTION_DESC_S, '/', ' - ') sectionDescS,
+        c.JOB_NAME jobName,
+        c.JOB_NAME_S jobNameS,
+        A.E_MAIL email,
+        A.MARITAL_STATUS martialStatus,
+        A.BLOOD_GROUP bloodGroup,
+        TO_CHAR (A.MARRIAGE_DATE, 'dd-mm-yyyy') marriageDate,
+        A.HOME_TEL homeTel,
+        A.ZIP_CODE zipCode,
+        A.POBOX poBox,
+        a.GENDER gender,
+        A.MOBILE mobile,
+        A.ADDRESS address,
+        A.FIXED_MOBILE fixMobile,
+        A.FIXED_POBOX fixPoBox,
+        A.FIXED_ZIP_CODE fixZipCode,
+        A.FIXED_ADDRESS fixAddress,
+        A.FIXED_HOME_TELL fixHomeTel,
+        a.USER_ID userId,
+        A.NATIONALITY nationality,
+        F.NATIONALITY nationalityDesc,
+        F.NATIONALITY_S nationalityDescS,
+        DECODE (F.IS_HOME_LAND, 1, 1, 0) isCitizen,
+        DECODE (B.PARENT_SECTION, 1, decode(A.STAFF_ID, B.STAFF_ID, 1, 0), 0) isDirector
+        FROM hrs_staff a,
+        hrs_sections b,
+        hrs_jobs c,
+        hrs_assign_status d,
+        hrs_employment_categories e,
+        GEN_COUNTRIES f
+        WHERE     a.section_no = b.section_no
+        AND a.job_no = c.job_no
+        AND a.status_code = d.status_code
+        AND a.category_code = e.category_code
+        AND a.sam_account_name IS NOT NULL
+        AND A.NATIONALITY = F.COUNTRY_NO(+)
+        AND HRS_PKG.IS_ON_DUTY(a.staff_id) = 1
+        AND TRIM (lower(A.SAM_ACCOUNT_NAME)) = TRIM (lower(#{username}))
+        ORDER BY staffId
+        
+    </select>
+    
+    <select id="getAuthorizedHrStaffs"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="UserInfoBean">
+        
+        select
+        staff_id staffId,
+        first_name||' '||father_name||' '||last_name staffName,
+        first_name_s||' '||father_name_s||' '||last_name_s staffNameS
+        from hrs_staff
+        order by staff_id
+        
+    </select>
+    
+    <select id="isStaffExists"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="string">
+        
+        select Flow_pkg.is_staff_is_exists(#{staffId}) from dual
+       
+        
+    </select>
+    
+    <select id="isStaffWorking"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="string">
+        
+        select Flow_pkg.is_staff_is_working (#{staffId}) from dual
+        
+    </select>
+    
+    <select id="getCountries"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="CountryBean">
+        SELECT country_no countryNo,
+        country_name countryName,
+        country_name_s countryNameS
+        FROM gen_countries
+        where IS_COUNTRY_ACTIVE = 1
+    </select>
+    
+    <select id="getNationalities"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="NationalityBean">
+        select  a.country_no nationalityCode,
+        A.NATIONALITY nationalityDesc ,
+        A.NATIONALITY_S nationalityDescS
+        from    gen_countries a
+        where IS_COUNTRY_ACTIVE = 1
+        order by 1
+    </select>
+    
+    <select id="getCities"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="CityBean">       
+        select  city_no cityNo,
+        city_name cityName,
+        city_name_s cityNameS
+        from    gen_cities
+        where   country_no  = #{countryNo} 
+        order by 1
+
+    </select>
+    
+    <select id="getDaysLookup"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="DaysBean">       
+        SELECT DAY_NAME dayName,
+        DAY_NAME_S dayNameS, 
+        DAY_NO dayNo 
+        FROM gen_week_days_VW
+
+    </select>
+    
+    <insert  id="insertStaffTimeSheet"        
+             statementType="PREPARED"
+             flushCache="true"
+             parameterType="map">       
+        INSERT INTOHRS_ATTENDANCE_FILES_VW (SERIAL,
+        FILE_TYPE,
+        CARD_NO,
+        STAFF_NAME,
+        TRANS_DATE,
+        TIME_IN,
+        TIME_OUT,
+        IS_POSTED,
+        ENTRY_USER,
+        ENTRY_DATE,
+        TERMINAL,
+        OS_USER)
+        VALUES ( (select nvl(MAX(SERIAL),0) + 1 from HRS_ATTENDANCE_FILES_VW),
+        1,
+        #{staffId},
+        null,
+        SYSDATE,
+        #{timeIn}, 
+        #{timeout}, 
+        0,       -4,         sysdate,   #{terminal}, #{osUser})
+
+    </insert>
+
+
+    <select id="getCurrentTime"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="String">
+        select to_char( sysdate, 'HH24:MI:SS' ) as sysdate_format from dual
+        
+    </select>
+
+    <select id="isDeanOfCollege"        
+            statementType="PREPARED"
+            useCache="false"
+            parameterType="string"
+            resultType="string">
+    
+        select distinct 1 
+        from sis_faculties 
+        where  INSTRUCTOR_ID = #{instructorId}     
+        
+    </select>
+    
+    <select id="isHeadOfDepartment"        
+            statementType="PREPARED"
+            useCache="false"
+            parameterType="string"
+            resultType="string">
+    
+        select distinct 1 
+        from sis_depts 
+        where  INSTRUCTOR_ID = #{instructorId}     
+        
+    </select>
+    
+    <select id="getDeanFaculties"        
+            statementType="PREPARED"
+            useCache="false"
+            parameterType="string"
+            resultType="FacultyBean">
+    
+        select faculty_no facultyNo,
+        faculty_name facultyName,
+        faculty_name_s facultyNameS,
+        faculty_code facultyCode
+        from sis_faculties 
+        where  INSTRUCTOR_ID = #{instructorId}   
+
+    </select>    
+    
+    <select id="getTransactionSemester" 
+            statementType="PREPARED"
+            resultType="SemesterBean"
+            parameterType="map"
+            useCache="false">  
+         
+        select max(semester) semester,
+        sis_getters.get_semester_Desc(max(semester), #{arabicLang}) semesterDesc,
+        sis_getters.get_semester_Desc(max(semester),#{englishLang}) semesterDescS
+        from sis_semesters
+        where nvl(is_prepared, 0) = 1
+        union
+        select sis_getters.get_semester semester,
+        sis_getters.get_semester_Desc(sis_getters.get_semester, #{arabicLang}) semesterDesc,
+        sis_getters.get_semester_Desc(sis_getters.get_semester, #{englishLang}) semesterDescS
+        from dual
+        order by 1
+        
+    </select>    
+
+    <select   id="getStaffSemesters" 
+              parameterType="Map" 
+              resultType="SemesterBean"
+              statementType="PREPARED" 
+              useCache="false">
+         
+        Select distinct semester as semester, 
+        sis_getters.get_semester_desc(semester, #{arabicLang}) semesterDesc
+        sis_getters.get_semester_desc(semester, #{englishLang}) semesterDescS
+        from   sis_section_instructors
+        where  instructor_id = #{staffId}
+        order by semester desc
+         
+    </select>
+    
+    <select   id="getStudentSemesters" 
+              parameterType="Map" 
+              resultType="SemesterBean"
+              statementType="PREPARED" 
+              useCache="false">
+         
+        Select distinct semester as semester, 
+        sis_getters.get_semester_desc(semester, #{arabicLang}) semesterDesc
+        sis_getters.get_semester_desc(semester, #{englishLang}) semesterDescS
+        from   SIS_ACADEMIC_RECORDS a
+        where  A.STUDENT_ID = #{studentId}
+        and exists (select 1 from sis_student_activities b where B.STUDENT_ID = A.STUDENT_ID and A.SEMESTER = B.SEMESTER)
+        order by semester desc
+         
+    </select>
+    
+    <select id="getAcademicSemesters" 
+            resultType="SemesterBean"
+            statementType="PREPARED" 
+            parameterType="map"
+            useCache="false">
+        
+        Select distinct semester as semester, 
+        sis_getters.get_semester_desc(semester, #{arabicLang}) semesterDesc
+        sis_getters.get_semester_desc(semester, #{englishLang}) semesterDescS
+        from   sis_semesters
+        order by semester desc
+
+    </select>
+    
+    <select id="getServiceCernters" 
+            resultType="HrsSectionBean"
+            statementType="PREPARED" 
+            parameterType="map"
+            useCache="false">
+        
+        select A.SECTION_NO sectionNo,
+        REPLACE(A.SECTION_DESC, '/', ' - ') sectionName, 
+        REPLACE(A.SECTION_DESC_S, '/', ' - ') sectionNameS, 
+        A.PARENT_SECTION parentSection,
+        A.STAFF_ID managerId,
+        lower(B.SAM_ACCOUNT_NAME) managerUsername
+        from hrs_sections a, hrs_staff b
+        where nvl(A.IS_SERVICE_SECTION,0) = 1
+        and A.STAFF_ID = B.STAFF_ID (+)
+        order by 1
+        
+    </select>
+    
+    
+    <select id="getHrsSectionUsers"        
+            statementType="PREPARED"
+            useCache="false"
+            parameterType="string"
+            resultType="UserInfoBean">
+         
+        SELECT a.staff_id staffId,
+        a.first_name firstName,
+        a.last_name lastName,
+        a.first_name
+        || ' '
+        || a.father_name
+        || ' '
+        || a.mid_name
+        || ' '
+        || a.last_name
+        staffName,
+        a.first_name_s
+        || ' '
+        || a.father_name_s
+        || ' '
+        || a.mid_name_s
+        || ' '
+        || a.last_name_s
+        staffNameS,
+        TO_CHAR (a.begin_work_date, 'dd-mm-yyyy') workStartDate,
+        lower(a.sam_account_name) samAccountName,
+        d.STATUS_DESC statusDesc,
+        d.STATUS_DESC_S statusDescS,
+        a.category_code userType,
+        e.category_desc roleDesc,
+        e.category_desc_s roleDescS,
+        B.SECTION_NO sectionNo,
+        b.SECTION_DESC sectionDesc,
+        b.SECTION_DESC_S sectionDescS,
+        c.JOB_NAME jobName,
+        c.JOB_NAME_S jobNameS,
+        A.E_MAIL email,
+        A.MOBILE mobile
+        FROM hrs_staff a, 
+        hrs_sections b,
+        hrs_jobs c,
+        hrs_assign_status d,
+        hrs_employment_categories e,
+        GEN_COUNTRIES f
+        WHERE     a.section_no = b.section_no
+        AND a.job_no = c.job_no
+        AND a.status_code = d.status_code
+        AND a.category_code = e.category_code
+        AND a.sam_account_name IS NOT NULL
+        and A.NATIONALITY = F.COUNTRY_NO (+)
+        AND D.STATUS_CODE IN (1, 2, 3, 4, 10, 11, 12)
+        AND B.SECTION_NO IN ( SELECT A.SECTION_NO
+        FROM HRS_SECTIONS a
+        START WITH A.SECTION_NO = #{sectionNo}
+        CONNECT BY PRIOR A.SECTION_NO = A.PARENT_SECTION)
+        order by B.PARENT_SECTION
+              
+    </select>
+
+    <insert id="auditCase" parameterType="AuditLogBean">
+        
+        INSERT INTO BPM_AUDIT_LOG (
+        CASE_ID, 
+        REQUESTOR_ID, 
+        DOCUMENT_CODE,
+        ENTRY_USER, 
+        ENTRY_DATE, 
+        TERMINAL,
+        OS_USER)
+        VALUES (#{caseId}, #{requesterId}, #{documentType}, #{entryUser}, sysdate, #{terminal}, #{osUser})
+    </insert>
+    
+    <insert id="auditCaseDTL" parameterType="AuditLogBean">
+        
+       
+        INSERT INTO BPM_AUDIT_LOG_DTL (
+        SERIAL, CASE_ID, ACTION_CODE, NOTE, ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER, IS_FINISHED)
+        VALUES ( (select nvl(max(serial),0) + 1  from BPM_AUDIT_LOG_DTL where case_id = #{caseId}) ,
+        #{caseId},#{action} , #{note}, #{entryUser}, sysdate, #{terminal}, #{osUser}, #{finished})
+ 
+    </insert>
+    
+    <insert id="insertCaseAttachments" parameterType="map">
+        
+        INSERT INTO BPM_CASE_ATTACHMENTS (
+        CASE_ID, CONTENT_ID, CONTENT_NAME, 
+        ENTRY_DATE, ENTRY_USER, OS_USER, 
+        SERIAL, TERMINAL) 
+        VALUES ( #{caseId}, #{contentId}, #{contentName}, sysdate, #{entryUser}, #{osUser}, (SELECT nvl(max(serial),0) + 1 FROM BPM_CASE_ATTACHMENTS), #{terminal})   
+        
+    </insert>        
+
+    <select id="checkCaseRecord"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="String">
+        
+        select 1 from BPM_AUDIT_LOG a
+        where A.CASE_ID = #{caseId}
+        
+    </select>
+    
+    <select id="checkServicePeriod"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="String">
+        
+        select bpm_pkg.check_bpm_service_period(#{studentId},#{semester},#{documentCode}) from dual
+        
+    </select>
+    <select id="checkServicePayment"        
+            statementType="PREPARED"
+            useCache="false"
+            resultType="String">
+        
+        select bpm_pkg.check_bpm_service_payment(#{studentId},#{semester},#{documentCode}) from dual
+        
+    </select>
+    <select id="checkBpmPresumbitService"        
+            statementType="CALLABLE"
+            useCache="false"
+            parameterType="map"
+            resultType="map">
+        
+        {call BPM_PKG.check_presubmit_bpm_service(
+        #{studentId, jdbcType=NUMERIC, mode=IN},
+        #{semester, jdbcType=NUMERIC, mode=IN},
+        #{documentCode, jdbcType=NUMERIC, mode=IN},
+        #{courseNo, jdbcType=NUMERIC, mode=IN},
+        #{courseEdition, jdbcType=NUMERIC, mode=IN},
+        #{activityCode, jdbcType=NUMERIC, mode=IN},
+        #{section, jdbcType=NUMERIC, mode=IN},
+        #{lang, jdbcType=NUMERIC, mode=IN},
+        #{msg, jdbcType=VARCHAR, mode=OUT},
+        #{status, jdbcType=NUMERIC, mode=OUT})}
+        
+    </select>
+    
+    <select id="getStudentAcademicTransactions"
+            resultType="AcademicTransactionBean"
+            useCache="false"
+            parameterType="String">
+        
+        select  semester semester, 
+        trans_code transCode,
+        sis_getters.get_ststatus(trans_code, 1) transDesc,
+        sis_getters.get_ststatus(trans_code, 2) transDescS
+        from    sis_semester_trans
+        where   student_id = #{studentId}
+
+
+    </select>
+    
+    <select id="getStudentHighSchoolInfo"
+            resultType="HighSchoolInfoBean"
+            useCache="false"
+            parameterType="String">
+        
+        select school_avg schoolAvg,
+        sis_getters.get_student_cum_gpa(student_id) cumGpa
+        from    sis_students
+        where   student_id = #{studentId}
+
+    </select>
+    
+    <select id="getStudentProbations"
+            resultType="ProbationInfoBean"
+            useCache="false"
+            parameterType="String">
+        
+        select  a.semester semester, 
+        a.probation_code probationCode, 
+        b.probation_desc probationDesc, 
+        b.probation_desc_s probationDescS
+        from    sis_academic_records a, sis_probation_levels b
+        where   a.probation_code    = b.probation_code
+        and     a.system_code       = b.system_code
+        and     a.edition           = b.edition
+        and     student_id          = #{studentId}
+
+    </select>
+    
+    <select id="getStudentExemptions"
+            resultType="ExemptionBean"
+            useCache="false"
+            parameterType="String">
+        
+        select  a.start_semester startSemester,
+        a.end_semester endSemester, 
+        a.sponser_id sponserId,
+        sponser_name sponserName,
+        sponser_name_s sponserNameS,
+        a.exemption_no exemptionNo, 
+        b.exemption_desc exemptionDesc, 
+        b.exemption_desc_s exemptionDescS,
+        decode (a.end_semester, null , 1, 0) isActive
+        from    sas_student_exemptions a, sas_sponser_exemptions b, sas_sponsers c
+        where   a.sponser_id    = b.sponser_id
+        and     a.exemption_no  = b.exemption_no
+        and     a.sponser_id    = c.sponser_id
+        and     a.student_id    = #{studentId}
+
+    </select>
+         
+    <select id="getDocumentPrice"        
+            statementType="CALLABLE"
+            useCache="false"
+            resultType="CommonValidationBean"
+            parameterType="map">
+        
+        {call bpm_pkg.get_bpm_service_price(
+        #{studentId, jdbcType=NUMERIC, mode=IN},
+        #{semester, jdbcType=NUMERIC, mode=IN},
+        #{documentCode, jdbcType=NUMERIC, mode=IN},
+        #{msg, jdbcType=VARCHAR, mode=OUT},
+        #{msgS, jdbcType=VARCHAR, mode=OUT},
+        #{status, jdbcType=NUMERIC, mode=OUT})}
+                 
+    </select>
+    
+    
+    <select id="processServicePaymentClaim"        
+            statementType="CALLABLE"
+            useCache="false"
+            parameterType="map"
+            resultType="map">
+        
+        {call BPM_PKG.insert_student_claims(
+        #{userId, jdbcType=NUMERIC, mode=IN},
+        #{documentCode, jdbcType=NUMERIC, mode=IN},
+        #{lang, jdbcType=NUMERIC, mode=IN},
+        #{msg, jdbcType=VARCHAR, mode=OUT},
+        #{status, jdbcType=NUMERIC, mode=OUT})}
+        
+    </select>
+
+    <select id="getTimeLookup" 
+            resultType="TimeLookupBean"
+            statementType="PREPARED" 
+            useCache="false">
+        
+        SELECT time_code AS timeCode,
+        A.START_TIME startTime,
+        A.END_TIME endTime,
+        sis_getters.get_time (time_code, 1) timeDesc
+        FROM sis_times a
+
+    </select>    
+
+    <select id="getFinancialSemesters"
+            resultType="String"
+            parameterType="string"
+            useCache="false">
+
+        select semester 
+        from   sas_financial_calendar
+        where nvl(is_closed, 0) = 0 and
+        semester &gt; (select nvl(max( semester) , 0)
+        from   sas_financial_calendar
+        where nvl(is_closed, 0) = 1 )
+        order by semester desc
+
+    </select>
+    
+    <select id="getUserFinishedCaseById"
+            resultType="FinishedCasesBean"
+            parameterType="map"
+            useCache="false">
+
+        select  a.case_id caseId,
+        a.requestor_id requestorId,
+        a.document_code documentCode,
+        a.entry_user entryUser,
+        a.entry_date entryDate,
+        a.terminal,
+        a.os_user osUser 
+        FROM BPM_AUDIT_LOG a, BPM_AUDIT_LOG_DTL b
+        WHERE A.CASE_ID = B.CASE_ID AND A.DOCUMENT_CODE = #{documentCode}
+        and B.IS_FINISHED = 1
+        and A.REQUESTOR_ID =   #{userId}
+
+    </select>
+    
+    <select id="getSectionManagerStaffs"
+            resultType="UserInfoBean"
+            parameterType="String"
+            useCache="false">
+
+        select a.staff_id staffId,
+        nvl(hrs_pkg.get_staff_name(a.staff_id,4),hrs_pkg.get_staff_name_s(a.staff_id,4)) staffName,
+        nvl(hrs_pkg.get_staff_name_s(a.staff_id,4),hrs_pkg.get_staff_name(a.staff_id,4)) staffNameS, 
+        sam_account_name samAccountName,
+        a.section_no sectionNo,
+        nvl(section_desc,SECTION_DESC_S) sectionDesc,
+        nvl(section_desc_S,SECTION_DESC) sectionDescS
+        from   hrs_staff a, hrs_sections b
+        where  a.section_no = b.section_no
+        and    a.section_no = #{sectionNo}
+        and    a.staff_id  != #{staffId}
+        and    HRS_PKG.IS_ON_DUTY(a.staff_id) = 1
+
+    </select>
+    
+    <select id="checkIfUserManager"
+            resultType="String"
+            parameterType="String"
+            useCache="false">
+
+        select count(1)
+        from   hrs_sections
+        where  staff_id = #{staffId}
+
+    </select>
+    
+    <select id="checkParentSection"
+            resultType="String"
+            parameterType="String"
+            useCache="false">
+
+        select count(1)
+        from   hrs_sections
+        where  parent_section = #{sectionNo}
+
+    </select>
+    
+    <select id="getUserManagerialSection"
+            resultType="String"
+            parameterType="String"
+            useCache="false">
+
+        select section_no
+        from hrs_Sections
+        where section_no  in ( select section_no
+        from   hrs_sections a
+        connect by prior section_no = a.parent_section
+        start with staff_id = #{staffId})
+        order by 1
+
+    </select>
+    
+    <select id="getHrsSectionHeads"
+            resultType="UserInfoBean"
+            parameterType="String"
+            useCache="false">
+
+        SELECT b.staff_id staffId,
+        b.first_name firstName,
+        b.last_name lastName,
+        b.first_name
+        || ' '
+        || b.father_name
+        || ' '
+        || b.mid_name
+        || ' '
+        || b.last_name
+        staffName,
+        b.first_name_s
+        || ' '
+        || b.father_name_s
+        || ' '
+        || b.mid_name_s
+        || ' '
+        || b.last_name_s
+        staffNameS,
+        TO_CHAR (b.begin_work_date, 'dd-mm-yyyy') workStartDate,
+        lower(b.sam_account_name) samAccountName,
+        a.section_no sectionNo,
+        nvl(section_desc,SECTION_DESC_S) sectionDesc,
+        nvl(section_desc_S,SECTION_DESC) sectionDescS,
+        d.STATUS_DESC statusDesc,
+        d.STATUS_DESC_S statusDescS,
+        b.category_code userType,
+        e.category_desc roleDesc,
+        e.category_desc_s roleDescS,
+        c.JOB_NAME jobName,
+        c.JOB_NAME_S jobNameS,
+        b.E_MAIL email,
+        b.MOBILE mobile
+        from   hrs_sections a, hrs_staff b ,hrs_assign_status d, hrs_employment_categories e, hrs_jobs c
+        where  a.staff_id        = b.staff_id(+)
+        AND    d.status_code(+)  = b.status_code
+        AND    e.category_code   = b.category_code
+        AND    c.job_no          = b.job_no
+        and    parent_section    = #{sectionNo}
+
+    </select>
+    
+</mapper>
+
+

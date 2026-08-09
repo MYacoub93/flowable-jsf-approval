@@ -1,5 +1,6 @@
 package com.example.approval.service;
 
+import com.example.approval.entity.SystemUser;
 import com.example.approval.entity.User;
 import org.flowable.engine.IdentityService;
 import org.flowable.engine.RuntimeService;
@@ -53,12 +54,13 @@ public class ApprovalService {
      * Expression: ${approvalService.getManager(execution)}
      */
     public String getManager(org.flowable.engine.delegate.DelegateExecution execution) {
-        String department = (String) execution.getVariable("department");
-        log.info("Resolving manager for department={}", department);
-        User manager = userService.findManagerByDepartment(department);
-        // Store for later use / display
-        execution.setVariable("manager", manager.getUsername());
-        return manager.getUsername();
+//        String department = (String) execution.getVariable("department");
+//        log.info("Resolving manager for department={}", department);
+//        User manager = userService.findManagerByDepartment(department);
+//        // Store for later use / display
+//        execution.setVariable("manager", manager.getUsername());
+//        return manager.getUsername();
+        return "";
     }
 
     /**
@@ -66,11 +68,12 @@ public class ApprovalService {
      * Expression: ${approvalService.getFinanceApprover(execution)}
      */
     public String getFinanceApprover(org.flowable.engine.delegate.DelegateExecution execution) {
-        Number amount = (Number) execution.getVariable("amount");
-        log.info("Resolving finance approver for amount={}", amount);
-        User finance = userService.findFinanceApprover();
-        execution.setVariable("financeUser", finance.getUsername());
-        return finance.getUsername();
+//        Number amount = (Number) execution.getVariable("amount");
+//        log.info("Resolving finance approver for amount={}", amount);
+//        User finance = userService.findFinanceApprover();
+//        execution.setVariable("financeUser", finance.getUsername());
+//        return finance.getUsername();
+        return "";
     }
 
     // -------------------------------------------------------------------------
@@ -87,8 +90,8 @@ public class ApprovalService {
                                         Double amount,
                                         String department) {
 
-        User initiator = userService.findByUsername(initiatorUsername)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown initiator: " + initiatorUsername));
+        SystemUser initiator = userService.findByUsername(initiatorUsername)
+                .orElseThrow();
 
         // Set authenticated user so Flowable history records the starter
         identityService.setAuthenticatedUserId(initiatorUsername);
