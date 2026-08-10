@@ -2,6 +2,7 @@ package com.example.approval;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Main Spring Boot entry point.
@@ -10,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * MyBatis scans mappers under com.example.approval.mapper.
  */
 @SpringBootApplication
+@EnableScheduling
 public class ApprovalApplication {
 
     public static void main(String[] args) {

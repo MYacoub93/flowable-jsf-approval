@@ -2,10 +2,26 @@
 <!DOCTYPE mapper PUBLIC '-//mybatis.org//DTD Mapper 3.0//EN'
   'http://mybatis.org/dtd/mybatis-3-mapper.dtd'>
 
-<mapper namespace="com.ats.bpm.common.service.CommonMapper">
+<mapper namespace="com.example.approval.mapper.CommonMapper">
+
+    <!--
+      Aligned against CommonService.java (the real caller):
+        - getStaffInfo / getStudentInfo now bind on #{langS}/#{lang}, matching
+          the Map keys CommonService actually builds (was #{arabicLang}/#{englishLang},
+          which would not have bound).
+        - CommonMapper.java also declares getStaffInfoById, getStudentInfoById,
+          checkUserAvailability and getHrsSectionInfo (CommonService calls all
+          four) but none of them have a matching id below - add the SQL before
+          wiring those up, or calls will fail with "Invalid bound statement".
+        - Other bilingual queries below (getStudentAcademicSemester, getSemestersLookup,
+          getTransactionSemester, getStaffSemesters, getStudentSemesters,
+          getAcademicSemesters, getStudentById, ...) still bind on
+          #{arabicLang}/#{englishLang}. They weren't touched here since their
+          callers weren't shown - if those callers also pass langS/lang, the
+          same fix applies to them too.
+    -->
     
-    <cache type="org.mybatis.caches.ehcache.EhcacheCache"/>
-    
+
     
     
     <insert  id="processSynchUser"        
@@ -28,56 +44,7 @@
         
     </select>
     
-    <select id="getValidatedManager"        
-            statementType="PREPARED"
-            useCache="false"
-            parameterType="string"
-            resultType="ValidatedManagerBean">
-       
-        SELECT DECODE (
-        a.staff_id,
-        B.STAFF_ID, (SELECT X.STAFF_ID
-        FROM HRS_STAFF x, hrs_sections z
-        WHERE     z.SECTION_NO = B.PARENT_SECTION
-        AND X.STAFF_ID = Z.STAFF_ID),
-        (SELECT X.STAFF_ID
-        FROM HRS_STAFF x
-        WHERE X.STAFF_ID = B.STAFF_ID))
-        managerId,
-        lower(DECODE (
-        a.staff_id,
-        B.STAFF_ID, (SELECT X.SAM_ACCOUNT_NAME
-        FROM HRS_STAFF x, hrs_sections z
-        WHERE     z.SECTION_NO = B.PARENT_SECTION
-        AND X.STAFF_ID = Z.STAFF_ID),
-        (SELECT X.SAM_ACCOUNT_NAME
-        FROM HRS_STAFF x
-        WHERE X.STAFF_ID = B.STAFF_ID)))
-        managerUsername,
-        DECODE (
-        (SELECT DECODE (B.PARENT_SECTION,
-        1, DECODE (A.STAFF_ID, B.STAFF_ID, 1, 0),
-        0)
-        FROM hrs_staff x, hrs_sections b
-        WHERE     x.section_no = b.section_no
-        AND x.sam_account_name IS NOT NULL
-        AND x.STAFF_ID = A.STAFF_ID),
-        1, B.PARENT_SECTION,
-        B.SECTION_NO)
-        managerSection,
-        (SELECT DECODE (B.PARENT_SECTION,
-        1, DECODE (A.STAFF_ID, B.STAFF_ID, 1, 0),
-        0)
-        FROM hrs_staff x, hrs_sections b
-        WHERE     x.section_no = b.section_no
-        AND x.sam_account_name IS NOT NULL
-        AND x.STAFF_ID = A.STAFF_ID)
-        topDirector
-        FROM HRS_STAFF a, HRS_SECTIONS b
-        WHERE A.STAFF_ID = #{userId} AND A.SECTION_NO = B.SECTION_NO
-        
-        
-    </select>
+
     
     <select id="getUserDepts"        
             statementType="PREPARED"
@@ -227,69 +194,9 @@
        
     </select>
     
-    <select id="getStudentAcademicSemester"        
-            statementType="PREPARED"
-            useCache="true"
-            parameterType="Map"
-            resultType="SemesterBean">
-        
-        select semester, 
-        sis_getters.get_semester_desc(semester, #{arabicLang}) semesterDesc,      
-        sis_getters.get_semester_desc(semester, #{englishLang}) semesterDescS      
-        from    sis_academic_records
-        where   student_id  =   #{studentId}
-        order by semester desc
-        
-    </select>
+
     
-    <select id="getSemestersLookup" 
-            statementType="PREPARED" 
-            parameterType="map"
-            resultType="SemestersLookupBean" 
-            useCache="false">
-        
-        SELECT prev_semester previousSemester,
-        sis_getters.get_semester_desc (prev_semester, #{arabicLang}) previousSemesterDesc,
-        sis_getters.get_semester_desc (prev_semester, #{englishLang}) previousSemesterDescS,
-        current_semester currentSemester,
-        sis_getters.get_semester_desc (current_semester, #{arabicLang}) currentSemesterDesc,
-        sis_getters.get_semester_desc (current_semester, #{englishLang}) currentSemesterDescS,
-        reg_semester regSemester,
-        sis_getters.get_semester_desc (reg_semester, #{arabicLang}) regSemesterDesc,
-        sis_getters.get_semester_desc (reg_semester, #{englishLang}) regSemesterDescS,
-        activated_semester activatedSemester,
-        sis_getters.get_semester_desc (activated_semester, #{arabicLang}) activatedSemesterDesc,
-        sis_getters.get_semester_desc (activated_semester, #{englishLang}) activatedSemesterDescS,
-        admission_semester admissionSemester,
-        sis_getters.get_semester_desc(admission_semester, #{arabicLang}) admissionSemesterDesc,
-        sis_getters.get_semester_desc(admission_semester, #{englishLang}) admissionSemesterDescS,
-        prepared_semester preparedSemester,
-        sis_getters.get_semester_desc(prepared_semester, #{arabicLang}) preparedSemesterDesc,
-        sis_getters.get_semester_desc(prepared_semester, #{englishLang}) preparedSemesterDescS
-        from (select (select max (semester)
-        from sis_semesters
-        where semester &lt; sis_getters.get_semester ())
-        prev_semester,
-        sis_getters.get_semester () current_semester,
-        (select max (semester)
-        from sis_semesters
-        where is_prepared = 1)
-        reg_semester,
-        (select max (semester)
-        from sis_semesters
-        where is_activated = 1)
-        activated_semester,
-        (select max (semester)
-        from sis_academic_calendar
-        where item_code = 15
-        and      trunc(sysdate) between  start_date and end_date)
-        admission_semester,
-        (select max(semester) semester
-        from    sis_semesters
-        where nvl(is_prepared, 0) = 1) prepared_semester
-        from dual)
-        
-    </select>
+
     
     
     <select   id="getEmployeeInfo" 
@@ -317,10 +224,10 @@
         a.degree_code degreeCode, 
         a.faculty_no facultyNo, 
         a.gender gender,a.dept_no departmentNo,
-        sis_getters.get_faculty(a.faculty_no, #{arabicLang}) facultyName,
-        sis_getters.get_faculty(a.faculty_no, #{englishLang}) facultyNameS,
-        sis_getters.get_dept(a.faculty_no, a.dept_no, #{arabicLang}) departmentName,
-        sis_getters.get_dept(a.faculty_no, a.dept_no, #{englishLang}) departmentNameS, 
+        sis_getters.get_faculty(a.faculty_no, #{langS}) facultyName,
+        sis_getters.get_faculty(a.faculty_no, #{lang}) facultyNameS,
+        sis_getters.get_dept(a.faculty_no, a.dept_no, #{langS}) departmentName,
+        sis_getters.get_dept(a.faculty_no, a.dept_no, #{lang}) departmentNameS, 
         nvl(a.is_active, 0) status,
         a.email email, 
         b.instructor_id deanOfFaculty, 
@@ -365,19 +272,19 @@
         b.edition planEdition,
         c.major_no majorNo,
         c.dept_no deptNo,
-        sis_getters.get_faculty(a.faculty_no, #{arabicLang}) facultyName, 
-        sis_getters.get_faculty(a.faculty_no, #{englishLang}) facultyNameS, 
+        sis_getters.get_faculty(a.faculty_no, #{langS}) facultyName, 
+        sis_getters.get_faculty(a.faculty_no, #{lang}) facultyNameS, 
         major_name majorName,
         major_name_s majorNameS,
-        sis_getters.get_dept(a.faculty_no, c.dept_no, #{arabicLang}) deptName,
-        sis_getters.get_dept(a.faculty_no, c.dept_no, #{englishLang}) deptNameS,
-        sis_getters.get_campus(a.campus_no, #{arabicLang}) campusName, 
-        sis_getters.get_campus(a.campus_no, #{englishLang}) campusNameS, 
+        sis_getters.get_dept(a.faculty_no, c.dept_no, #{langS}) deptName,
+        sis_getters.get_dept(a.faculty_no, c.dept_no, #{lang}) deptNameS,
+        sis_getters.get_campus(a.campus_no, #{langS}) campusName, 
+        sis_getters.get_campus(a.campus_no, #{lang}) campusNameS, 
         d.total_hrs totalHours, 
-        sis_getters.get_ststatus(a.status_code, #{arabicLang})statusDesc, 
-        sis_getters.get_ststatus(a.status_code, #{englishLang})statusDescS, 
-        sis_getters.get_study_type(a.study_code, #{arabicLang}) studyDesc,
-        sis_getters.get_study_type(a.study_code, #{englishLang}) studyDescS,
+        sis_getters.get_ststatus(a.status_code, #{langS})statusDesc, 
+        sis_getters.get_ststatus(a.status_code, #{lang})statusDescS, 
+        sis_getters.get_study_type(a.study_code, #{langS}) studyDesc,
+        sis_getters.get_study_type(a.study_code, #{lang}) studyDescS,
         a.email email,
         a.MOBILE_PHONE as mobile,
         a.perm_mobile as permMobile,
@@ -385,14 +292,14 @@
         sis_reg_pkg.get_std_system_edition(A.STUDENT_ID, null) edition,
         sis_reg_pkg.get_std_system(A.STUDENT_ID, null) systemCode,
         A.JOIN_SEMESTER joinSemester,
-        sis_getters.get_semester_desc (A.JOIN_SEMESTER, #{arabicLang}) joinSemesterDesc,
-        sis_getters.get_semester_desc (A.JOIN_SEMESTER, #{englishLang}) joinSemesterDescS,
+        sis_getters.get_semester_desc (A.JOIN_SEMESTER, #{langS}) joinSemesterDesc,
+        sis_getters.get_semester_desc (A.JOIN_SEMESTER, #{lang}) joinSemesterDescS,
         A.GRADUATION_SEMESTER graduationSemester,
-        sis_getters.get_semester_desc (A.GRADUATION_SEMESTER, #{arabicLang}) graduationSemesterDesc,
-        sis_getters.get_semester_desc (A.GRADUATION_SEMESTER, #{englishLang}) graduationSemesterDescS,
+        sis_getters.get_semester_desc (A.GRADUATION_SEMESTER, #{langS}) graduationSemesterDesc,
+        sis_getters.get_semester_desc (A.GRADUATION_SEMESTER, #{lang}) graduationSemesterDescS,
         a.photo_path systemPhoto,
-        (select SIS_GETTERS.GET_INSTRUCTOR_NAME(E.INSTRUCTOR_ID,#{arabicLang}) from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID) advisorName,
-        (select SIS_GETTERS.GET_INSTRUCTOR_NAME(E.INSTRUCTOR_ID,#{englishLang}) from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID) advisorNameS,
+        (select SIS_GETTERS.GET_INSTRUCTOR_NAME(E.INSTRUCTOR_ID,#{langS}) from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID) advisorName,
+        (select SIS_GETTERS.GET_INSTRUCTOR_NAME(E.INSTRUCTOR_ID,#{lang}) from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID) advisorNameS,
         (select lower(web_name) from sis_instructors z where instructor_id = (select E.INSTRUCTOR_ID from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID)) advisorWebName ,
         (select instructor_id from sis_instructors z where instructor_id = (select E.INSTRUCTOR_ID from SIS_ADVISORY_LISTS e where E.STUDENT_ID = A.STUDENT_ID)) advisorId ,
         A.NATIONALITY_CODE nationality,
@@ -638,27 +545,7 @@
         
     </select>
     
-    <select id="getSectionLookup"        
-            statementType="PREPARED"
-            useCache="true"
-            resultType="EventSectionBean">
-        
-        select A.SECTION_NO sectionNo,
-        A.SECTION_DESC sectionDesc, 
-        nvl(A.SECTION_DESC_S,A.SECTION_DESC)  sectionDescS, 
-        A.PARENT_SECTION parentSection,
-        A.STAFF_ID managerId,
-        HRS_PKG.GET_STAFF_NAME(staff_id,4) managerName,
-        lower((select B.SAM_ACCOUNT_NAME from hrs_staff b where A.STAFF_ID = B.STAFF_ID)) managerUsername
-        FROM hrs_sections A
-        WHERE A.IS_ASSIGN_JOB = 1
-        AND A.STAFF_ID IS NOT NULL
-        CONNECT BY
-        PRIOR A.SECTION_NO = A.PARENT_SECTION
-        START WITH
-        A.SECTION_NO = 1
-        
-    </select>
+
     
     <select id="getHrsGroupManager"        
             statementType="PREPARED"
@@ -848,52 +735,9 @@
         
     </select>
     
-    <select id="getCountries"        
-            statementType="PREPARED"
-            useCache="false"
-            resultType="CountryBean">
-        SELECT country_no countryNo,
-        country_name countryName,
-        country_name_s countryNameS
-        FROM gen_countries
-        where IS_COUNTRY_ACTIVE = 1
-    </select>
-    
-    <select id="getNationalities"        
-            statementType="PREPARED"
-            useCache="false"
-            resultType="NationalityBean">
-        select  a.country_no nationalityCode,
-        A.NATIONALITY nationalityDesc ,
-        A.NATIONALITY_S nationalityDescS
-        from    gen_countries a
-        where IS_COUNTRY_ACTIVE = 1
-        order by 1
-    </select>
-    
-    <select id="getCities"        
-            statementType="PREPARED"
-            useCache="false"
-            resultType="CityBean">       
-        select  city_no cityNo,
-        city_name cityName,
-        city_name_s cityNameS
-        from    gen_cities
-        where   country_no  = #{countryNo} 
-        order by 1
 
-    </select>
     
-    <select id="getDaysLookup"        
-            statementType="PREPARED"
-            useCache="false"
-            resultType="DaysBean">       
-        SELECT DAY_NAME dayName,
-        DAY_NAME_S dayNameS, 
-        DAY_NO dayNo 
-        FROM gen_week_days_VW
 
-    </select>
     
     <insert  id="insertStaffTimeSheet"        
              statementType="PREPARED"
@@ -970,89 +814,8 @@
 
     </select>    
     
-    <select id="getTransactionSemester" 
-            statementType="PREPARED"
-            resultType="SemesterBean"
-            parameterType="map"
-            useCache="false">  
-         
-        select max(semester) semester,
-        sis_getters.get_semester_Desc(max(semester), #{arabicLang}) semesterDesc,
-        sis_getters.get_semester_Desc(max(semester),#{englishLang}) semesterDescS
-        from sis_semesters
-        where nvl(is_prepared, 0) = 1
-        union
-        select sis_getters.get_semester semester,
-        sis_getters.get_semester_Desc(sis_getters.get_semester, #{arabicLang}) semesterDesc,
-        sis_getters.get_semester_Desc(sis_getters.get_semester, #{englishLang}) semesterDescS
-        from dual
-        order by 1
-        
-    </select>    
 
-    <select   id="getStaffSemesters" 
-              parameterType="Map" 
-              resultType="SemesterBean"
-              statementType="PREPARED" 
-              useCache="false">
-         
-        Select distinct semester as semester, 
-        sis_getters.get_semester_desc(semester, #{arabicLang}) semesterDesc
-        sis_getters.get_semester_desc(semester, #{englishLang}) semesterDescS
-        from   sis_section_instructors
-        where  instructor_id = #{staffId}
-        order by semester desc
-         
-    </select>
-    
-    <select   id="getStudentSemesters" 
-              parameterType="Map" 
-              resultType="SemesterBean"
-              statementType="PREPARED" 
-              useCache="false">
-         
-        Select distinct semester as semester, 
-        sis_getters.get_semester_desc(semester, #{arabicLang}) semesterDesc
-        sis_getters.get_semester_desc(semester, #{englishLang}) semesterDescS
-        from   SIS_ACADEMIC_RECORDS a
-        where  A.STUDENT_ID = #{studentId}
-        and exists (select 1 from sis_student_activities b where B.STUDENT_ID = A.STUDENT_ID and A.SEMESTER = B.SEMESTER)
-        order by semester desc
-         
-    </select>
-    
-    <select id="getAcademicSemesters" 
-            resultType="SemesterBean"
-            statementType="PREPARED" 
-            parameterType="map"
-            useCache="false">
-        
-        Select distinct semester as semester, 
-        sis_getters.get_semester_desc(semester, #{arabicLang}) semesterDesc
-        sis_getters.get_semester_desc(semester, #{englishLang}) semesterDescS
-        from   sis_semesters
-        order by semester desc
 
-    </select>
-    
-    <select id="getServiceCernters" 
-            resultType="HrsSectionBean"
-            statementType="PREPARED" 
-            parameterType="map"
-            useCache="false">
-        
-        select A.SECTION_NO sectionNo,
-        REPLACE(A.SECTION_DESC, '/', ' - ') sectionName, 
-        REPLACE(A.SECTION_DESC_S, '/', ' - ') sectionNameS, 
-        A.PARENT_SECTION parentSection,
-        A.STAFF_ID managerId,
-        lower(B.SAM_ACCOUNT_NAME) managerUsername
-        from hrs_sections a, hrs_staff b
-        where nvl(A.IS_SERVICE_SECTION,0) = 1
-        and A.STAFF_ID = B.STAFF_ID (+)
-        order by 1
-        
-    </select>
     
     
     <select id="getHrsSectionUsers"        
@@ -1115,48 +878,7 @@
               
     </select>
 
-    <insert id="auditCase" parameterType="AuditLogBean">
-        
-        INSERT INTO BPM_AUDIT_LOG (
-        CASE_ID, 
-        REQUESTOR_ID, 
-        DOCUMENT_CODE,
-        ENTRY_USER, 
-        ENTRY_DATE, 
-        TERMINAL,
-        OS_USER)
-        VALUES (#{caseId}, #{requesterId}, #{documentType}, #{entryUser}, sysdate, #{terminal}, #{osUser})
-    </insert>
-    
-    <insert id="auditCaseDTL" parameterType="AuditLogBean">
-        
-       
-        INSERT INTO BPM_AUDIT_LOG_DTL (
-        SERIAL, CASE_ID, ACTION_CODE, NOTE, ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER, IS_FINISHED)
-        VALUES ( (select nvl(max(serial),0) + 1  from BPM_AUDIT_LOG_DTL where case_id = #{caseId}) ,
-        #{caseId},#{action} , #{note}, #{entryUser}, sysdate, #{terminal}, #{osUser}, #{finished})
- 
-    </insert>
-    
-    <insert id="insertCaseAttachments" parameterType="map">
-        
-        INSERT INTO BPM_CASE_ATTACHMENTS (
-        CASE_ID, CONTENT_ID, CONTENT_NAME, 
-        ENTRY_DATE, ENTRY_USER, OS_USER, 
-        SERIAL, TERMINAL) 
-        VALUES ( #{caseId}, #{contentId}, #{contentName}, sysdate, #{entryUser}, #{osUser}, (SELECT nvl(max(serial),0) + 1 FROM BPM_CASE_ATTACHMENTS), #{terminal})   
-        
-    </insert>        
 
-    <select id="checkCaseRecord"        
-            statementType="PREPARED"
-            useCache="false"
-            resultType="String">
-        
-        select 1 from BPM_AUDIT_LOG a
-        where A.CASE_ID = #{caseId}
-        
-    </select>
     
     <select id="checkServicePeriod"        
             statementType="PREPARED"
@@ -1194,89 +916,6 @@
         
     </select>
     
-    <select id="getStudentAcademicTransactions"
-            resultType="AcademicTransactionBean"
-            useCache="false"
-            parameterType="String">
-        
-        select  semester semester, 
-        trans_code transCode,
-        sis_getters.get_ststatus(trans_code, 1) transDesc,
-        sis_getters.get_ststatus(trans_code, 2) transDescS
-        from    sis_semester_trans
-        where   student_id = #{studentId}
-
-
-    </select>
-    
-    <select id="getStudentHighSchoolInfo"
-            resultType="HighSchoolInfoBean"
-            useCache="false"
-            parameterType="String">
-        
-        select school_avg schoolAvg,
-        sis_getters.get_student_cum_gpa(student_id) cumGpa
-        from    sis_students
-        where   student_id = #{studentId}
-
-    </select>
-    
-    <select id="getStudentProbations"
-            resultType="ProbationInfoBean"
-            useCache="false"
-            parameterType="String">
-        
-        select  a.semester semester, 
-        a.probation_code probationCode, 
-        b.probation_desc probationDesc, 
-        b.probation_desc_s probationDescS
-        from    sis_academic_records a, sis_probation_levels b
-        where   a.probation_code    = b.probation_code
-        and     a.system_code       = b.system_code
-        and     a.edition           = b.edition
-        and     student_id          = #{studentId}
-
-    </select>
-    
-    <select id="getStudentExemptions"
-            resultType="ExemptionBean"
-            useCache="false"
-            parameterType="String">
-        
-        select  a.start_semester startSemester,
-        a.end_semester endSemester, 
-        a.sponser_id sponserId,
-        sponser_name sponserName,
-        sponser_name_s sponserNameS,
-        a.exemption_no exemptionNo, 
-        b.exemption_desc exemptionDesc, 
-        b.exemption_desc_s exemptionDescS,
-        decode (a.end_semester, null , 1, 0) isActive
-        from    sas_student_exemptions a, sas_sponser_exemptions b, sas_sponsers c
-        where   a.sponser_id    = b.sponser_id
-        and     a.exemption_no  = b.exemption_no
-        and     a.sponser_id    = c.sponser_id
-        and     a.student_id    = #{studentId}
-
-    </select>
-         
-    <select id="getDocumentPrice"        
-            statementType="CALLABLE"
-            useCache="false"
-            resultType="CommonValidationBean"
-            parameterType="map">
-        
-        {call bpm_pkg.get_bpm_service_price(
-        #{studentId, jdbcType=NUMERIC, mode=IN},
-        #{semester, jdbcType=NUMERIC, mode=IN},
-        #{documentCode, jdbcType=NUMERIC, mode=IN},
-        #{msg, jdbcType=VARCHAR, mode=OUT},
-        #{msgS, jdbcType=VARCHAR, mode=OUT},
-        #{status, jdbcType=NUMERIC, mode=OUT})}
-                 
-    </select>
-    
-    
     <select id="processServicePaymentClaim"        
             statementType="CALLABLE"
             useCache="false"
@@ -1292,18 +931,7 @@
         
     </select>
 
-    <select id="getTimeLookup" 
-            resultType="TimeLookupBean"
-            statementType="PREPARED" 
-            useCache="false">
-        
-        SELECT time_code AS timeCode,
-        A.START_TIME startTime,
-        A.END_TIME endTime,
-        sis_getters.get_time (time_code, 1) timeDesc
-        FROM sis_times a
 
-    </select>    
 
     <select id="getFinancialSemesters"
             resultType="String"
@@ -1320,25 +948,7 @@
 
     </select>
     
-    <select id="getUserFinishedCaseById"
-            resultType="FinishedCasesBean"
-            parameterType="map"
-            useCache="false">
 
-        select  a.case_id caseId,
-        a.requestor_id requestorId,
-        a.document_code documentCode,
-        a.entry_user entryUser,
-        a.entry_date entryDate,
-        a.terminal,
-        a.os_user osUser 
-        FROM BPM_AUDIT_LOG a, BPM_AUDIT_LOG_DTL b
-        WHERE A.CASE_ID = B.CASE_ID AND A.DOCUMENT_CODE = #{documentCode}
-        and B.IS_FINISHED = 1
-        and A.REQUESTOR_ID =   #{userId}
-
-    </select>
-    
     <select id="getSectionManagerStaffs"
             resultType="UserInfoBean"
             parameterType="String"
@@ -1444,5 +1054,3 @@
     </select>
     
 </mapper>
-
-

@@ -1,85 +1,197 @@
 package com.example.approval.syncronizer;
 
-/*
- * Flowable edition of the SIS -> Organization sync job.
- * Ported from a Bonita BPM implementation - see FlowableOrgSyncAPI for the
- * modeling notes on how Bonita's Group/Role/UserMembership concepts map onto
- * Flowable's flatter IdentityService model.
- */
-
-
-
-import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
+import com.example.approval.common.CoreConstants;
 import com.example.approval.common.utils.DateTimeUtil;
 import com.example.approval.common.utils.PredicateUtil;
 import com.example.approval.common.utils.StringUtilities;
 import com.example.approval.flowable.OrganizationManager;
+import com.example.approval.mapper.CommonMapper;
 import com.example.approval.origin.beans.*;
-import com.example.approval.service.CommonService;
-import org.flowable.engine.IdentityService;
 import org.flowable.idm.api.Group;
-
 import org.flowable.idm.api.User;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-public class SISOC {
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-    private static Logger LOG = Logger.getLogger(SISOC.class.getName());
+/**
+ * Flowable edition of the SIS -&gt; Organization sync job.
+ *
+ * <p>Ported from a Bonita BPM implementation - see {@link OrganizationManager}
+ * for the modeling notes on how Bonita's Group/Role/UserMembership concepts
+ * map onto Flowable's flatter IdentityService model.</p>
+ *
+ * <p>Restructured to follow the same shape as {@code UserSyncService}:</p>
+ * <ul>
+ *   <li>Runs once on startup (optional) and then on a fixed schedule.</li>
+ *   <li>All SIS reads go through {@link CommonMapper} (MyBatis) - no JDBC
+ *       template, no manual {@code ApplicationContext} bean lookup.</li>
+ *   <li>Faculties/Departments/Roles/Users are pushed into Flowable's
+ *       IdentityService via {@link OrganizationManager}.</li>
+ * </ul>
+ */
+@Service
+@Order(20)   // after UserSyncService (10) has refreshed the local users table
+public class SISOC implements ApplicationRunner {
 
-    public static void main(String[] args) {
+    private static final Logger log = LoggerFactory.getLogger(SISOC.class);
 
+    private final CommonMapper commonMapper;
+    private final OrganizationManager flowableApi;
 
+    @Value("${app.sync.sis.enabled:true}")
+    private boolean syncEnabled;
 
-        // Flowable's IdentityService: if you're on flowable-spring-boot-starter this bean is
-        // registered for you automatically. If you're bootstrapping a bare ProcessEngine from
-        // flowable.cfg.xml instead, swap this line for:
-        //   ProcessEngines.getDefaultProcessEngine().getIdentityService()
+    @Value("${app.sync.sis.run-on-startup:true}")
+    private boolean runOnStartup;
 
-        ApplicationContext applicationContext = prepareConfiguration();
-        CommonService commonServiceImpl = (CommonService) applicationContext.getBean((Class) CommonService.class);
-        List<FacultyBean> faculties = (List<FacultyBean>) commonServiceImpl.getFaculties();
+    public SISOC(CommonMapper commonMapper, OrganizationManager flowableApi) {
+        this.commonMapper = commonMapper;
+        this.flowableApi = flowableApi;
+    }
 
-        IdentityService identityService ;
-        OrganizationManager flowableApi = new OrganizationManager();
+    // ------------------------------------------------------------------
+    // Public API
+    // ------------------------------------------------------------------
 
+    /**
+     * Full synchronisation: Faculties/Departments -&gt; Groups, Roles -&gt;
+     * Roles, SIS Users -&gt; Flowable Users (create or update), driven
+     * entirely by {@link CommonMapper} reads and {@link OrganizationManager}
+     * writes.
+     *
+     * Returns the number of SIS user rows processed.
+     */
+    @Transactional
+    public int syncOrganization() {
+        if (!syncEnabled) {
+            log.debug("SIS organization sync is disabled");
+            return 0;
+        }
+
+        log.info("Starting SIS -> Flowable organization synchronisation …");
+
+        syncFaculties();
+        syncRoles();
+        int processed = syncSisUsers();
+
+        log.info(" --- SYNCHRONIZATION FINISHED @ --- {}", DateTimeUtil.getCurrentDateTime());
+        return processed;
+    }
+
+    // ------------------------------------------------------------------
+    // Scheduling & startup
+    // ------------------------------------------------------------------
+
+    @Override
+    public void run(ApplicationArguments args) {
+        if (runOnStartup) {
+            try {
+                syncOrganization();
+            } catch (Exception e) {
+                log.error("Startup SIS organization sync failed", e);
+            }
+        }
+    }
+
+    /**
+     * Periodic sync controlled by {@code app.sync.sis.fixed-delay-ms}.
+     * Set to 0 or a negative value in application.yml to disable the
+     * scheduler. Defaults to an hour since org/role/user structure changes
+     * far less often than the local user table UserSyncService maintains.
+     */
+    @Scheduled(fixedDelayString = "${app.sync.sis.fixed-delay-ms:3600000}")
+    public void scheduledSync() {
+        if (syncEnabled) {
+            try {
+                syncOrganization();
+            } catch (Exception e) {
+                log.error("Scheduled SIS organization sync failed", e);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Faculties / Departments
+    // ------------------------------------------------------------------
+
+    private void syncFaculties() {
+        List<FacultyBean> faculties = commonMapper.getFaculties();
 
         for (FacultyBean faculty : faculties) {
             Group facultyGroup = flowableApi.getGroupByName(faculty.getFacultyCode());
-            if (facultyGroup == null) {
-                String facultyName = StringUtilities.isNotEmpty(faculty.getFacultyName()) ? faculty.getFacultyName() : faculty.getFacultyNameS();
-                Group createdFacultyGroup = flowableApi.createGroup(faculty.getFacultyCode(), facultyName, facultyName);
-                SISOC.LOG.log(Level.INFO, " --- CREATED FACULTY --- {0}", createdFacultyGroup.getId());
+            if (facultyGroup != null) {
+                continue;
+            }
 
-                List<DepartmentBean> departments = (List<DepartmentBean>) commonServiceImpl.getDepartments(faculty.getFacultyNo());
-                for (DepartmentBean departmentBean : departments) {
-                    Group deptGroup = flowableApi.getGroupByName(departmentBean.getDeptCode());
-                    if (deptGroup == null) {
-                        String deptName = StringUtilities.isNotEmpty(departmentBean.getDeptName()) ? departmentBean.getDeptName() : departmentBean.getDeptNameS();
-                        Group createdDeptGroup = flowableApi.createGroup(departmentBean.getDeptCode(), deptName, deptName);
-                        SISOC.LOG.log(Level.INFO, " --- CREATED DEPT --- {0}", createdDeptGroup.getId());
-                    }
+            String facultyName = StringUtilities.isNotEmpty(faculty.getFacultyName())
+                    ? faculty.getFacultyName() : faculty.getFacultyNameS();
+            Group createdFacultyGroup = flowableApi.createGroup(faculty.getFacultyCode(), facultyName, facultyName);
+            log.info(" --- CREATED FACULTY --- {}", createdFacultyGroup.getId());
+
+            List<DepartmentBean> departments = commonMapper.getDepartments(faculty.getFacultyNo());
+            for (DepartmentBean departmentBean : departments) {
+                Group deptGroup = flowableApi.getGroupByName(departmentBean.getDeptCode());
+                if (deptGroup != null) {
+                    continue;
                 }
+                String deptName = StringUtilities.isNotEmpty(departmentBean.getDeptName())
+                        ? departmentBean.getDeptName() : departmentBean.getDeptNameS();
+                Group createdDeptGroup = flowableApi.createGroup(departmentBean.getDeptCode(), deptName, deptName);
+                log.info(" --- CREATED DEPT --- {}", createdDeptGroup.getId());
             }
         }
+    }
 
-        List<RoleBean> roles = (List<RoleBean>) commonServiceImpl.getRoles();
+    // ------------------------------------------------------------------
+    // Roles
+    // ------------------------------------------------------------------
+
+    private void syncRoles() {
+        List<RoleBean> roles = commonMapper.getRoles();
         for (RoleBean role : roles) {
             Group roleGroup = flowableApi.getRoleByName(role.getJobCode());
-            if (roleGroup == null) {
-                String roleName = StringUtilities.isNotEmpty(role.getJobName()) ? role.getJobName() : role.getJobNameS();
-                Group createdRole = flowableApi.createRole(role.getJobCode(), roleName);
-                SISOC.LOG.log(Level.INFO, " --- CREATED ROLE --- {0}", createdRole.getId());
+            if (roleGroup != null) {
+                continue;
             }
+            String roleName = StringUtilities.isNotEmpty(role.getJobName()) ? role.getJobName() : role.getJobNameS();
+            Group createdRole = flowableApi.createRole(role.getJobCode(), roleName);
+            log.info(" --- CREATED ROLE --- {}", createdRole.getId());
         }
+    }
 
-        List<UserBean> users = (List<UserBean>) commonServiceImpl.getSISUsers();
+    // ------------------------------------------------------------------
+    // Users (create or update, + manager assignment)
+    // ------------------------------------------------------------------
+
+    /**
+     * Builds the same bilingual-lookup {@code Map} shape {@code CommonService}
+     * builds for {@code getStaffInfo}/{@code getStudentInfo}: {@code langS}
+     * (Arabic), {@code lang} (English), {@code userName}.
+     */
+    private Map<String, Object> userNameLangParams(String userName) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("langS", CoreConstants.INT_ARABIC_LOCALE);
+        params.put("lang", CoreConstants.INT_ENGLISH_LOCALE);
+        params.put("userName", userName);
+        return params;
+    }
+
+    private int syncSisUsers() {
+        List<UserBean> users = commonMapper.getSISUsers();
         String managerId = null;
         UserBean managerUserBean = null;
         PredicateUtil predicateUtil = new PredicateUtil();
+        int processed = 0;
 
         for (UserBean user : users) {
             User existingUser = flowableApi.getUserByUsername(user.getUsername());
@@ -89,23 +201,22 @@ public class SISOC {
                 switch (keyType) {
                     case "2": {
                         try {
-                            StaffInfoBean staffBean = commonServiceImpl.getStaffInfo(user.getUsername());
+                            StaffInfoBean staffBean = commonMapper.getStaffInfo(userNameLangParams(user.getUsername()));
                             String title = staffBean.getGender().equals("1") ? "Mr" : "Mrs";
                             User createdUser = flowableApi.createUser(user.getUsername(), user.getPassword(),
                                     staffBean.getInstructorName(), staffBean.getInstructorId(),
                                     title, staffBean.getEmail(), null, null);
-                            //flowableApi.assignApplicationAccess(createdUser.getId());
-                            SISOC.LOG.log(Level.INFO, " --- CREATED USER --- {0}", createdUser.getId());
+                            log.info(" --- CREATED USER --- {}", createdUser.getId());
 
                             if (user.getDefaultRole().equals("2")) {
                                 Group instructorRole = flowableApi.getRoleByName("INS");
                                 flowableApi.assignMembershipToUser(createdUser.getId(), null, instructorRole);
-                                managerId = commonServiceImpl.getHeadOfDepartment(staffBean.getFacultyNo(), staffBean.getDepartmentNo(), staffBean.getCampusNo());
+                                managerId = commonMapper.getHeadOfDepartment(staffBean.getFacultyNo(), staffBean.getDepartmentNo(), staffBean.getCampusNo());
                                 managerUserBean = (UserBean) predicateUtil.selectObjectFromCollection((List) users, "userId", managerId);
                             } else if (user.getDefaultRole().equals("10")) {
                                 Group hodRole = flowableApi.getRoleByName("HOD");
                                 Group instructorRole = flowableApi.getRoleByName("INS");
-                                List<String> userDepts = (List<String>) commonServiceImpl.getUserDepts(user.getUserId());
+                                List<String> userDepts = commonMapper.getUserDepts(user.getUserId());
                                 for (String deptCode : userDepts) {
                                     Group deptGroup = flowableApi.getGroupByName(deptCode);
                                     if (deptGroup != null) {
@@ -114,12 +225,12 @@ public class SISOC {
                                 }
                                 flowableApi.assignMembershipToUser(createdUser.getId(), null, instructorRole);
                                 flowableApi.assignMembershipToUser(createdUser.getId(), null, hodRole);
-                                managerId = commonServiceImpl.getDeanOfCollege(staffBean.getFacultyNo(), staffBean.getCampusNo());
+                                managerId = commonMapper.getDeanOfCollege(staffBean.getFacultyNo(), staffBean.getCampusNo());
                                 managerUserBean = (UserBean) predicateUtil.selectObjectFromCollection((List) users, "userId", managerId);
                             } else if (user.getDefaultRole().equals("9")) {
                                 Group deanRole = flowableApi.getRoleByName("DEN");
                                 Group instructorRole = flowableApi.getRoleByName("INS");
-                                List<String> userFaculties = (List<String>) commonServiceImpl.getUserFaculties(user.getUserId());
+                                List<String> userFaculties = commonMapper.getUserFaculties(user.getUserId());
                                 for (String facultyCode : userFaculties) {
                                     Group facultyGroup = flowableApi.getGroupByName(facultyCode);
                                     if (facultyGroup != null) {
@@ -134,26 +245,25 @@ public class SISOC {
                                 User managerEngineUser = flowableApi.getUserByUsername(managerUserBean.getUsername());
                                 if (managerEngineUser != null) {
                                     flowableApi.setManager(createdUser.getId(), managerEngineUser.getId());
-                                    SISOC.LOG.log(Level.INFO, " --- USER UPDATED--- {0}", createdUser.getId());
+                                    log.info(" --- USER UPDATED--- {}", createdUser.getId());
                                 }
                             }
                         } catch (Exception e) {
-                            SISOC.LOG.log(Level.SEVERE, " --- ERROR GET STAFF INFO --- {0}", user.getUsername());
+                            log.error(" --- ERROR GET STAFF INFO --- {}", user.getUsername(), e);
                         }
                         break;
                     }
                     case "3": {
-                        StudentInfoBean studentBean = commonServiceImpl.getStudentInfo(user.getUsername());
+                        StudentInfoBean studentBean = commonMapper.getStudentInfo(userNameLangParams(user.getUsername()));
                         String title = studentBean.getGender().equals("1") ? "Mr" : "Mrs";
                         User createdUser = flowableApi.createUser(user.getUsername(), user.getPassword(),
                                 studentBean.getStudentName(), studentBean.getStudentId(),
                                 title, studentBean.getEmail(), studentBean.getMobile(), studentBean.getAddress());
                         Group studentRole = flowableApi.getRoleByName("STD");
-                        //flowableApi.assignApplicationAccess(createdUser.getId());
                         flowableApi.assignMembershipToUser(createdUser.getId(), null, studentRole);
-                        SISOC.LOG.log(Level.INFO, " --- CREATED USER --- {0}", createdUser.getId());
+                        log.info(" --- CREATED USER --- {}", createdUser.getId());
 
-                        managerId = commonServiceImpl.getHeadOfDepartment(studentBean.getFacultyNo(), studentBean.getDeptNo(), studentBean.getCampusNo());
+                        managerId = commonMapper.getHeadOfDepartment(studentBean.getFacultyNo(), studentBean.getDeptNo(), studentBean.getCampusNo());
                         managerUserBean = (UserBean) predicateUtil.selectObjectFromCollection((List) users, "userId", managerId);
                         if (managerUserBean != null) {
                             User managerEngineUser2 = flowableApi.getUserByUsername(managerUserBean.getUsername());
@@ -164,54 +274,55 @@ public class SISOC {
                         break;
                     }
                     case "4": {
-                        EmployeeInfoBean employeeInfo = commonServiceImpl.getEmployeeInfo(user.getUsername());
+                        EmployeeInfoBean employeeInfo = commonMapper.getEmployeeInfo(user.getUsername());
                         // NOTE: preserved from the original mapping - username doubles as the
                         // initial password, and firstName/lastName are sourced from
                         // username/userId respectively.
                         User createdUser2 = flowableApi.createUser(user.getUsername(), user.getUsername(),
                                 employeeInfo.getUsername(), employeeInfo.getUserId(),
                                 null, null, null, null);
-                        //flowableApi.assignApplicationAccess(createdUser2.getId());
-                        SISOC.LOG.log(Level.INFO, " --- CREATED USER --- {0}", createdUser2.getId());
+                        log.info(" --- CREATED USER --- {}", createdUser2.getId());
 
                         Group empRole = flowableApi.getRoleByName("EMP");
                         flowableApi.assignMembershipToUser(createdUser2.getId(), null, empRole);
                         break;
                     }
+                    default:
+                        log.warn(" --- UNKNOWN KEY TYPE --- user={}, keyType={}", user.getUsername(), keyType);
                 }
             } else {
                 if (user.getKeyType().equals("3")) {
-                    StudentInfoBean studentBean2 = commonServiceImpl.getStudentInfo(user.getUsername());
+                    StudentInfoBean studentBean2 = commonMapper.getStudentInfo(userNameLangParams(user.getUsername()));
                     flowableApi.updateUser(existingUser, studentBean2.getStudentName(), studentBean2.getStudentId(),
                             null, studentBean2.getEmail(), studentBean2.getMobile(), studentBean2.getAddress());
-                    SISOC.LOG.log(Level.INFO, " --- STUDENT UPDATED --- {0}", studentBean2.getStudentId());
+                    log.info(" --- STUDENT UPDATED --- {}", studentBean2.getStudentId());
                 }
                 if (user.getKeyType().equals("2")) {
                     try {
-                        StaffInfoBean staffBean2 = commonServiceImpl.getStaffInfo(user.getUsername());
+                        StaffInfoBean staffBean2 = commonMapper.getStaffInfo(userNameLangParams(user.getUsername()));
                         String title = staffBean2.getGender().equals("1") ? "Mr" : "Mrs";
                         User updatedUser = flowableApi.updateUser(existingUser, staffBean2.getInstructorName(), staffBean2.getInstructorId(),
                                 title, staffBean2.getEmail(), null, null);
-                        SISOC.LOG.log(Level.INFO, " --- CREATED USER --- {0}", updatedUser.getId());
+                        log.info(" --- CREATED USER --- {}", updatedUser.getId());
 
                         if (user.getDefaultRole().equals("2")) {
                             Group instructorRole = flowableApi.getRoleByName("INS");
                             if (!flowableApi.isMember(updatedUser.getId(), instructorRole.getId())) {
                                 flowableApi.assignMembershipToUser(updatedUser.getId(), null, instructorRole);
-                                managerId = commonServiceImpl.getHeadOfDepartment(staffBean2.getFacultyNo(), staffBean2.getDepartmentNo(), staffBean2.getCampusNo());
+                                managerId = commonMapper.getHeadOfDepartment(staffBean2.getFacultyNo(), staffBean2.getDepartmentNo(), staffBean2.getCampusNo());
                                 managerUserBean = (UserBean) predicateUtil.selectObjectFromCollection((List) users, "userId", managerId);
                             }
                         } else if (user.getDefaultRole().equals("10")) {
                             Group hodRole = flowableApi.getRoleByName("HOD");
                             Group instructorRole = flowableApi.getRoleByName("INS");
-                            List<String> userDepts = (List<String>) commonServiceImpl.getUserDepts(user.getUserId());
+                            List<String> userDepts = commonMapper.getUserDepts(user.getUserId());
                             for (String deptCode : userDepts) {
                                 Group deptGroup = flowableApi.getGroupByName(deptCode);
                                 if (deptGroup == null || flowableApi.isMember(updatedUser.getId(), deptGroup.getId())) {
                                     continue;
                                 }
                                 flowableApi.assignMembershipToUser(updatedUser.getId(), deptGroup, hodRole);
-                                managerId = commonServiceImpl.getHeadOfDepartment(staffBean2.getFacultyNo(), staffBean2.getDepartmentNo(), staffBean2.getCampusNo());
+                                managerId = commonMapper.getHeadOfDepartment(staffBean2.getFacultyNo(), staffBean2.getDepartmentNo(), staffBean2.getCampusNo());
                                 managerUserBean = (UserBean) predicateUtil.selectObjectFromCollection((List) users, "userId", managerId);
                             }
                             if (!flowableApi.isMember(updatedUser.getId(), instructorRole.getId())) {
@@ -220,12 +331,12 @@ public class SISOC {
                             if (!flowableApi.isMember(updatedUser.getId(), hodRole.getId())) {
                                 flowableApi.assignMembershipToUser(updatedUser.getId(), null, hodRole);
                             }
-                            managerId = commonServiceImpl.getDeanOfCollege(staffBean2.getFacultyNo(), staffBean2.getCampusNo());
+                            managerId = commonMapper.getDeanOfCollege(staffBean2.getFacultyNo(), staffBean2.getCampusNo());
                             managerUserBean = (UserBean) predicateUtil.selectObjectFromCollection((List) users, "userId", managerId);
                         } else if (user.getDefaultRole().equals("9")) {
                             Group deanRole = flowableApi.getRoleByName("DEN");
                             Group instructorRole = flowableApi.getRoleByName("INS");
-                            List<String> userFaculties = (List<String>) commonServiceImpl.getUserFaculties(user.getUserId());
+                            List<String> userFaculties = commonMapper.getUserFaculties(user.getUserId());
                             for (String facultyCode : userFaculties) {
                                 Group facultyGroup = flowableApi.getGroupByName(facultyCode);
                                 if (facultyGroup == null || flowableApi.isMember(updatedUser.getId(), facultyGroup.getId())) {
@@ -245,22 +356,18 @@ public class SISOC {
                             User managerEngineUser3 = flowableApi.getUserByUsername(managerUserBean.getUsername());
                             if (managerEngineUser3 != null) {
                                 flowableApi.setManager(updatedUser.getId(), managerEngineUser3.getId());
-                                SISOC.LOG.log(Level.INFO, " --- USER UPDATED--- {0}", updatedUser.getId());
+                                log.info(" --- USER UPDATED--- {}", updatedUser.getId());
                             }
                         }
                     } catch (Exception e2) {
-                        SISOC.LOG.log(Level.SEVERE, " --- ERROR GET STAFF INFO --- {0}", user.getUsername());
+                        log.error(" --- ERROR GET STAFF INFO --- {}", user.getUsername(), e2);
                     }
                 }
             }
-            commonServiceImpl.processSynchUser(user.getUsername());
+            commonMapper.processSynchUser(user.getUsername());
+            processed++;
         }
-        SISOC.LOG.log(Level.INFO, " --- SYNCHRONIZATION FINISHED @ --- {0}", DateTimeUtil.getCurrentDateTime());
-        System.exit(0);
-    }
 
-    private static ApplicationContext prepareConfiguration() {
-        return (ApplicationContext) new ClassPathXmlApplicationContext("/engine-context.xml");
+        return processed;
     }
-
 }

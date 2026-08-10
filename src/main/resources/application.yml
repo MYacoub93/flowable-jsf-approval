@@ -19,13 +19,13 @@ app:
       # =========================================================
       # 1. قاعدة بيانات المستخدمين (المستخدمة عبر MyBatis)
       # =========================================================
-    jdbc-url: jdbc:oracle:thin:@192.168.5.2:1521:atsdb19
-    username: meu
-    password: meu
-    driver-class-name: oracle.jdbc.OracleDriver
-    hikari:
-      pool-name: ExternalHikariPool
-      maximum-pool-size: 5
+      url: jdbc:oracle:thin:@192.168.2.5:1521:atsdb19
+      username: meu
+      password: meu
+      driver-class-name: oracle.jdbc.OracleDriver
+      hikari:
+        pool-name: ExternalHikariPool
+        maximum-pool-size: 5
 
 #      jdbc-url: jdbc:mysql://localhost:3307/approvaldb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
 #      username: root
@@ -65,7 +65,7 @@ flowable:
 # MyBatis
 mybatis:
   mapper-locations: classpath:mapper/*.xml
-  type-aliases-package: com.example.approval.entity
+  type-aliases-package: com.example.approval.entity,com.example.approval.origin.beans
   configuration:
     map-underscore-to-camel-case: true
     default-fetch-size: 100

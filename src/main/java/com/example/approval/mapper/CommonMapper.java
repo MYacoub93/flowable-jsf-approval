@@ -1,144 +1,142 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package com.example.approval.mapper;
 
-
+import com.example.approval.origin.beans.DepartmentBean;
+import com.example.approval.origin.beans.EmployeeInfoBean;
+import com.example.approval.origin.beans.FacultyBean;
+import com.example.approval.origin.beans.GroupBean;
+import com.example.approval.origin.beans.RoleBean;
+import com.example.approval.origin.beans.StaffInfoBean;
+import com.example.approval.origin.beans.StudentInfoBean;
+import com.example.approval.origin.beans.UserBean;
+import com.example.approval.origin.beans.UserInfoBean;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 import java.util.Map;
 
-import com.example.approval.origin.beans.*;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
+/**
+ * MyBatis mapper for {@code CommonMapper.xml}. Signatures here are taken
+ * directly from how the existing {@code CommonService} calls this mapper, so
+ * this interface is the ground truth to code against - not a guess.
+ *
+ * <p><b>Two things surfaced while aligning this against {@code CommonMapper.xml}
+ * and {@code CommonService}, worth fixing/confirming before relying on this:</b></p>
+ * <ul>
+ *   <li>{@link #getStaffInfo} / {@link #getStudentInfo} take a bilingual
+ *       lookup {@code Map} with keys {@code langS} (Arabic) / {@code lang}
+ *       (English) / {@code userName} - matching {@code CommonService}. The
+ *       XML as originally shared used {@code #{arabicLang}} / {@code #{englishLang}}
+ *       instead of {@code #{langS}} / {@code #{lang}}, which would not have
+ *       bound correctly; the accompanying {@code CommonMapper.xml} in this
+ *       delivery has been corrected to use {@code langS}/{@code lang}.</li>
+ *   <li>{@link #getStaffInfoById}, {@link #getStudentInfoById},
+ *       {@link #checkUserAvailability} and {@link #getHrsSectionInfo} are
+ *       called by {@code CommonService} but have <b>no matching
+ *       {@code <select>}/{@code <insert>} id</b> anywhere in the
+ *       {@code CommonMapper.xml} that was shared. They're declared here so
+ *       this interface still compiles against {@code CommonService}, but
+ *       calling any of them will fail at runtime ("Invalid bound statement")
+ *       until the corresponding SQL is added to the XML.</li>
+ * </ul>
+ */
+@Mapper
+public interface CommonMapper {
 
-@org.apache.ibatis.annotations.Mapper
-public interface CommonMapper  {
+    String pingDB();
 
-    public String pingDB();
+    List<GroupBean> getHrsGroups();
 
-    public List<GroupBean> getHrsGroups();
+    List<RoleBean> getHrsRoles();
 
-    public List<RoleBean> getHrsRoles();
+    List<RoleBean> getRoles();
 
-    public List<UserInfoBean> getHrsUsers();
+    List<UserBean> getSISUsers();
 
-    public StudentInfoBean getStudentInfo(Map<String, Object> map);
+    List<UserInfoBean> getHrsUsers();
 
-    //public List<SemesterBean> getStudentAcademicSemester(Map<String, Object> map);
+    EmployeeInfoBean getEmployeeInfo(@Param("username") String username);
 
-    //public List<SemestersLookupBean> getSemesterInfo(Map<String, Object> map);
+    /**
+     * map keys: {@code langS} (Arabic locale), {@code lang} (English locale),
+     * {@code userName}. Build with {@code CoreConstants.INT_ARABIC_LOCALE} /
+     * {@code CoreConstants.INT_ENGLISH_LOCALE}, same as {@code CommonService}.
+     */
+    StaffInfoBean getStaffInfo(Map<String, Object> params);
 
-    public List<DepartmentBean> getDepartments(@Param("facultyNo") String facultyNo);
+    /**
+     * ⚠ No matching statement id in the CommonMapper.xml provided - add the
+     * SQL before wiring this up. map keys: {@code langS}, {@code lang},
+     * {@code userId}.
+     */
+    StaffInfoBean getStaffInfoById(Map<String, Object> params);
 
-    public List<String> getUserDepts(@Param("userId") String userId);
+    /**
+     * map keys: {@code langS}, {@code lang}, {@code userName}.
+     */
+    StudentInfoBean getStudentInfo(Map<String, Object> params);
 
-    public List<String> getUserFaculties(@Param("userId") String userId);
+    /**
+     * ⚠ No matching statement id in the CommonMapper.xml provided (the XML
+     * only has {@code getStudentById}, which takes {@code studentId} rather
+     * than a bilingual-lookup map - confirm whether that's the same query
+     * before wiring this up). map keys: {@code langS}, {@code lang},
+     * {@code studentId}.
+     */
+    StudentInfoBean getStudentInfoById(Map<String, Object> params);
 
-    public List<FacultyBean> getFaculties();
+    List<DepartmentBean> getDepartments(@Param("facultyNo") String facultyNo);
 
-    public List<RoleBean> getRoles();
+    List<FacultyBean> getFaculties();
 
-    public List<UserBean> getSISUsers();
+    /**
+     * Note: the backing query only filters on facultyNo; campusNo is
+     * accepted for call-site symmetry but currently unused by the SQL.
+     */
+    String getDeanOfCollege(@Param("facultyNo") String facultyNo,
+                             @Param("campusNo") String campusNo);
 
-    public EmployeeInfoBean getEmployeeInfo(@Param("username") String username);
+    /**
+     * Note: the backing query only filters on facultyNo + deptNo; campusNo
+     * is accepted for call-site symmetry with {@link #getDeanOfCollege} but
+     * currently unused by the SQL.
+     */
+    String getHeadOfDepartment(@Param("facultyNo") String facultyNo,
+                                @Param("deptNo") String deptNo,
+                                @Param("campusNo") String campusNo);
 
-    public UserBean checkUserAvailability(@Param("username") String username);
+    String getDepartmentCode(@Param("facultyNo") String facultyNo,
+                              @Param("deptNo") String deptNo);
 
-    public StaffInfoBean getStaffInfoById(Map<String, Object> map);
+    String getCollegeCode(@Param("facultyNo") String facultyNo);
 
-    public StaffInfoBean getStaffInfo(Map<String, Object> map);
+    List<String> getUserDepts(@Param("userId") String userId);
 
-    public String getDeanOfCollege(@Param("facultyNo") String facultyNo, @Param("campusNo") String campusNo);
+    List<String> getUserFaculties(@Param("userId") String userId);
 
-    public String getCollegeCode(@Param("facultyNo") String facultyNo);
+    UserInfoBean getHrsUserInfo(@Param("username") String username);
 
-    public String getHeadOfDepartment(@Param("facultyNo") String facultyNo,
-            @Param("deptNo") String departmentNo,
-            @Param("campusNo") String campusNo);
+    List<UserInfoBean> getAuthorizedHrStaffs();
 
-    public String getDepartmentCode(@Param("facultyNo") String facultyNo,
-            @Param("deptNo") String departmentNo);
+    /**
+     * ⚠ No matching statement id in the CommonMapper.xml provided. The XML's
+     * {@code getHrsGroupManager} (keyed by {@code sectionNo}, returns
+     * {@code GroupBean}) looks like it might be the same query under a
+     * different id - confirm before assuming that's a drop-in match.
+     */
+    GroupBean getHrsSectionInfo(@Param("sectionNo") String sectionNo);
 
-    public String getWorkFlowRequestNo();
+    String isStaffExists(@Param("staffId") String staffId);
 
-    public UserInfoBean getHrsUserInfo(@Param("username") String username);
+    String isStaffWorking(@Param("staffId") String staffId);
 
-    public List<UserInfoBean> getAuthorizedHrStaffs();
+    String getCurrentTime();
 
-    public String isStaffExists(@Param("staffId") String staffId);
+    /**
+     * ⚠ No matching statement id in the CommonMapper.xml provided - add the
+     * SQL before wiring this up.
+     */
+    UserBean checkUserAvailability(@Param("username") String username);
 
-    public String isStaffWorking(@Param("staffId") String staffId);
-
-    //public List<CountryBean> getCountries();
-
-    public GroupBean getHrsSectionInfo(@Param("sectionNo") String sectionNo);
-
-    public String getTransactionSeqNo();
-
-    //public List<CityBean> getCities(@Param("countryNo") String countryNo);
-
-    //public List<DaysBean> getDaysLookup();
-
-    public void insertStaffTimeSheet(Map map);
-
-    public String getCurrentTime();
-
-    public String sendSMS(@Param("mobileNo") String mobileNo, @Param("text") String text);
-
-    public String checkCaseRecord(@Param("caseId") String caseId);
-
-    //public void auditCase(AuditLogBean auditLogBean);
-
-    //public void auditCaseDTL(AuditLogBean auditLogBean);
-
-//    public void insertCaseAttachments(@Param("caseId") String caseId,
-//            @Param("contentId") String contentId,
-//            @Param("contentName") String contentName,
-//            @Param("entryUser") String entryUser,
-//            @Param("osUser") String osUser,
-//            @Param("terminal") String terminal);
-
-    /*public List<PermittedDocument> getPermittedDocument(@Param("requesterId") String requesterId,
-            @Param("yearCode") String yearCode,
-            @Param("semester") String semester);*/
-
-//    public void getDocumentReportLink(Map map);
-//
-//    public void checkBpmServiceRules(Map map);
-//
-//    public void checkBpmPresumbitService(Map map);
-
-//    public List<AttachmentsBean> getAttachments();
-//
-//    public List<TimeLookupBean> getTimeLookup();
-//
-//    public List<PermittedDocument> getServiceDocumentInfo(@Param("documentCode") String documentCode);
-//
-//    public List<AcademicTransactionBean> getStudentAcademicTransactions(String studentId);
-//
-//    public List<HighSchoolInfoBean> getStudentHighSchoolInfo(String studentId);
-//
-//    public List<ProbationInfoBean> getStudentProbations(String studentId);
-//
-//    public List<ExemptionBean> getStudentExemptions(String studentId);
-
-//    public String getStudentTotalBalance(String studentId);
-//
-//    public void processServicePaymentClaim(Map<String, Object> map);
-//
-//    public void insertStudentsApplications(Map<String, Object> map);
-//
-//    public String checkIfStudentHasApplication(Map<String, Object> map);
-//
-//    public StudentNameBean getStudentFullName(@Param("studentId") String studentId);
-//
-    public void processSynchUser(@Param("username") String username);
-//
-//    public String checkServicePeriod(Map<String, Object> map);
-//
-      public StudentInfoBean getStudentInfoById(Map<String, Object> map);
-
+    void processSynchUser(@Param("username") String username);
 }
