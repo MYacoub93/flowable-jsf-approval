@@ -1,26 +1,17 @@
 package com.example.approval.bean;
 
-import com.example.approval.entity.SystemUser;
-import com.example.approval.entity.User;
-import com.example.approval.service.UserService;
+import com.example.approval.mapper.FlowableIdentityMapper;
+import com.example.approval.service.FlowableIdentityService;
+import org.flowable.idm.api.User;
 import jakarta.enterprise.context.SessionScoped;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
-import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.Serializable;
-import java.util.Optional;
 
-/**
- * JSF session-scoped bean for simple username-based login.
- * Stores the authenticated User in the HTTP session for the whole conversation.
- *
- * Note: JoinFaces + CDI (Weld) is used; @Named + @SessionScoped works together with Spring.
- * We also expose it as a Spring component for potential injection elsewhere.
- */
 @Named("loginBean")
 @SessionScoped
 @Component
@@ -29,30 +20,41 @@ public class UserLoginBean implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Autowired
-    private UserService userService;
+    private FlowableIdentityService identityMapper;
 
     private String username;
-    private SystemUser currentUser;
+    private String password;
+    private User currentUser;
 
     public String login() {
-        if (username == null || username.isBlank()) {
-            addMessage(FacesMessage.SEVERITY_ERROR, "Username is required");
+        if (username == null || username.isBlank() || password == null || password.isBlank()) {
+            addMessage(FacesMessage.SEVERITY_ERROR, "Username and password are required");
             return null;
         }
-        Optional<SystemUser> userOpt = userService.findByUsername(username.trim());
-        if (userOpt.isEmpty()) {
-            addMessage(FacesMessage.SEVERITY_ERROR, "Unknown user: " + username);
+
+        // جلب المستخدم مع كلمة المرور مفكوكة التشفير مباشرة من قاعدة البيانات عبر الـ SELECT
+        User dbUser = identityMapper.findUserByUsernameForAuth(username.trim());
+        if (dbUser == null) {
+            addMessage(FacesMessage.SEVERITY_ERROR, "Invalid username or password");
             return null;
         }
-        this.currentUser = userOpt.get();
-        this.username = currentUser.getUsername();
-        addMessage(FacesMessage.SEVERITY_INFO, "Welcome " + currentUser.getUsername());
+
+        // مقارنة كلمة المرور المدخلة مع القيمة القادمة من الاستعلام
+        if (!password.equals(dbUser.getPassword())) {
+            addMessage(FacesMessage.SEVERITY_ERROR, "Invalid username or password");
+            return null;
+        }
+
+        this.currentUser = dbUser;
+        this.username = currentUser.getFirstName();
+        addMessage(FacesMessage.SEVERITY_INFO, "Welcome " + currentUser.getFirstName());
         return "/dashboard?faces-redirect=true";
     }
 
     public String logout() {
         this.currentUser = null;
         this.username = null;
+        this.password = null;
         FacesContext.getCurrentInstance().getExternalContext().invalidateSession();
         return "/login?faces-redirect=true";
     }
@@ -75,11 +77,19 @@ public class UserLoginBean implements Serializable {
         this.username = username;
     }
 
-    public SystemUser getCurrentUser() {
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public User getCurrentUser() {
         return currentUser;
     }
 
-    public void setCurrentUser(SystemUser currentUser) {
+    public void setCurrentUser(User currentUser) {
         this.currentUser = currentUser;
     }
 }

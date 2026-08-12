@@ -26,7 +26,10 @@ app:
       hikari:
         pool-name: ExternalHikariPool
         maximum-pool-size: 5
-
+  sync:
+    sis:
+      enabled:false
+      run-on-startup:false
 #      jdbc-url: jdbc:mysql://localhost:3307/approvaldb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
 #      username: root
 #      password: root

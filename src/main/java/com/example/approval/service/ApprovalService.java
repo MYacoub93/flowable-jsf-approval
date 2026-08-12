@@ -1,7 +1,6 @@
 package com.example.approval.service;
 
-import com.example.approval.entity.SystemUser;
-import com.example.approval.entity.User;
+import com.example.approval.flowable.OrganizationManager;
 import org.flowable.engine.IdentityService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
@@ -9,6 +8,7 @@ import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.task.api.Task;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,12 +33,12 @@ public class ApprovalService {
     private final RuntimeService runtimeService;
     private final TaskService taskService;
     private final IdentityService identityService;
-    private final UserService userService;
+    private final OrganizationManager userService;
 
     public ApprovalService(RuntimeService runtimeService,
                            TaskService taskService,
                            IdentityService identityService,
-                           UserService userService) {
+                           OrganizationManager userService) {
         this.runtimeService = runtimeService;
         this.taskService = taskService;
         this.identityService = identityService;
@@ -90,7 +90,7 @@ public class ApprovalService {
                                         Double amount,
                                         String department) {
 
-        SystemUser initiator = userService.findByUsername(initiatorUsername)
+        org.flowable.idm.api.User initiator = userService.findByUsername(initiatorUsername)
                 .orElseThrow();
 
         // Set authenticated user so Flowable history records the starter

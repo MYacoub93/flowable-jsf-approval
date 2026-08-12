@@ -81,7 +81,7 @@ public class TaskBean implements Serializable {
                     taskId,
                     approved,
                     comments,
-                    loginBean.getCurrentUser().getUsername());
+                    loginBean.getCurrentUser().getFirstName());
             FacesContext.getCurrentInstance().addMessage(null,
                     new FacesMessage(FacesMessage.SEVERITY_INFO,
                             approved ? "Request approved" : "Request rejected", null));

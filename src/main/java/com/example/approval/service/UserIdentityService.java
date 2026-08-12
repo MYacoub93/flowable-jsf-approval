@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @Transactional(readOnly = true)
-public class UserIdentityService {
+public class  UserIdentityService {
 
     private final IdentityService identityService;
 

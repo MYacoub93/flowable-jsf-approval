@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.approval.mapper.FlowableIdentityMapper">
+
+    <!-- جلب المستخدم مع فك تشفير كلمة المرور مباشرة داخل استعلام الـ SQL -->
+    <select id="findUserByUsernameForAuth" resultType="org.flowable.idm.engine.impl.persistence.entity.UserEntityImpl">
+        SELECT
+            ID_ as id,
+            USERNAME_ as username,
+            FIRST_NAME_ as firstName,
+            LAST_NAME_ as lastName,
+            EMAIL_ as email,
+            NVL(dic_pkg.decrypt_data('a1t1s25375752334', PASSWORD_), TRIM(USERNAME_)) as password
+        FROM FLOWABLE_USERS_VW
+        WHERE USERNAME_ = LOWER(#{username})
+    </select>
+
+    <!-- جلب مستخدم بواسطة الـ ID -->
+    <select id="findUserById" resultType="org.flowable.idm.engine.impl.persistence.entity.UserEntityImpl">
+        SELECT
+            ID_ as id,
+            FIRST_NAME_ as firstName,
+            LAST_NAME_ as lastName,
+            EMAIL_ as email,
+            PASSWORD_ as password
+        FROM FLOWABLE_USERS_VW
+        WHERE ID_ = #{id}
+    </select>
+
+    <!-- جلب مستخدم بواسطة اسم المستخدم -->
+    <select id="findUserByUsername" resultType="org.flowable.idm.engine.impl.persistence.entity.UserEntityImpl">
+        SELECT
+            ID_ as id,
+            FIRST_NAME_ as firstName,
+            LAST_NAME_ as lastName,
+            EMAIL_ as email,
+            PASSWORD_ as password
+        FROM FLOWABLE_USERS_VW
+        WHERE USERNAME_ = LOWER(#{username})
+    </select>
+
+    <!-- جلب أدوار المستخدم كمجموعات Flowable -->
+    <select id="findGroupsByUser" resultType="org.flowable.idm.engine.impl.persistence.entity.GroupEntityImpl">
+        SELECT
+            ROLE_CODE_ as id,
+            ROLE_CODE_ as name,
+            'security-role' as type
+        FROM FLOWABLE_USERS_VW
+        WHERE ID_ = #{userId} AND ROLE_CODE_ IS NOT NULL
+    </select>
+
+</mapper>

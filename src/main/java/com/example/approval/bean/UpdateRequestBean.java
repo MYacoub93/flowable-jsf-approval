@@ -82,7 +82,7 @@ public class UpdateRequestBean implements Serializable {
                     description,
                     amount,
                     department,
-                    loginBean.getCurrentUser().getUsername());
+                    loginBean.getCurrentUser().getFirstName());
             FacesContext.getCurrentInstance().addMessage(null,
                     new FacesMessage(FacesMessage.SEVERITY_INFO, "Request updated and resubmitted", null));
             return "/dashboard?faces-redirect=true";

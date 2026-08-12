@@ -53,7 +53,7 @@ public class StartProcessBean implements Serializable {
 
         try {
             ProcessInstance pi = approvalService.startProcess(
-                    loginBean.getCurrentUser().getUsername(),
+                    loginBean.getCurrentUser().getFirstName(),
                     title.trim(),
                     description != null ? description.trim() : "",
                     amount,

@@ -11,7 +11,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * MyBatis scans mappers under com.example.approval.mapper.
  */
 @SpringBootApplication
-@EnableScheduling
 public class ApprovalApplication {
 
     public static void main(String[] args) {

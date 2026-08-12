@@ -1,6 +1,7 @@
 package com.example.approval.config;
 
 import com.example.approval.mapper.CommonMapper;
+import com.example.approval.mapper.FlowableIdentityMapper;
 import com.example.approval.mapper.UserMapper;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
@@ -84,7 +85,11 @@ public class MyBatisConfig {
     public SqlSessionFactory externalSqlSessionFactory(
             @Qualifier("externalDataSource") DataSource externalDataSource,
             MybatisProperties mybatisProperties) throws Exception {
-        return buildSqlSessionFactory(externalDataSource, mybatisProperties, "classpath:mapper/CommonMapper.xml");
+        // Both CommonMapper.xml and FlowableIdentityMapper.xml are Oracle SQL
+        // (NVL, dic_pkg.decrypt_data, FLOWABLE_USERS_VW) -> externalDataSource.
+        return buildSqlSessionFactory(externalDataSource, mybatisProperties,
+                "classpath:mapper/CommonMapper.xml",
+                "classpath:mapper/FlowableIdentityMapper.xml");
     }
 
     @Bean(name = "externalSqlSessionTemplate")
@@ -97,6 +102,14 @@ public class MyBatisConfig {
     public MapperFactoryBean<CommonMapper> commonMapper(
             @Qualifier("externalSqlSessionFactory") SqlSessionFactory sqlSessionFactory) {
         MapperFactoryBean<CommonMapper> mapperFactoryBean = new MapperFactoryBean<>(CommonMapper.class);
+        mapperFactoryBean.setSqlSessionFactory(sqlSessionFactory);
+        return mapperFactoryBean;
+    }
+
+    @Bean
+    public MapperFactoryBean<FlowableIdentityMapper> flowableIdentityMapper(
+            @Qualifier("externalSqlSessionFactory") SqlSessionFactory sqlSessionFactory) {
+        MapperFactoryBean<FlowableIdentityMapper> mapperFactoryBean = new MapperFactoryBean<>(FlowableIdentityMapper.class);
         mapperFactoryBean.setSqlSessionFactory(sqlSessionFactory);
         return mapperFactoryBean;
     }
@@ -114,7 +127,7 @@ public class MyBatisConfig {
      */
     private SqlSessionFactory buildSqlSessionFactory(DataSource dataSource,
                                                        MybatisProperties mybatisProperties,
-                                                       String mapperLocationPattern) throws Exception {
+                                                       String... mapperLocationPatterns) throws Exception {
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
         factoryBean.setVfs(SpringBootVFS.class);
@@ -125,12 +138,19 @@ public class MyBatisConfig {
         if (mybatisProperties.getConfiguration() != null) {
             //factoryBean.setConfiguration(mybatisProperties.getConfiguration());
         }
-        factoryBean.setMapperLocations(resolveMapperLocations(mapperLocationPattern));
+        factoryBean.setMapperLocations(resolveMapperLocations(mapperLocationPatterns));
 
         return factoryBean.getObject();
     }
 
-    private Resource[] resolveMapperLocations(String pattern) throws Exception {
-        return new PathMatchingResourcePatternResolver().getResources(pattern);
+    private Resource[] resolveMapperLocations(String... patterns) throws Exception {
+        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+        java.util.List<Resource> resources = new java.util.ArrayList<>();
+        for (String pattern : patterns) {
+            for (Resource resource : resolver.getResources(pattern)) {
+                resources.add(resource);
+            }
+        }
+        return resources.toArray(new Resource[0]);
     }
 }

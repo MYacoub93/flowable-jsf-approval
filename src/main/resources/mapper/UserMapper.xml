@@ -4,23 +4,23 @@
 
 <mapper namespace="com.example.approval.mapper.UserMapper">
 
-    <resultMap id="UserResultMap" type="com.example.approval.entity.SystemUser">
-        <id     property="id"         column="id"/>
-        <result property="defaultRole"   column="default_role"/>
-        <result property="keyType"   column="key_type"/>
-        <result property="username" column="username"/>
-        <result property="password"       column="password"/>
-        <result property="webEnabled"      column="web_enabled"/>
-        <result property="userID"     column="user_id"/>
-    </resultMap>
+<!--    <resultMap id="UserResultMap" type="com.example.approval.entity.SystemUser">-->
+<!--        <id     property="id"         column="id"/>-->
+<!--        <result property="defaultRole"   column="default_role"/>-->
+<!--        <result property="keyType"   column="key_type"/>-->
+<!--        <result property="username" column="username"/>-->
+<!--        <result property="password"       column="password"/>-->
+<!--        <result property="webEnabled"      column="web_enabled"/>-->
+<!--        <result property="userID"     column="user_id"/>-->
+<!--    </resultMap>-->
 
-    <select id="findByUsername" resultMap="UserResultMap">
-        SELECT id,default_role,key_type,username,password,web_enabled,user_id
-        FROM users;
-        WHERE username = #{username}
-          AND web_enabled = 1
-        LIMIT 1
-    </select>
+<!--    <select id="findByUsername" resultMap="UserResultMap">-->
+<!--        SELECT id,default_role,key_type,username,password,web_enabled,user_id-->
+<!--        FROM users;-->
+<!--        WHERE username = #{username}-->
+<!--          AND web_enabled = 1-->
+<!--        LIMIT 1-->
+<!--    </select>-->
 
 
 

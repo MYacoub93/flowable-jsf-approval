@@ -7,6 +7,8 @@ import org.flowable.idm.api.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 public class OrganizationManager {
 
@@ -59,12 +61,25 @@ public class OrganizationManager {
         return identityService.createUserQuery().userId(username).singleResult();
     }
 
+    public Optional<User> findByUsername(String username) {
+        if (username == null || username.isBlank()) {
+            return Optional.empty();
+        }
+
+        org.flowable.idm.api.User flowableUser = identityService.createUserQuery()
+                .userId(username.trim())
+                .singleResult();
+
+        return Optional.ofNullable(flowableUser);
+    }
+
     public User createUser(String username, String password, String firstName, String lastName,
                            String title, String email, String mobile, String address) {
         User user = identityService.newUser(username);
         user.setFirstName(firstName);
         user.setLastName(lastName);
         user.setEmail(email);
+
         // Flowable stores this as-is unless you've configured a password
         // encoder on the IdentityService - wire one up before going to prod.
         user.setPassword(password);
