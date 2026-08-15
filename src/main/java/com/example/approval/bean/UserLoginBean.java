@@ -3,24 +3,22 @@ package com.example.approval.bean;
 import com.example.approval.mapper.FlowableIdentityMapper;
 import com.example.approval.service.FlowableIdentityService;
 import org.flowable.idm.api.User;
-import jakarta.enterprise.context.SessionScoped;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
-import jakarta.inject.Named;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.annotation.SessionScope;
 
 import java.io.Serializable;
 
-@Named("loginBean")
-@SessionScoped
-@Component
+@Component("loginBean")
+@SessionScope
 public class UserLoginBean implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     @Autowired
-    private FlowableIdentityService identityMapper;
+    private FlowableIdentityService identityService;
 
     private String username;
     private String password;
@@ -33,7 +31,7 @@ public class UserLoginBean implements Serializable {
         }
 
         // جلب المستخدم مع كلمة المرور مفكوكة التشفير مباشرة من قاعدة البيانات عبر الـ SELECT
-        User dbUser = identityMapper.findUserByUsernameForAuth(username.trim());
+        User dbUser = identityService.findUserByUsernameForAuth(username.trim());
         if (dbUser == null) {
             addMessage(FacesMessage.SEVERITY_ERROR, "Invalid username or password");
             return null;

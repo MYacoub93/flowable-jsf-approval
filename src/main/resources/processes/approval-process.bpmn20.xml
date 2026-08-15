@@ -9,7 +9,7 @@
              expressionLanguage="http://www.w3.org/1999/XPath"
              targetNamespace="http://www.example.com/approval">
 
-    <process id="approvalProcess" name="Purchase Approval Process" isExecutable="true">
+    <process id="approvalProcess" name="Purchase Approval Process" isExecutable="true" flowable:candidateStarterGroups="ADM">
 
         <!-- Start Event -->
         <startEvent id="startEvent" name="Start"/>

@@ -1,11 +1,12 @@
 package com.example.approval.service;
 
+
 import com.example.approval.mapper.FlowableIdentityMapper;
-import com.example.approval.mapper.UserMapper;
-import org.flowable.engine.IdentityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.flowable.idm.api.User;
+import java.util.Optional;
 
 /**
  * Service layer for User operations.
@@ -16,9 +17,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class FlowableIdentityService {
 
     @Autowired
-    private FlowableIdentityMapper identityService;
+    private FlowableIdentityMapper identityMapper;
+
+    public User findUserByUsernameForAuth(String username) {
 
 
+        org.flowable.idm.api.User flowableUser = identityMapper.findUserByUsernameForAuth(username);
+
+        return flowableUser;
+        //return Optional.ofNullable(flowableUser);
+    }
 
 
 

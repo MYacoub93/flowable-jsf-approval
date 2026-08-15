@@ -48,10 +48,10 @@ public class SISOC implements ApplicationRunner {
     private final CommonMapper commonMapper;
     private final OrganizationManager flowableApi;
 
-    @Value("${app.sync.sis.enabled:true}")
+    @Value("${app.sync.sis.enabled:false}")
     private boolean syncEnabled;
 
-    @Value("${app.sync.sis.run-on-startup:true}")
+    @Value("${app.sync.sis.run-on-startup:false}")
     private boolean runOnStartup;
 
     public SISOC(CommonMapper commonMapper, OrganizationManager flowableApi) {
