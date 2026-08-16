@@ -28,6 +28,19 @@ public class CustomGroupEntityManager extends GroupEntityManagerImpl {
     }
 
     @Override
+    public List<Group> findGroupByQueryCriteria(GroupQueryImpl query) {
+        if (query.getUserId() != null) {
+            return (List) identityMapper.findGroupsByUser(query.getUserId());
+        }
+        return super.findGroupByQueryCriteria(query); // any other criteria you still want DB-backed
+    }
+
+    @Override
+    public long findGroupCountByQueryCriteria(GroupQueryImpl query) {
+        return findGroupByQueryCriteria(query).size();
+    }
+
+    @Override
     public void insert(GroupEntity entity) {
         throw new UnsupportedOperationException("Groups are managed by SIS View directly.");
     }

@@ -41,7 +41,7 @@ public class ProcessListBean implements Serializable {
     @PostConstruct
     public void init() {
         if (loginBean.isLoggedIn()) {
-            String username = loginBean.getCurrentUser().getFirstName();
+            String username = loginBean.getCurrentUser().getId();
             availableProcesses = workflowManager.getProcessesUserCanStart(username);
         }
     }

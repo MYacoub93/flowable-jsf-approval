@@ -40,7 +40,7 @@ public class DashboardBean implements Serializable {
     @PostConstruct
     public void init() {
         if (loginBean.isLoggedIn()) {
-            String username = loginBean.getCurrentUser().getFirstName();
+            String username = loginBean.getCurrentUser().getId();
             myTasks = approvalService.getTasksForUser(username);
             myProcesses = approvalService.getStartedByUser(username);
             availableProcesses = workflowManager.getProcessesUserCanStart(username);
