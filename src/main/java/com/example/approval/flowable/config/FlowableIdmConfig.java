@@ -3,14 +3,12 @@ package com.example.approval.flowable.config;
 import com.example.approval.flowable.identity.CustomGroupEntityManager;
 import com.example.approval.flowable.identity.CustomUserEntityManager;
 import com.example.approval.mapper.FlowableIdentityMapper;
-import org.flowable.idm.engine.IdmEngineConfiguration;
+import org.flowable.idm.spring.SpringIdmEngineConfiguration;
 import org.flowable.spring.boot.EngineConfigurationConfigurer;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class FlowableIdmConfig implements EngineConfigurationConfigurer<IdmEngineConfiguration> {
-
+public class FlowableIdmConfig implements EngineConfigurationConfigurer<SpringIdmEngineConfiguration> {
 
     private final FlowableIdentityMapper identityMapper;
 
@@ -19,7 +17,7 @@ public class FlowableIdmConfig implements EngineConfigurationConfigurer<IdmEngin
     }
 
     @Override
-    public void configure(IdmEngineConfiguration idmConfig) {
+    public void configure(SpringIdmEngineConfiguration idmConfig) {
         CustomUserEntityManager customUserEntityManager = new CustomUserEntityManager(
                 idmConfig,
                 idmConfig.getUserDataManager(),

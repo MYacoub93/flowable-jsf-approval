@@ -51,6 +51,22 @@
             <version>${flowable.version}</version>
         </dependency>
 
+        <!-- Flowable Identity Manager -->
+        <dependency>
+            <groupId>org.flowable</groupId>
+            <artifactId>flowable-idm-spring</artifactId>
+            <version>${flowable.version}</version>
+        </dependency>
+
+        <!-- Flowable IDM Spring Configurator (provides org.flowable.idm.spring.configurator.SpringIdmEngineConfigurator).
+             Required by IdmEngineAutoConfiguration from flowable-spring-boot-autoconfigure; flowable-spring only
+             declares it with test scope, so it must be added explicitly to avoid ClassNotFoundException at startup -->
+        <dependency>
+            <groupId>org.flowable</groupId>
+            <artifactId>flowable-idm-spring-configurator</artifactId>
+            <version>${flowable.version}</version>
+        </dependency>
+
         <!-- JoinFaces for Jakarta Faces (JSF) integration -->
         <dependency>
             <groupId>org.joinfaces</groupId>
