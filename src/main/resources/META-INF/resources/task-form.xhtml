@@ -1,52 +1,43 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
-<h:head>
-    <title>Approval Task</title>
-    <style>
-        body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 20px; }
-        .card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 20px; background: #f8fafc; }
-        .row { margin-bottom: 8px; }
-        .label { font-weight: 600; color: #475569; width: 140px; display: inline-block; }
-        textarea { width: 100%; height: 80px; padding: 8px; box-sizing: border-box; }
-        .btn { padding: 10px 18px; color: white; border: none; cursor: pointer; border-radius: 4px; margin-right: 8px; }
-        .btn-approve { background: #16a34a; }
-        .btn-reject { background: #dc2626; }
-        .btn-secondary { background: #64748b; }
-        .msg { color: #b91c1c; }
-    </style>
-</h:head>
-<h:body>
-    <h1>#{taskBean.taskName}</h1>
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+<ui:composition template="/templates/portal.xhtml">
+    <ui:define name="title">Approval Task</ui:define>
+    <ui:define name="pageTitle">#{empty taskBean.taskName ? 'Approval Task' : taskBean.taskName}</ui:define>
 
-    <h:panelGroup rendered="#{!loginBean.loggedIn or empty taskBean.task}">
-        <p>Invalid task or not logged in. <h:link outcome="/dashboard" value="Back to Dashboard"/></p>
-    </h:panelGroup>
-
-    <h:panelGroup rendered="#{loginBean.loggedIn and not empty taskBean.task}">
-        <h:messages styleClass="msg"/>
-
-        <div class="card">
-            <h3>Request Information</h3>
-            <div class="row"><span class="label">Title:</span> #{taskBean.title}</div>
-            <div class="row"><span class="label">Description:</span> #{taskBean.description}</div>
-            <div class="row"><span class="label">Amount:</span> #{taskBean.amount}</div>
-            <div class="row"><span class="label">Department:</span> #{taskBean.department}</div>
-            <div class="row"><span class="label">Initiator:</span> #{taskBean.initiator}</div>
-            <div class="row"><span class="label">Previous comments:</span> #{taskBean.previousComments}</div>
-        </div>
-
-        <h:form id="approvalForm">
-            <div class="form-group">
-                <h:outputLabel for="comments" value="Your Comments"/>
-                <h:inputTextarea id="comments" value="#{taskBean.comments}"/>
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn or empty taskBean.task}">
+            <div class="anon">
+                <p>Invalid task or not logged in.</p>
+                <h:link outcome="/dashboard" value="Back to Dashboard" styleClass="btn btn-secondary"/>
             </div>
-            <br/>
-            <h:commandButton value="Approve" action="#{taskBean.approve}" styleClass="btn btn-approve"/>
-            <h:commandButton value="Reject" action="#{taskBean.reject}" styleClass="btn btn-reject"/>
-            <h:link outcome="/dashboard" value="Cancel" styleClass="btn btn-secondary"/>
-        </h:form>
-    </h:panelGroup>
-</h:body>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{loginBean.loggedIn and not empty taskBean.task}">
+            <div class="card">
+                <h3>Request Information</h3>
+                <div class="row"><span class="label">Title:</span> #{taskBean.title}</div>
+                <div class="row"><span class="label">Description:</span> #{taskBean.description}</div>
+                <div class="row"><span class="label">Amount:</span> #{taskBean.amount}</div>
+                <div class="row"><span class="label">Department:</span> #{taskBean.department}</div>
+                <div class="row"><span class="label">Initiator:</span> #{taskBean.initiator}</div>
+                <div class="row"><span class="label">Previous comments:</span> #{taskBean.previousComments}</div>
+            </div>
+
+            <h:form id="approvalForm">
+                <div class="form-group">
+                    <h:outputLabel for="comments" value="Your Comments"/>
+                    <h:inputTextarea id="comments" value="#{taskBean.comments}"/>
+                </div>
+                <div class="form-actions">
+                    <h:commandButton value="Approve" action="#{taskBean.approve}" styleClass="btn btn-approve"/>
+                    <h:commandButton value="Reject" action="#{taskBean.reject}" styleClass="btn btn-reject"/>
+                    <h:link outcome="/dashboard" value="Cancel" styleClass="btn btn-secondary"/>
+                </div>
+            </h:form>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>
 </html>

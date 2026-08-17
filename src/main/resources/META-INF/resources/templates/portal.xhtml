@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+<h:head>
+    <title><ui:insert name="title">Approval Workflow</ui:insert></title>
+    <h:outputStylesheet name="css/portal.css"/>
+</h:head>
+<h:body>
+    <div class="layout">
+        <!-- Side menu -->
+        <ui:include src="/templates/side-menu.xhtml"/>
+
+        <!-- Main column: topbar + content + footer -->
+        <div class="main-wrapper">
+            <main class="main">
+                <header class="topbar">
+                    <h1><ui:insert name="pageTitle">Approval Workflow</ui:insert></h1>
+                    <ui:fragment rendered="#{loginBean.loggedIn}">
+                        <span class="user-chip">Signed in as
+                            <strong>#{loginBean.currentUser.firstName}</strong>
+                            (#{loginBean.currentUser.email})</span>
+                    </ui:fragment>
+                </header>
+
+                <h:messages infoStyle="color:#15803d;" errorStyle="color:#b91c1c;"/>
+
+                <ui:insert name="content"/>
+            </main>
+
+            <!-- Footer -->
+            <ui:include src="/templates/footer.xhtml"/>
+        </div>
+    </div>
+</h:body>
+</html>

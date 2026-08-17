@@ -4,44 +4,39 @@
       xmlns:f="jakarta.faces.core">
 <h:head>
     <title>Login - Approval Workflow</title>
-    <style>
-        body { font-family: system-ui, sans-serif; max-width: 400px; margin: 80px auto; padding: 20px; }
-        .form-group { margin-bottom: 12px; }
-        label { display: block; font-weight: 600; margin-bottom: 4px; }
-        input[type=text], input[type=password] { width: 100%; padding: 8px; box-sizing: border-box; }
-        .btn { padding: 10px 18px; background: #2563eb; color: white; border: none; cursor: pointer; border-radius: 4px; }
-        .btn:hover { background: #1d4ed8; }
-        .msg { color: #b91c1c; margin-bottom: 12px; }
-        .hint { font-size: 0.85rem; color: #64748b; margin-top: 20px; }
-    </style>
+    <h:outputStylesheet name="css/portal.css"/>
 </h:head>
 <h:body>
-    <h1>Approval Workflow Login</h1>
-    <h:messages styleClass="msg" />
+    <div class="login-card">
+        <h1>Approval Workflow Login</h1>
+        <h:messages styleClass="msg" />
 
-    <h:form id="loginForm">
-        <div class="form-group">
-            <h:outputLabel for="username" value="Username"/>
-            <h:inputText id="username" value="#{loginBean.username}" required="true"
-                         requiredMessage="Username is required"/>
-        </div>
-        <div class="form-group">
-            <h:outputLabel for="password" value="Password"/>
-            <h:inputSecret id="password" value="#{loginBean.password}" required="true"
-                           requiredMessage="Password is required" autocomplete="current-password"/>
-        </div>
-        <h:commandButton value="Login" action="#{loginBean.login}" styleClass="btn"/>
-    </h:form>
+        <h:form id="loginForm">
+            <div class="form-group">
+                <h:outputLabel for="username" value="Username"/>
+                <h:inputText id="username" value="#{loginBean.username}" required="true"
+                             requiredMessage="Username is required"/>
+            </div>
+            <div class="form-group">
+                <h:outputLabel for="password" value="Password"/>
+                <h:inputSecret id="password" value="#{loginBean.password}" required="true"
+                               requiredMessage="Password is required" autocomplete="current-password"/>
+            </div>
+            <div class="form-actions">
+                <h:commandButton value="Login" action="#{loginBean.login}" styleClass="btn"/>
+            </div>
+        </h:form>
 
-    <div class="hint">
-        <p><strong>Demo users:</strong></p>
-        <ul>
-            <li>alice (INITIATOR - IT)</li>
-            <li>bob (MANAGER - IT)</li>
-            <li>dave (FINANCE)</li>
-            <li>frank (INITIATOR - HR)</li>
-            <li>grace (MANAGER - HR)</li>
-        </ul>
+        <div class="hint">
+            <p><strong>Demo users:</strong></p>
+            <ul>
+                <li>alice (INITIATOR - IT)</li>
+                <li>bob (MANAGER - IT)</li>
+                <li>dave (FINANCE)</li>
+                <li>frank (INITIATOR - HR)</li>
+                <li>grace (MANAGER - HR)</li>
+            </ul>
+        </div>
     </div>
 </h:body>
 </html>

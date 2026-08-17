@@ -1,0 +1,23 @@
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                      xmlns:h="jakarta.faces.html"
+                      xmlns:ui="jakarta.faces.facelets">
+    <!-- Side menu: brand, navigation, logout. Included from templates/portal.xhtml.
+         Pages pass ui:param activeMenu = dashboard | processes | start-process
+         to highlight the current entry. Hidden when not logged in. -->
+    <ui:fragment rendered="#{loginBean.loggedIn}">
+        <aside class="sidebar">
+            <div class="brand">Approval Workflow</div>
+            <ul class="menu">
+                <li><h:link outcome="/dashboard" value="Dashboard"
+                            styleClass="#{activeMenu == 'dashboard' ? 'active' : ''}"/></li>
+                <li><h:link outcome="/processes" value="Processes"
+                            styleClass="#{activeMenu == 'processes' ? 'active' : ''}"/></li>
+                <li><h:link outcome="/start-process" value="Start Request"
+                            styleClass="#{activeMenu == 'start-process' ? 'active' : ''}"/></li>
+            </ul>
+            <h:form styleClass="logout-form">
+                <h:commandLink value="Logout" action="#{loginBean.logout}" styleClass="btn btn-danger"/>
+            </h:form>
+        </aside>
+    </ui:fragment>
+</ui:composition>

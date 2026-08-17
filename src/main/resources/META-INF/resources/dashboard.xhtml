@@ -3,180 +3,103 @@
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
       xmlns:ui="jakarta.faces.facelets">
-<h:head>
-    <title>Dashboard - Approval Workflow</title>
-    <style>
-        * { box-sizing: border-box; }
-        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background: #f1f5f9; }
-        .layout { display: flex; min-height: 100vh; }
+<f:metadata>
+    <f:viewAction action="#{dashboardBean.init}" />
+</f:metadata>
+<ui:composition template="/templates/portal.xhtml">
+    <ui:param name="activeMenu" value="dashboard"/>
 
-        /* Sidebar --------------------------------------------------------- */
-        .sidebar { width: 240px; background: #0f172a; color: #cbd5e1; display: flex; flex-direction: column; }
-        .sidebar .brand { padding: 20px; font-size: 1.2rem; font-weight: 700; color: #fff; border-bottom: 1px solid #1e293b; }
-        .sidebar .menu { list-style: none; padding: 0; margin: 0; }
-        .sidebar .menu li { margin: 0; }
-        .sidebar .menu a { display: block; padding: 14px 20px; color: #cbd5e1; text-decoration: none; border-left: 3px solid transparent; }
-        .sidebar .menu a:hover { background: #1e293b; color: #fff; }
-        .sidebar .menu a.active { background: #1e293b; color: #fff; border-left-color: #2563eb; }
-        .sidebar .logout-form { margin-top: auto; padding: 16px 20px; border-top: 1px solid #1e293b; }
-        .sidebar .logout-form .btn { width: 100%; }
+    <ui:define name="title">Dashboard - Approval Workflow</ui:define>
+    <ui:define name="pageTitle">Dashboard</ui:define>
 
-        /* Main content ---------------------------------------------------- */
-        .main { flex: 1; padding: 32px; overflow: auto; }
-        header.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-        header.topbar h1 { margin: 0; font-size: 1.6rem; color: #0f172a; }
-        .user-chip { color: #475569; font-size: 0.9rem; }
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <div class="anon">
+                <p>You are not logged in.</p>
+                <h:link outcome="/login" value="Go to Login" styleClass="btn"/>
+            </div>
+        </h:panelGroup>
 
-        /* Welcome banner -------------------------------------------------- */
-        .welcome { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; padding: 24px; border-radius: 10px; margin-bottom: 24px; }
-        .welcome h2 { margin: 0 0 6px 0; font-size: 1.4rem; }
-        .welcome p { margin: 0; opacity: 0.9; }
+        <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
+            <!-- Welcome banner -->
+            <section class="welcome">
+                <h2>#{dashboardBean.welcomeMessage}</h2>
+                <p>Here is a summary of your workflow activity.</p>
+            </section>
 
-        /* Stat cards ------------------------------------------------------ */
-        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
-        .stat-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-        .stat-card .label { color: #64748b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.04em; }
-        .stat-card .value { font-size: 2rem; font-weight: 700; color: #0f172a; margin-top: 6px; }
-        .stat-card .sub { font-size: 0.8rem; color: #94a3b8; margin-top: 4px; }
+            <!-- Stat cards -->
+            <section class="stats">
+                <div class="stat-card">
+                    <div class="label">My Tasks</div>
+                    <div class="value">#{dashboardBean.taskCount}</div>
+                    <div class="sub">Assigned to you</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Available Processes</div>
+                    <div class="value">#{dashboardBean.availableProcessCount}</div>
+                    <div class="sub">You can invoke</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">My Started Processes</div>
+                    <div class="value">#{dashboardBean.startedProcessCount}</div>
+                    <div class="sub">Initiated by you</div>
+                </div>
+            </section>
 
-        /* Tables ---------------------------------------------------------- */
-        .section-title { font-size: 1.15rem; color: #0f172a; margin: 0 0 12px 0; }
-        .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 28px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border-bottom: 1px solid #e2e8f0; padding: 10px; text-align: left; }
-        th { background: #f8fafc; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; color: #475569; }
-        tbody tr:hover { background: #f8fafc; }
-
-        /* Buttons --------------------------------------------------------- */
-        .btn { padding: 8px 14px; background: #2563eb; color: white; border: none; cursor: pointer; border-radius: 6px; text-decoration: none; display: inline-block; font-size: 0.9rem; }
-        .btn:hover { background: #1d4ed8; color: #fff; }
-        .btn-success { background: #16a34a; }
-        .btn-success:hover { background: #15803d; }
-        .btn-danger { background: #dc2626; }
-        .btn-danger:hover { background: #b91c1c; }
-        .btn-secondary { background: #64748b; }
-        .btn-secondary:hover { background: #475569; }
-        .empty { color: #94a3b8; font-style: italic; padding: 16px 0; }
-    </style>
-</h:head>
-<h:body>
-    <f:metadata>
-        <f:viewAction action="#{dashboardBean.init}" />
-    </f:metadata>
-
-    <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
-        <div style="padding:40px;text-align:center;">
-            <p>You are not logged in.</p>
-            <h:link outcome="/login" value="Go to Login" styleClass="btn"/>
-        </div>
-    </h:panelGroup>
-
-    <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
-        <div class="layout">
-            <!-- Sidebar menu -->
-            <aside class="sidebar">
-                <div class="brand">Approval Workflow</div>
-                <ul class="menu">
-                    <li><h:link outcome="/dashboard" value="Dashboard" styleClass="active"/></li>
-                    <li><h:link outcome="/processes" value="Processes"/></li>
-                    <li><h:link outcome="/start-process" value="Start Request"/></li>
-                </ul>
-                <h:form styleClass="logout-form">
-                    <h:commandLink value="Logout" action="#{dashboardBean.logout}" styleClass="btn btn-danger"/>
-                </h:form>
-            </aside>
-
-            <!-- Main content -->
-            <main class="main">
-                <header class="topbar">
-                    <h1>Dashboard</h1>
-                    <span class="user-chip">Signed in as
-                        <strong>#{loginBean.currentUser.firstName}</strong>
-                        (#{loginBean.currentUser.email})</span>
-                </header>
-
-                <h:messages globalOnly="true" infoStyle="color:#15803d;" errorStyle="color:#b91c1c;"/>
-
-                <!-- Welcome banner -->
-                <section class="welcome">
-                    <h2>#{dashboardBean.welcomeMessage}</h2>
-                    <p>Here is a summary of your workflow activity.</p>
-                </section>
-
-                <!-- Stat cards -->
-                <section class="stats">
-                    <div class="stat-card">
-                        <div class="label">My Tasks</div>
-                        <div class="value">#{dashboardBean.taskCount}</div>
-                        <div class="sub">Assigned to you</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="label">Available Processes</div>
-                        <div class="value">#{dashboardBean.availableProcessCount}</div>
-                        <div class="sub">You can invoke</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="label">My Started Processes</div>
-                        <div class="value">#{dashboardBean.startedProcessCount}</div>
-                        <div class="sub">Initiated by you</div>
-                    </div>
-                </section>
-
-                <!-- My Tasks -->
-                <h:form>
-                    <h3 class="section-title">My Tasks</h3>
-                    <div class="card">
-                        <h:dataTable value="#{dashboardBean.myTasks}" var="t"
-                                     rendered="#{not empty dashboardBean.myTasks}"
-                                     style="width:100%">
-                            <h:column>
-                                <f:facet name="header">Task</f:facet>
-                                #{t.name}
-                            </h:column>
-                            <h:column>
-                                <f:facet name="header">Created</f:facet>
-                                #{t.createTime}
-                            </h:column>
-                            <h:column>
-                                <f:facet name="header">Process Instance</f:facet>
-                                #{t.processInstanceId}
-                            </h:column>
-                            <h:column>
-                                <f:facet name="header">Action</f:facet>
-                                <h:commandButton value="Open" action="#{dashboardBean.openTask(t.id)}" styleClass="btn"/>
-                            </h:column>
-                        </h:dataTable>
-                        <p class="empty" rendered="#{empty dashboardBean.myTasks}">No tasks assigned to you.</p>
-                    </div>
-                </h:form>
-
-                <!-- My Started Processes -->
-                <h3 class="section-title">My Started Processes</h3>
+            <!-- My Tasks -->
+            <h:form>
+                <h3 class="section-title">My Tasks</h3>
                 <div class="card">
-                    <h:dataTable value="#{dashboardBean.myProcesses}" var="p"
-                                 rendered="#{not empty dashboardBean.myProcesses}"
+                    <h:dataTable value="#{dashboardBean.myTasks}" var="t"
+                                 rendered="#{not empty dashboardBean.myTasks}"
                                  style="width:100%">
                         <h:column>
-                            <f:facet name="header">Business Key</f:facet>
-                            #{p.businessKey}
+                            <f:facet name="header">Task</f:facet>
+                            #{t.name}
                         </h:column>
                         <h:column>
-                            <f:facet name="header">Instance ID</f:facet>
-                            #{p.id}
+                            <f:facet name="header">Created</f:facet>
+                            #{t.createTime}
                         </h:column>
                         <h:column>
-                            <f:facet name="header">Started</f:facet>
-                            #{p.startTime}
+                            <f:facet name="header">Process Instance</f:facet>
+                            #{t.processInstanceId}
                         </h:column>
                         <h:column>
-                            <f:facet name="header">Ended?</f:facet>
-                            #{p.ended}
+                            <f:facet name="header">Action</f:facet>
+                            <h:commandButton value="Open" action="#{dashboardBean.openTask(t.id)}" styleClass="btn"/>
                         </h:column>
                     </h:dataTable>
-                    <p class="empty" rendered="#{empty dashboardBean.myProcesses}">You have not started any processes yet.</p>
+                    <p class="empty" rendered="#{empty dashboardBean.myTasks}">No tasks assigned to you.</p>
                 </div>
-            </main>
-        </div>
-    </h:panelGroup>
-</h:body>
+            </h:form>
+
+            <!-- My Started Processes -->
+            <h3 class="section-title">My Started Processes</h3>
+            <div class="card">
+                <h:dataTable value="#{dashboardBean.myProcesses}" var="p"
+                             rendered="#{not empty dashboardBean.myProcesses}"
+                             style="width:100%">
+                    <h:column>
+                        <f:facet name="header">Business Key</f:facet>
+                        #{p.businessKey}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Instance ID</f:facet>
+                        #{p.id}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Started</f:facet>
+                        #{p.startTime}
+                    </h:column>
+                    <h:column>
+                        <f:facet name="header">Ended?</f:facet>
+                        #{p.ended}
+                    </h:column>
+                </h:dataTable>
+                <p class="empty" rendered="#{empty dashboardBean.myProcesses}">You have not started any processes yet.</p>
+            </div>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>
 </html>

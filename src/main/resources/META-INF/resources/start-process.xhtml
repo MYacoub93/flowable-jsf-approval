@@ -1,118 +1,55 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
-<h:head>
-    <title>Start Request - Approval Workflow</title>
-    <style>
-        * { box-sizing: border-box; }
-        body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background: #f1f5f9; }
-        .layout { display: flex; min-height: 100vh; }
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+<ui:composition template="/templates/portal.xhtml">
+    <ui:param name="activeMenu" value="start-process"/>
 
-        /* Sidebar --------------------------------------------------------- */
-        .sidebar { width: 240px; background: #0f172a; color: #cbd5e1; display: flex; flex-direction: column; }
-        .sidebar .brand { padding: 20px; font-size: 1.2rem; font-weight: 700; color: #fff; border-bottom: 1px solid #1e293b; }
-        .sidebar .menu { list-style: none; padding: 0; margin: 0; }
-        .sidebar .menu li { margin: 0; }
-        .sidebar .menu a { display: block; padding: 14px 20px; color: #cbd5e1; text-decoration: none; border-left: 3px solid transparent; }
-        .sidebar .menu a:hover { background: #1e293b; color: #fff; }
-        .sidebar .menu a.active { background: #1e293b; color: #fff; border-left-color: #2563eb; }
-        .sidebar .logout-form { margin-top: auto; padding: 16px 20px; border-top: 1px solid #1e293b; }
-        .sidebar .logout-form .btn { width: 100%; }
+    <ui:define name="title">Start Request - Approval Workflow</ui:define>
+    <ui:define name="pageTitle">Start Approval Request</ui:define>
 
-        /* Main content ---------------------------------------------------- */
-        .main { flex: 1; padding: 32px; overflow: auto; }
-        header.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-        header.topbar h1 { margin: 0; font-size: 1.6rem; color: #0f172a; }
-        .user-chip { color: #475569; font-size: 0.9rem; }
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <div class="anon">
+                <p>You are not logged in.</p>
+                <h:link outcome="/login" value="Go to Login" styleClass="btn"/>
+            </div>
+        </h:panelGroup>
 
-        .section-title { font-size: 1.15rem; color: #0f172a; margin: 0 0 12px 0; }
-        .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 24px; margin-bottom: 28px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-
-        /* Form ------------------------------------------------------------- */
-        .form-card { max-width: 560px; }
-        .form-group { margin-bottom: 14px; }
-        .form-group label { display: block; font-weight: 600; margin-bottom: 4px; color: #0f172a; }
-        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; }
-        .form-group textarea { height: 100px; resize: vertical; }
-        .form-actions { margin-top: 18px; }
-
-        /* Buttons --------------------------------------------------------- */
-        .btn { padding: 8px 14px; background: #2563eb; color: white; border: none; cursor: pointer; border-radius: 6px; text-decoration: none; display: inline-block; font-size: 0.9rem; }
-        .btn:hover { background: #1d4ed8; color: #fff; }
-        .btn-danger { background: #dc2626; }
-        .btn-danger:hover { background: #b91c1c; }
-        .btn-secondary { background: #64748b; }
-        .btn-secondary:hover { background: #475569; }
-    </style>
-</h:head>
-<h:body>
-    <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
-        <div style="padding:40px;text-align:center;">
-            <p>You are not logged in.</p>
-            <h:link outcome="/login" value="Go to Login" styleClass="btn"/>
-        </div>
-    </h:panelGroup>
-
-    <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
-        <div class="layout">
-            <!-- Sidebar menu -->
-            <aside class="sidebar">
-                <div class="brand">Approval Workflow</div>
-                <ul class="menu">
-                    <li><h:link outcome="/dashboard" value="Dashboard"/></li>
-                    <li><h:link outcome="/processes" value="Processes"/></li>
-                    <li><h:link outcome="/start-process" value="Start Request" styleClass="active"/></li>
-                </ul>
-                <h:form styleClass="logout-form">
-                    <h:commandLink value="Logout" action="#{loginBean.logout}" styleClass="btn btn-danger"/>
+        <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
+            <h3 class="section-title">New request</h3>
+            <div class="card form-card">
+                <h:form id="startForm">
+                    <div class="form-group">
+                        <h:outputLabel for="title" value="Title *"/>
+                        <h:inputText id="title" value="#{startProcessBean.contract.title}" required="true"/>
+                    </div>
+                    <div class="form-group">
+                        <h:outputLabel for="description" value="Description"/>
+                        <h:inputTextarea id="description" value="#{startProcessBean.contract.description}"/>
+                    </div>
+                    <div class="form-group">
+                        <h:outputLabel for="amount" value="Requested Amount *"/>
+                        <h:inputText id="amount" value="#{startProcessBean.contract.amount}" required="true"
+                                     converterMessage="Please enter a valid number"/>
+                    </div>
+                    <div class="form-group">
+                        <h:outputLabel for="department" value="Department *"/>
+                        <h:selectOneMenu id="department" value="#{startProcessBean.contract.department}" required="true">
+                            <f:selectItem itemValue="" itemLabel="-- select --"/>
+                            <f:selectItem itemValue="IT" itemLabel="IT"/>
+                            <f:selectItem itemValue="HR" itemLabel="HR"/>
+                            <f:selectItem itemValue="Finance" itemLabel="Finance"/>
+                        </h:selectOneMenu>
+                    </div>
+                    <div class="form-actions">
+                        <h:commandButton value="Submit Request" action="#{startProcessBean.submit}" styleClass="btn"/>
+                        <h:link outcome="/dashboard" value="Cancel" styleClass="btn btn-secondary"/>
+                    </div>
                 </h:form>
-            </aside>
-
-            <!-- Main content -->
-            <main class="main">
-                <header class="topbar">
-                    <h1>Start Approval Request</h1>
-                    <span class="user-chip">Signed in as
-                        <strong>#{loginBean.currentUser.firstName}</strong>
-                        (#{loginBean.currentUser.email})</span>
-                </header>
-
-                <h:messages globalOnly="true" infoStyle="color:#15803d;" errorStyle="color:#b91c1c;"/>
-
-                <h3 class="section-title">New request</h3>
-                <div class="card form-card">
-                    <h:form id="startForm">
-                        <div class="form-group">
-                            <h:outputLabel for="title" value="Title *"/>
-                            <h:inputText id="title" value="#{startProcessBean.contract.title}" required="true"/>
-                        </div>
-                        <div class="form-group">
-                            <h:outputLabel for="description" value="Description"/>
-                            <h:inputTextarea id="description" value="#{startProcessBean.contract.description}"/>
-                        </div>
-                        <div class="form-group">
-                            <h:outputLabel for="amount" value="Requested Amount *"/>
-                            <h:inputText id="amount" value="#{startProcessBean.contract.amount}" required="true"
-                                         converterMessage="Please enter a valid number"/>
-                        </div>
-                        <div class="form-group">
-                            <h:outputLabel for="department" value="Department *"/>
-                            <h:selectOneMenu id="department" value="#{startProcessBean.contract.department}" required="true">
-                                <f:selectItem itemValue="" itemLabel="-- select --"/>
-                                <f:selectItem itemValue="IT" itemLabel="IT"/>
-                                <f:selectItem itemValue="HR" itemLabel="HR"/>
-                                <f:selectItem itemValue="Finance" itemLabel="Finance"/>
-                            </h:selectOneMenu>
-                        </div>
-                        <div class="form-actions">
-                            <h:commandButton value="Submit Request" action="#{startProcessBean.submit}" styleClass="btn"/>
-                            <h:link outcome="/dashboard" value="Cancel" styleClass="btn btn-secondary"/>
-                        </div>
-                    </h:form>
-                </div>
-            </main>
-        </div>
-    </h:panelGroup>
-</h:body>
+            </div>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>
 </html>
