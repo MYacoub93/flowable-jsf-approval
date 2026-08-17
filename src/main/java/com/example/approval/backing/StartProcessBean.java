@@ -1,10 +1,9 @@
-package com.example.approval.bean;
+package com.example.approval.backing;
 
 import com.example.approval.service.ApprovalService;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
-import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.springframework.beans.factory.annotation.Autowired;

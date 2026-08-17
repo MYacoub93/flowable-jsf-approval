@@ -1,6 +1,5 @@
-package com.example.approval.bean;
+package com.example.approval.backing;
 
-import com.example.approval.mapper.FlowableIdentityMapper;
 import com.example.approval.service.FlowableIdentityService;
 import org.flowable.idm.api.User;
 import jakarta.faces.application.FacesMessage;

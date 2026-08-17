@@ -1,11 +1,10 @@
-package com.example.approval.bean;
+package com.example.approval.backing;
 
 import com.example.approval.service.ApprovalService;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
-import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.flowable.task.api.Task;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,13 +14,12 @@ import java.io.Serializable;
 import java.util.Map;
 
 /**
- * Backing bean for Manager / Finance approval forms.
- * Displays request data and allows Approve / Reject.
+ * Backing bean for the "Update Request" form shown to the initiator after a rejection.
  */
-@Named("taskBean")
+@Named("updateRequestBean")
 @RequestScoped
 @Component
-public class TaskBean implements Serializable {
+public class UpdateRequestBean implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -35,59 +33,60 @@ public class TaskBean implements Serializable {
     private Task task;
     private Map<String, Object> variables;
 
-    private String comments;
-    private boolean decision; // true = approve
+    private String title;
+    private String description;
+    private Double amount;
+    private String department;
 
     @PostConstruct
     public void init() {
-        // taskId can come from request parameter or flash
         Map<String, String> params = FacesContext.getCurrentInstance()
                 .getExternalContext().getRequestParameterMap();
         taskId = params.get("taskId");
         if (taskId == null) {
-            Object flashTaskId = FacesContext.getCurrentInstance()
+            Object flash = FacesContext.getCurrentInstance()
                     .getExternalContext().getFlash().get("taskId");
-            if (flashTaskId != null) {
-                taskId = flashTaskId.toString();
+            if (flash != null) {
+                taskId = flash.toString();
             }
         }
         if (taskId != null && loginBean.isLoggedIn()) {
-            loadTask();
+            load();
         }
     }
 
-    private void loadTask() {
+    private void load() {
         task = approvalService.getTaskById(taskId);
         if (task != null) {
             variables = approvalService.getProcessVariables(task.getProcessInstanceId());
+            title = (String) variables.get("title");
+            description = (String) variables.get("description");
+            Object amt = variables.get("amount");
+            if (amt instanceof Number) {
+                amount = ((Number) amt).doubleValue();
+            }
+            department = (String) variables.get("department");
         }
     }
 
-    public String approve() {
-        return complete(true);
-    }
-
-    public String reject() {
-        return complete(false);
-    }
-
-    private String complete(boolean approved) {
+    public String resubmit() {
         if (!loginBean.isLoggedIn() || task == null) {
             addError("Invalid state");
             return null;
         }
         try {
-            approvalService.completeApprovalTask(
+            approvalService.completeUpdateRequest(
                     taskId,
-                    approved,
-                    comments,
+                    title,
+                    description,
+                    amount,
+                    department,
                     loginBean.getCurrentUser().getFirstName());
             FacesContext.getCurrentInstance().addMessage(null,
-                    new FacesMessage(FacesMessage.SEVERITY_INFO,
-                            approved ? "Request approved" : "Request rejected", null));
+                    new FacesMessage(FacesMessage.SEVERITY_INFO, "Request updated and resubmitted", null));
             return "/dashboard?faces-redirect=true";
         } catch (Exception e) {
-            addError("Failed to complete task: " + e.getMessage());
+            addError("Failed to resubmit: " + e.getMessage());
             return null;
         }
     }
@@ -97,33 +96,12 @@ public class TaskBean implements Serializable {
                 new FacesMessage(FacesMessage.SEVERITY_ERROR, msg, null));
     }
 
-    // Convenience getters for the form
-    public String getTitle() {
-        return variables != null ? (String) variables.get("title") : null;
-    }
-
-    public String getDescription() {
-        return variables != null ? (String) variables.get("description") : null;
-    }
-
-    public Object getAmount() {
-        return variables != null ? variables.get("amount") : null;
-    }
-
-    public String getDepartment() {
-        return variables != null ? (String) variables.get("department") : null;
-    }
-
-    public String getInitiator() {
-        return variables != null ? (String) variables.get("initiator") : null;
+    public String getRejectedBy() {
+        return variables != null ? (String) variables.get("rejectedBy") : null;
     }
 
     public String getPreviousComments() {
         return variables != null ? (String) variables.get("comments") : null;
-    }
-
-    public String getTaskName() {
-        return task != null ? task.getName() : null;
     }
 
     // Getters / Setters
@@ -136,27 +114,35 @@ public class TaskBean implements Serializable {
         this.taskId = taskId;
     }
 
-    public Task getTask() {
-        return task;
+    public String getTitle() {
+        return title;
     }
 
-    public Map<String, Object> getVariables() {
-        return variables;
+    public void setTitle(String title) {
+        this.title = title;
     }
 
-    public String getComments() {
-        return comments;
+    public String getDescription() {
+        return description;
     }
 
-    public void setComments(String comments) {
-        this.comments = comments;
+    public void setDescription(String description) {
+        this.description = description;
     }
 
-    public boolean isDecision() {
-        return decision;
+    public Double getAmount() {
+        return amount;
     }
 
-    public void setDecision(boolean decision) {
-        this.decision = decision;
+    public void setAmount(Double amount) {
+        this.amount = amount;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
     }
 }
