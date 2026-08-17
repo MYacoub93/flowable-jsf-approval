@@ -1,24 +1,34 @@
 package com.example.approval.backing;
 
+import com.example.approval.flowable.ApprovalRequestContract;
 import com.example.approval.service.ApprovalService;
 import jakarta.annotation.PostConstruct;
-import jakarta.enterprise.context.RequestScoped;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
-import jakarta.inject.Named;
 import org.flowable.task.api.Task;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.annotation.RequestScope;
 
 import java.io.Serializable;
 import java.util.Map;
 
 /**
  * Backing bean for the "Update Request" form shown to the initiator after a rejection.
+ *
+ * The editable fields (title, description, amount, department) live on the
+ * {@link ApprovalRequestContract} shared with {@code StartProcessBean}, so the
+ * field-to-variable mapping exists in exactly one place: the contract loads them
+ * from the process instance's variables via {@code fromVariables} and produces
+ * them back via {@code toVariables}.
+ *
+ * Pure Spring bean (like DashboardBean/ProcessListBean): JoinFaces resolves it
+ * through the Spring EL resolver so @Autowired injection works. Do NOT add CDI
+ * annotations (@Named/@RequestScoped) — Weld would then create the instance and
+ * skip Spring injection, leaving @Autowired fields null.
  */
-@Named("updateRequestBean")
-@RequestScoped
-@Component
+@Component("updateRequestBean")
+@RequestScope
 public class UpdateRequestBean implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -33,10 +43,11 @@ public class UpdateRequestBean implements Serializable {
     private Task task;
     private Map<String, Object> variables;
 
-    private String title;
-    private String description;
-    private Double amount;
-    private String department;
+    private final ApprovalRequestContract contract = new ApprovalRequestContract();
+
+    public ApprovalRequestContract getContract() {
+        return contract;
+    }
 
     @PostConstruct
     public void init() {
@@ -59,13 +70,7 @@ public class UpdateRequestBean implements Serializable {
         task = approvalService.getTaskById(taskId);
         if (task != null) {
             variables = approvalService.getProcessVariables(task.getProcessInstanceId());
-            title = (String) variables.get("title");
-            description = (String) variables.get("description");
-            Object amt = variables.get("amount");
-            if (amt instanceof Number) {
-                amount = ((Number) amt).doubleValue();
-            }
-            department = (String) variables.get("department");
+            contract.fromVariables(variables);
         }
     }
 
@@ -77,11 +82,11 @@ public class UpdateRequestBean implements Serializable {
         try {
             approvalService.completeUpdateRequest(
                     taskId,
-                    title,
-                    description,
-                    amount,
-                    department,
-                    loginBean.getCurrentUser().getFirstName());
+                    contract.getTitle(),
+                    contract.getDescription(),
+                    contract.getAmount(),
+                    contract.getDepartment(),
+                    loginBean.getCurrentUser().getId());
             FacesContext.getCurrentInstance().addMessage(null,
                     new FacesMessage(FacesMessage.SEVERITY_INFO, "Request updated and resubmitted", null));
             return "/dashboard?faces-redirect=true";
@@ -112,37 +117,5 @@ public class UpdateRequestBean implements Serializable {
 
     public void setTaskId(String taskId) {
         this.taskId = taskId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public Double getAmount() {
-        return amount;
-    }
-
-    public void setAmount(Double amount) {
-        this.amount = amount;
-    }
-
-    public String getDepartment() {
-        return department;
-    }
-
-    public void setDepartment(String department) {
-        this.department = department;
     }
 }

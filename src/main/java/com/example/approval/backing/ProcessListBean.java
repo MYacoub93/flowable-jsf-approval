@@ -4,6 +4,8 @@ import com.example.approval.flowable.WorkflowManager;
 import jakarta.annotation.PostConstruct;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
+import org.flowable.engine.FormService;
+import org.flowable.engine.RepositoryService;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -17,9 +19,11 @@ import java.util.List;
  * Backs the "Processes" screen: lists every process definition the current
  * user is allowed to start and provides a per-row Start action.
  *
- * The single deployed process (approvalProcess) is started via the dedicated
- * Start Request form, so Start navigates there; for any future process without
- * a dedicated form we fall back to a generic start and return to the dashboard.
+ * Start routing is entirely driven by the {@code flowable:formKey} declared on
+ * the process definition's start event: if a form key is present, the user is
+ * redirected to {@code /<formKey>.xhtml}; otherwise an info message is shown.
+ * No process-key-specific branching lives here, so new processes with their
+ * own forms are picked up automatically.
  */
 @Component("processListBean")
 @RequestScope
@@ -27,14 +31,17 @@ public class ProcessListBean implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** The process key that has its own dedicated start form. */
-    private static final String APPROVAL_PROCESS_KEY = "approvalProcess";
-
     @Autowired
     private UserLoginBean loginBean;
 
     @Autowired
     private WorkflowManager workflowManager;
+
+    @Autowired
+    private RepositoryService repositoryService;
+
+    @Autowired
+    private FormService formService;
 
     private List<ProcessDefinition> availableProcesses = Collections.emptyList();
 
@@ -48,9 +55,10 @@ public class ProcessListBean implements Serializable {
 
     /**
      * Start a process definition chosen from the table.
-     * - For the known approval process, redirect to the dedicated Start Request form.
-     * - For any other process, navigate back to the processes list with an info message,
-     *   since a generic start UI is not yet available.
+     * Looks up the latest version of the definition and routes to the JSF view
+     * named by its {@code flowable:formKey} (e.g. form key {@code start-process}
+     * redirects to {@code /start-process.xhtml}). Definitions without a form key
+     * get the generic fallback message.
      */
     public String start(String processDefinitionKey) {
         if (!loginBean.isLoggedIn()) {
@@ -58,13 +66,23 @@ public class ProcessListBean implements Serializable {
             return "/login?faces-redirect=true";
         }
 
-        if (APPROVAL_PROCESS_KEY.equalsIgnoreCase(processDefinitionKey)) {
-            return "/start-process?faces-redirect=true";
+        ProcessDefinition definition = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionKey(processDefinitionKey)
+                .latestVersion()
+                .singleResult();
+        if (definition == null) {
+            addError("Process definition not found: " + processDefinitionKey);
+            return null;
         }
 
-        addInfo("No dedicated start form for process '" + processDefinitionKey
-                + "'. Please configure a form first.");
-        return null;
+        String formKey = formService.getStartFormKey(definition.getId());
+        if (formKey == null || formKey.isBlank()) {
+            addInfo("No dedicated start form for process '" + processDefinitionKey
+                    + "'. Please configure a form first.");
+            return null;
+        }
+
+        return "/" + formKey + "?faces-redirect=true";
     }
 
     /** Number of available processes, used for the page badge/summary. */

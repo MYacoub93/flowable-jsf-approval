@@ -2,13 +2,12 @@ package com.example.approval.backing;
 
 import com.example.approval.service.ApprovalService;
 import jakarta.annotation.PostConstruct;
-import jakarta.enterprise.context.RequestScoped;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
-import jakarta.inject.Named;
 import org.flowable.task.api.Task;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.annotation.RequestScope;
 
 import java.io.Serializable;
 import java.util.Map;
@@ -16,10 +15,14 @@ import java.util.Map;
 /**
  * Backing bean for Manager / Finance approval forms.
  * Displays request data and allows Approve / Reject.
+ *
+ * Pure Spring bean (like DashboardBean/ProcessListBean): JoinFaces resolves it
+ * through the Spring EL resolver so @Autowired injection works. Do NOT add CDI
+ * annotations (@Named/@RequestScoped) — Weld would then create the instance and
+ * skip Spring injection, leaving @Autowired fields null.
  */
-@Named("taskBean")
-@RequestScoped
-@Component
+@Component("taskBean")
+@RequestScope
 public class TaskBean implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -80,7 +83,7 @@ public class TaskBean implements Serializable {
                     taskId,
                     approved,
                     comments,
-                    loginBean.getCurrentUser().getFirstName());
+                    loginBean.getCurrentUser().getId());
             FacesContext.getCurrentInstance().addMessage(null,
                     new FacesMessage(FacesMessage.SEVERITY_INFO,
                             approved ? "Request approved" : "Request rejected", null));

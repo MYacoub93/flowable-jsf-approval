@@ -1,7 +1,5 @@
 package com.example.approval.service;
 
-import com.example.approval.flowable.OrganizationManager;
-import org.flowable.engine.IdentityService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
 import org.flowable.engine.runtime.ProcessInstance;
@@ -17,8 +15,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Core service for starting processes, completing tasks, and resolving dynamic assignees.
- * Referenced from BPMN expressions: ${approvalService.getManager(execution)} etc.
+ * Core service for completing tasks, resolving dynamic assignees, and querying
+ * tasks / process instances. Referenced from BPMN expressions:
+ * ${approvalService.getManager(execution)} etc.
+ *
+ * Process starting now lives in {@link ProcessStartService}, which is generic
+ * across process definitions.
  *
  * Spring injects this bean; Flowable expression language resolves it by name.
  */
@@ -28,21 +30,13 @@ public class ApprovalService {
 
     private static final Logger log = LoggerFactory.getLogger(ApprovalService.class);
 
-    public static final String PROCESS_KEY = "approvalProcess";
-
     private final RuntimeService runtimeService;
     private final TaskService taskService;
-    private final IdentityService identityService;
-    private final OrganizationManager userService;
 
     public ApprovalService(RuntimeService runtimeService,
-                           TaskService taskService,
-                           IdentityService identityService,
-                           OrganizationManager userService) {
+                           TaskService taskService) {
         this.runtimeService = runtimeService;
         this.taskService = taskService;
-        this.identityService = identityService;
-        this.userService = userService;
     }
 
     // -------------------------------------------------------------------------
@@ -74,47 +68,6 @@ public class ApprovalService {
 //        execution.setVariable("financeUser", finance.getUsername());
 //        return finance.getUsername();
         return "";
-    }
-
-    // -------------------------------------------------------------------------
-    // Process start
-    // -------------------------------------------------------------------------
-
-    /**
-     * Start a new approval process instance.
-     * Sets authenticated user (initiator) and process variables.
-     */
-    public ProcessInstance startProcess(String initiatorUsername,
-                                        String title,
-                                        String description,
-                                        Double amount,
-                                        String department) {
-
-        org.flowable.idm.api.User initiator = userService.findByUsername(initiatorUsername)
-                .orElseThrow();
-
-        // Set authenticated user so Flowable history records the starter
-        identityService.setAuthenticatedUserId(initiatorUsername);
-
-        Map<String, Object> variables = new HashMap<>();
-        variables.put("initiator", initiatorUsername);
-        variables.put("title", title);
-        variables.put("description", description);
-        variables.put("amount", amount);
-        variables.put("department", department);
-        variables.put("approved", null);
-        variables.put("comments", "");
-        variables.put("rejectedBy", null);
-        variables.put("manager", null);
-        variables.put("financeUser", null);
-
-        ProcessInstance instance = runtimeService.startProcessInstanceByKey(
-                PROCESS_KEY,
-                "REQ-" + System.currentTimeMillis(), // business key
-                variables);
-
-        log.info("Started process instance {} for initiator {}", instance.getId(), initiatorUsername);
-        return instance;
     }
 
     // -------------------------------------------------------------------------

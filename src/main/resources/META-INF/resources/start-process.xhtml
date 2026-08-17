@@ -85,20 +85,20 @@
                     <h:form id="startForm">
                         <div class="form-group">
                             <h:outputLabel for="title" value="Title *"/>
-                            <h:inputText id="title" value="#{startProcessBean.title}" required="true"/>
+                            <h:inputText id="title" value="#{startProcessBean.contract.title}" required="true"/>
                         </div>
                         <div class="form-group">
                             <h:outputLabel for="description" value="Description"/>
-                            <h:inputTextarea id="description" value="#{startProcessBean.description}"/>
+                            <h:inputTextarea id="description" value="#{startProcessBean.contract.description}"/>
                         </div>
                         <div class="form-group">
                             <h:outputLabel for="amount" value="Requested Amount *"/>
-                            <h:inputText id="amount" value="#{startProcessBean.amount}" required="true"
+                            <h:inputText id="amount" value="#{startProcessBean.contract.amount}" required="true"
                                          converterMessage="Please enter a valid number"/>
                         </div>
                         <div class="form-group">
                             <h:outputLabel for="department" value="Department *"/>
-                            <h:selectOneMenu id="department" value="#{startProcessBean.department}" required="true">
+                            <h:selectOneMenu id="department" value="#{startProcessBean.contract.department}" required="true">
                                 <f:selectItem itemValue="" itemLabel="-- select --"/>
                                 <f:selectItem itemValue="IT" itemLabel="IT"/>
                                 <f:selectItem itemValue="HR" itemLabel="HR"/>

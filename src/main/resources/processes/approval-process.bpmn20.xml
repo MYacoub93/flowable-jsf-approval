@@ -11,8 +11,8 @@
 
     <process id="approvalProcess" name="Purchase Approval Process" isExecutable="true" flowable:candidateStarterGroups="ADM">
 
-        <!-- Start Event -->
-        <startEvent id="startEvent" name="Start"/>
+        <!-- Start Event: flowable:formKey drives routing to the JSF start form view id (Flowable reads the start form key from the initial startEvent, not the process element) -->
+        <startEvent id="startEvent" name="Start" flowable:formKey="start-process"/>
 
         <!-- Sequence to Manager Approval -->
         <sequenceFlow id="flow_start_to_manager" sourceRef="startEvent" targetRef="managerApprovalTask"/>
