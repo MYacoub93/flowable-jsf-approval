@@ -1,7 +1,9 @@
 package com.example.approval.service;
 
+import org.flowable.engine.IdentityService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
+import org.flowable.idm.api.Group;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.task.api.Task;
 import org.slf4j.Logger;
@@ -32,11 +34,14 @@ public class ApprovalService {
 
     private final RuntimeService runtimeService;
     private final TaskService taskService;
+    private final IdentityService identityService;
 
     public ApprovalService(RuntimeService runtimeService,
-                           TaskService taskService) {
+                           TaskService taskService,
+                           IdentityService identityService) {
         this.runtimeService = runtimeService;
         this.taskService = taskService;
+        this.identityService = identityService;
     }
 
     // -------------------------------------------------------------------------
@@ -148,9 +153,30 @@ public class ApprovalService {
     // Queries for JSF dashboard / forms
     // -------------------------------------------------------------------------
 
+    /**
+     * Tasks visible to the user: assigned directly OR offered to one of their
+     * candidate groups (department / Finance / FYI group tasks are group
+     * tasks until claimed).
+     */
     public List<Task> getTasksForUser(String username) {
+        List<String> groupIds = identityService.createGroupQuery()
+                .groupMember(username)
+                .list()
+                .stream()
+                .map(Group::getId)
+                .toList();
+        if (groupIds.isEmpty()) {
+            return taskService.createTaskQuery()
+                    .taskAssignee(username)
+                    .orderByTaskCreateTime()
+                    .desc()
+                    .list();
+        }
         return taskService.createTaskQuery()
+                .or()
                 .taskAssignee(username)
+                .taskCandidateGroupIn(groupIds)
+                .endOr()
                 .orderByTaskCreateTime()
                 .desc()
                 .list();

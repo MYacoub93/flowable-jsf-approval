@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+<ui:composition template="/templates/portal.xhtml">
+    <ui:param name="activeMenu" value="dashboard"/>
+
+    <ui:define name="title">Clearance Task - Clearance Workflow</ui:define>
+    <ui:define name="pageTitle">#{clearanceTaskBean.task.name}</ui:define>
+
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <div class="anon">
+                <p>You are not logged in.</p>
+                <h:link outcome="/login" value="Go to Login" styleClass="btn"/>
+            </div>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
+
+            <h:panelGroup rendered="#{clearanceTaskBean.task == null}" layout="block">
+                <div class="card">
+                    <p>Task not found. It may have been completed or cancelled.</p>
+                    <h:link outcome="/dashboard" value="Back to Dashboard" styleClass="btn btn-secondary"/>
+                </div>
+            </h:panelGroup>
+
+            <h:panelGroup rendered="#{clearanceTaskBean.task != null}" layout="block">
+                <div class="card">
+                    <h3 class="section-title">#{clearanceTaskBean.task.name}</h3>
+
+                    <dl class="detail-list">
+                        <dt>Task ID</dt><dd>#{clearanceTaskBean.taskId}</dd>
+                        <dt>Initiator</dt><dd>#{clearanceTaskBean.initiator}</dd>
+                        <dt>Student</dt><dd>#{clearanceTaskBean.studentFullName} (#{clearanceTaskBean.studentId})</dd>
+                        <dt>Program</dt><dd>#{clearanceTaskBean.program}</dd>
+                        <dt>Approval Round</dt><dd>#{clearanceTaskBean.approvalRound}</dd>
+                    </dl>
+
+                    <h:panelGroup rendered="#{not empty clearanceTaskBean.lastRejectedStage}" layout="block">
+                        <h4>Rejection info</h4>
+                        <dl class="detail-list">
+                            <dt>Rejected at</dt><dd>#{clearanceTaskBean.lastRejectedStage}</dd>
+                            <dt>Department</dt><dd>#{clearanceTaskBean.lastRejectedDepartment}</dd>
+                            <dt>Comment</dt><dd>#{clearanceTaskBean.lastRejectionComment}</dd>
+                        </dl>
+                    </h:panelGroup>
+                </div>
+
+                <h:panelGroup rendered="#{clearanceTaskBean.approvalTask}" layout="block">
+                    <div class="card form-card">
+                        <h3 class="section-title">Decision</h3>
+                        <h:form id="approvalForm">
+                            <div class="form-group">
+                                <h:outputLabel for="comments" value="Comment"/>
+                                <h:inputTextarea id="comments" value="#{clearanceTaskBean.comments}"/>
+                            </div>
+                            <div class="form-actions">
+                                <h:commandButton value="Approve" action="#{clearanceTaskBean.approve}" styleClass="btn"/>
+                                <h:commandButton value="Reject" action="#{clearanceTaskBean.reject}" styleClass="btn btn-secondary"/>
+                            </div>
+                        </h:form>
+                    </div>
+                </h:panelGroup>
+
+                <h:panelGroup rendered="#{clearanceTaskBean.amendmentTask}" layout="block">
+                    <div class="card form-card">
+                        <h3 class="section-title">Amend Clearance Request</h3>
+                        <h:form id="amendmentForm">
+                            <div class="form-group">
+                                <h:outputLabel for="studentFullName" value="Student Full Name *"/>
+                                <h:inputText id="studentFullName" value="#{clearanceTaskBean.studentFullName}" required="true"/>
+                            </div>
+                            <div class="form-group">
+                                <h:outputLabel for="studentId" value="Student ID *"/>
+                                <h:inputText id="studentId" value="#{clearanceTaskBean.studentId}" required="true"/>
+                            </div>
+                            <div class="form-group">
+                                <h:outputLabel for="program" value="Program"/>
+                                <h:inputText id="program" value="#{clearanceTaskBean.program}"/>
+                            </div>
+                            <div class="form-group">
+                                <h:outputLabel for="notes" value="Notes"/>
+                                <h:inputTextarea id="notes" value="#{clearanceTaskBean.notes}"/>
+                            </div>
+                            <div class="form-group">
+                                <h:outputLabel for="amendmentNotes" value="Amendment Comment"/>
+                                <h:inputTextarea id="amendmentNotes" value="#{clearanceTaskBean.comments}"/>
+                            </div>
+                            <div class="form-actions">
+                                <h:commandButton value="Submit Amendment"
+                                                 action="#{clearanceTaskBean.submitAmendment}" styleClass="btn"/>
+                                <h:link outcome="/dashboard" value="Cancel" styleClass="btn btn-secondary"/>
+                            </div>
+                        </h:form>
+                    </div>
+                </h:panelGroup>
+
+                <h:panelGroup rendered="#{clearanceTaskBean.notificationTask}" layout="block">
+                    <div class="card form-card">
+                        <h:form id="ackForm">
+                            <div class="form-actions">
+                                <h:commandButton value="Acknowledge"
+                                                 action="#{clearanceTaskBean.acknowledge}" styleClass="btn"/>
+                            </div>
+                        </h:form>
+                    </div>
+                </h:panelGroup>
+
+                <h:panelGroup rendered="#{not empty clearanceTaskBean.decisionHistory}" layout="block">
+                    <div class="card">
+                        <h3 class="section-title">Department decisions (current round)</h3>
+                        <table class="data-table">
+                            <thead>
+                            <tr>
+                                <th>Department</th>
+                                <th>Decision</th>
+                                <th>By</th>
+                                <th>Comment</th>
+                                <th>Date</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <ui:repeat var="d" value="#{clearanceTaskBean.decisionHistory}">
+                                <tr>
+                                    <td>#{d.department}</td>
+                                    <td>#{d.decision}</td>
+                                    <td>#{d.completedBy}</td>
+                                    <td>#{d.comment}</td>
+                                    <td>
+                                        <h:outputText value="#{d.decisionDate}">
+                                            <f:convertDateTime type="both" dateStyle="medium" timeStyle="short"/>
+                                        </h:outputText>
+                                    </td>
+                                </tr>
+                            </ui:repeat>
+                            </tbody>
+                        </table>
+                    </div>
+                </h:panelGroup>
+            </h:panelGroup>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>
+</html>

@@ -56,10 +56,24 @@ public class DashboardBean implements Serializable {
         FacesContext.getCurrentInstance().getExternalContext()
                 .getFlash().put("taskId", taskId);
 
-        if ("updateRequestTask".equals(task.getTaskDefinitionKey())) {
+        String defKey = task.getTaskDefinitionKey();
+        if ("updateRequestTask".equals(defKey)) {
             return "/update-request?faces-redirect=true&taskId=" + taskId;
         }
-        // managerApprovalTask or financeApprovalTask
+        if ("departmentApprovalTask".equals(defKey)
+                || "financeApprovalTask".equals(defKey)
+                || "admissionApprovalTask".equals(defKey)
+                || "amendClearanceRequestTask".equals(defKey)) {
+            // Clearance Letter tasks (approvals + initiator amendment)
+            return "/clearance-task?faces-redirect=true&taskId=" + taskId;
+        }
+        if (defKey == null
+                && ("CLEARANCE_FYI".equals(task.getCategory())
+                    || "CLEARANCE_RESULT".equals(task.getCategory()))) {
+            // standalone FYI / result tasks created programmatically
+            return "/clearance-task?faces-redirect=true&taskId=" + taskId;
+        }
+        // managerApprovalTask or financeApprovalTask (generic approval process)
         return "/task-form?faces-redirect=true&taskId=" + taskId;
     }
 

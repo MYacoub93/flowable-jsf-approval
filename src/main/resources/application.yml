@@ -1,4 +1,7 @@
 spring:
+  mail:
+    host: localhost
+    port: 25
   application:
     name: flowable-jsf-approval
   datasource:
@@ -94,3 +97,44 @@ logging:
     org.flowable: INFO
     com.example.approval: DEBUG
     org.mybatis: DEBUG
+
+# Clearance Letter process configuration
+clearance:
+  notification:
+    from: clearance-noreply@example.edu
+    task-link-base: http://localhost:8080
+    always-log: true
+    # e-mail address per Flowable candidate group (department)
+    group-mailboxes:
+      DEN: den@example.edu
+      HOD: hod@example.edu
+      StudentServices: student-services@example.edu
+      Warehouses: warehouses@example.edu
+      HealthCareDept: health-care@example.edu
+      LegalDepartment: legal@example.edu
+      Student Deanship: student.deanship@example.edu
+      MediaAndTraining Department: media.training@example.edu
+      LibraryDepartment: library@example.edu
+      IT Department: it@example.edu
+      Enginering and Services Department: engineering.services@example.edu
+      Finance Department: finance@example.edu
+      Admission and Registration Department: admission.registration@example.edu
+      Internal Audit Department: internal.audit@example.edu
+  departments:
+    # ALL (default) | DEFAULT_ONLY | or per-initiator lists via initiator-overrides
+    mode: ALL
+    default-departments:
+      - DEN
+      - HOD
+      - StudentServices
+      - Warehouses
+      - HealthCareDept
+      - LegalDepartment
+      - Student Deanship
+      - MediaAndTraining Department
+      - LibraryDepartment
+      - IT Department
+      - Enginering and Services Department
+    # optional per-initiator overrides, e.g.:
+    # initiator-overrides:
+    #   student.john: DEN,HOD,IT Department

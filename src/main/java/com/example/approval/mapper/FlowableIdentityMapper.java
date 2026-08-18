@@ -11,4 +11,7 @@ public interface FlowableIdentityMapper {
     UserEntityImpl findUserById(String id);
     UserEntityImpl findUserByUsername(String username);
     List<GroupEntityImpl> findGroupsByUser(String userId);
+
+    /** Groups with the exact id, sourced from the SIS view (usually 0..1 rows). */
+    List<GroupEntityImpl> findGroupById(String groupId);
 }

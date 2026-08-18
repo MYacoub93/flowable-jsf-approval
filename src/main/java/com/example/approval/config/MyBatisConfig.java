@@ -1,5 +1,6 @@
 package com.example.approval.config;
 
+import com.example.approval.mapper.AuditLogMapper;
 import com.example.approval.mapper.CommonMapper;
 import com.example.approval.mapper.FlowableIdentityMapper;
 import com.example.approval.mapper.UserMapper;
@@ -22,7 +23,7 @@ import javax.sql.DataSource;
  * Splits MyBatis across the two DataSources defined in {@link DataSourceConfig}.
  *
  * <p>Spring Boot's {@code mybatis-spring-boot-starter} auto-configuration
- * only ever builds ONE {@link SqlSessionFactory}, bound to whichever
+ * only ever builds ONE {@code SqlSessionFactory}, bound to whichever
  * {@code DataSource} is {@code @Primary} - here, {@code primaryDataSource}
  * (MySQL, alongside Flowable's own tables). {@code CommonMapper.xml} is
  * Oracle SQL and has to run against {@code externalDataSource} instead, so
@@ -33,25 +34,14 @@ import javax.sql.DataSource;
  * once this class exists - each factory below points at its own XML file
  * explicitly instead.</p>
  *
- * <p>{@code UserMapper.xml} -&gt; primaryDataSource (MySQL)<br>
- * {@code CommonMapper.xml} -&gt; externalDataSource (Oracle SIS/HRS schema)</p>
- *
- * <p><b>Not yet handled:</b> Spring's default transaction manager binds to
- * the {@code @Primary} DataSource, so {@code @Transactional} on
- * {@code CommonService}/{@code SISOC} does not actually wrap the Oracle
- * calls in a managed transaction - each MyBatis statement against
- * {@code externalDataSource} just autocommits on its own connection. Harmless
- * for CommonMapper's read-heavy queries and the single-row
- * {@code processSynchUser} insert, but worth knowing if you ever need
- * multi-statement atomicity against Oracle - you'd need a second
- * {@code DataSourceTransactionManager} bound to {@code externalDataSource}
- * and an explicit {@code @Transactional("externalTransactionManager")}.</p>
+ * <p>{@code UserMapper.xml} + {@code AuditLogMapper.xml} -> primaryDataSource (MySQL)<br>
+ * {@code CommonMapper.xml} + {@code FlowableIdentityMapper.xml} -> externalDataSource (Oracle SIS/HRS schema)</p>
  */
 @Configuration
 public class MyBatisConfig {
 
     // ------------------------------------------------------------------
-    // Primary (MySQL) - UserMapper
+    // Primary (MySQL) - UserMapper, AuditLogMapper
     // ------------------------------------------------------------------
 
     @Bean(name = "primarySqlSessionFactory")
@@ -59,7 +49,9 @@ public class MyBatisConfig {
     public SqlSessionFactory primarySqlSessionFactory(
             @Qualifier("primaryDataSource") DataSource primaryDataSource,
             MybatisProperties mybatisProperties) throws Exception {
-        return buildSqlSessionFactory(primaryDataSource, mybatisProperties, "classpath:mapper/UserMapper.xml");
+        return buildSqlSessionFactory(primaryDataSource, mybatisProperties,
+                "classpath:mapper/UserMapper.xml",
+                "classpath:mapper/AuditLogMapper.xml");
     }
 
     @Bean(name = "primarySqlSessionTemplate")
@@ -77,8 +69,16 @@ public class MyBatisConfig {
         return mapperFactoryBean;
     }
 
+    @Bean
+    public MapperFactoryBean<AuditLogMapper> auditLogMapper(
+            @Qualifier("primarySqlSessionFactory") SqlSessionFactory sqlSessionFactory) {
+        MapperFactoryBean<AuditLogMapper> mapperFactoryBean = new MapperFactoryBean<>(AuditLogMapper.class);
+        mapperFactoryBean.setSqlSessionFactory(sqlSessionFactory);
+        return mapperFactoryBean;
+    }
+
     // ------------------------------------------------------------------
-    // External (Oracle) - CommonMapper
+    // External (Oracle) - CommonMapper, FlowableIdentityMapper
     // ------------------------------------------------------------------
 
     @Bean(name = "externalSqlSessionFactory")
@@ -122,7 +122,7 @@ public class MyBatisConfig {
      * Reuses whatever {@code mybatis.type-aliases-package} / {@code mybatis.configuration.*}
      * you already have in application.yml (via the auto-registered
      * {@link MybatisProperties} bean), but points {@code mapperLocations} at
-     * just the one XML file this factory owns instead of the shared
+     * just the XML files this factory owns instead of the shared
      * {@code classpath:mapper/*.xml} glob.
      */
     private SqlSessionFactory buildSqlSessionFactory(DataSource dataSource,

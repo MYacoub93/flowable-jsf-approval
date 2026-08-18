@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+<ui:composition template="/templates/portal.xhtml">
+    <ui:param name="activeMenu" value="start-process"/>
+
+    <ui:define name="title">Start Clearance Letter - Clearance Workflow</ui:define>
+    <ui:define name="pageTitle">Start Clearance Letter Request</ui:define>
+
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <div class="anon">
+                <p>You are not logged in.</p>
+                <h:link outcome="/login" value="Go to Login" styleClass="btn"/>
+            </div>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
+            <h3 class="section-title">New clearance request</h3>
+
+            <!-- Requester info (read-only, from the logged-in user) -->
+            <div class="card info-card">
+                <h4>Requester</h4>
+                <dl class="info-grid">
+                    <dt>Username</dt>
+                    <dd>#{loginBean.currentUser.id}</dd>
+                    <dt>Name</dt>
+                    <dd>#{loginBean.currentUser.firstName} #{loginBean.currentUser.lastName}</dd>
+                    <dt>Email</dt>
+                    <dd>#{empty loginBean.currentUser.email ? '-' : loginBean.currentUser.email}</dd>
+                </dl>
+            </div>
+
+            <div class="card form-card">
+                <h:form id="startClearanceForm">
+                    <div class="form-group">
+                        <h:outputLabel for="studentFullName" value="Student Full Name *"/>
+                        <h:inputText id="studentFullName"
+                                     value="#{startClearanceBean.contract.studentFullName}" required="true"/>
+                    </div>
+                    <div class="form-group">
+                        <h:outputLabel for="studentId" value="Student ID *"/>
+                        <h:inputText id="studentId"
+                                     value="#{startClearanceBean.contract.studentId}" required="true"/>
+                    </div>
+                    <div class="form-group">
+                        <h:outputLabel for="program" value="Program"/>
+                        <h:inputText id="program"
+                                     value="#{startClearanceBean.contract.program}"/>
+                    </div>
+                    <div class="form-group">
+                        <h:outputLabel for="contactEmail" value="Contact Email (notifications)"/>
+                        <h:inputText id="contactEmail"
+                                     value="#{startClearanceBean.contract.contactEmail}"/>
+                    </div>
+                    <div class="form-group">
+                        <h:outputLabel for="notes" value="Note"/>
+                        <h:inputTextarea id="notes" rows="4" cols="50"
+                                         value="#{startClearanceBean.contract.notes}"/>
+                    </div>
+                    <div class="form-actions">
+                        <h:commandButton value="Submit Clearance Request"
+                                         action="#{startClearanceBean.submit}" styleClass="btn"/>
+                        <h:link outcome="/dashboard" value="Cancel" styleClass="btn btn-secondary"/>
+                    </div>
+                </h:form>
+            </div>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>
+</html>

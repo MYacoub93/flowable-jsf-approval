@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI"
+             targetNamespace="http://flowable.org/samples"
+             typeLanguage="http://www.w3.org/2001/XMLSchema"
+             expressionLanguage="http://www.w3.org/1999/XPath">
+
+  <!-- ===================================================================
+       Clearance Letter
+       - Started by candidate group STD only (process-level
+         candidateStarterGroups + runtime check in ClearanceService).
+       - Departments are NEVER hardcoded here: resolveDepartments calls
+         DepartmentResolverService.getRequiredDepartments(initiator) and
+         stores the result in requiredDepartments.
+       - One multi-instance PARALLEL user task creates an approval task per
+         department; candidateGroups=${department}; completionCondition
+         ${anyDepartmentRejected} cancels remaining tasks on first reject.
+       - Rejection at any stage loops back to the initiator amendment task
+         and then re-resolves departments (the loop may repeat endlessly).
+       - After ALL departments + Finance + Admission approved:
+         completeClearance sets clearanceResult=APPROVED, e-mails the
+         initiator and creates non-blocking standalone result / FYI tasks.
+       =================================================================== -->
+  <process id="clearanceLetterProcess" name="Clearance Letter" isExecutable="true" flowable:candidateStarterGroups="STD">
+
+    <documentation>Dynamic multi-instance clearance approval with amendment loop.</documentation>
+
+<!--    <extensionElements>-->
+<!--      &lt;!&ndash; Only members of the STD candidate group may start this process. &ndash;&gt;-->
+<!--      <flowable:candidateStarterGroups>STD</flowable:candidateStarterGroups>-->
+<!--    </extensionElements>-->
+
+    <!-- ===================== Start ===================== -->
+    <startEvent id="startClearance" name="Clearance request started (STD)"
+                flowable:formKey="start-clearance">
+      <extensionElements>
+        <flowable:executionListener event="start"
+              expression="${clearanceProcessHandler.processStarted(execution)}"/>
+      </extensionElements>
+    </startEvent>
+
+    <!-- ============ Dynamic department resolution ============ -->
+    <serviceTask id="resolveDepartments" name="Resolve Required Departments"
+                 flowable:expression="${clearanceProcessHandler.resolveRequiredDepartments(execution)}">
+      <documentation>
+        Calls DepartmentResolverService.getRequiredDepartments(initiator) and stores
+        the result in requiredDepartments. Runs before EVERY approval round
+        (start + after each amendment) so the department set is always dynamic.
+      </documentation>
+    </serviceTask>
+
+    <!-- ============ Parallel multi-instance department approval ============ -->
+    <userTask id="departmentApprovalTask" name="Approval: ${department}"
+              flowable:candidateGroups="${department}"
+              flowable:formKey="clearance-task">
+      <documentation>
+        One instance per dynamically resolved department (parallel).
+        Approve / Reject. The shared ${clearanceTaskListener} sends the
+        TASK_ASSIGNED e-mail + audit on create and records the decision on
+        complete. completionCondition cancels open sibling tasks as soon as
+        anyDepartmentRejected becomes true.
+      </documentation>
+      <extensionElements>
+        <flowable:taskListener event="create" delegateExpression="${clearanceTaskListener}"/>
+        <flowable:taskListener event="complete" delegateExpression="${clearanceTaskListener}"/>
+        <flowable:taskListener event="delete" delegateExpression="${clearanceTaskListener}"/>
+      </extensionElements>
+      <multiInstanceLoopCharacteristics isSequential="false"
+                                        flowable:collection="${requiredDepartments}"
+                                        flowable:elementVariable="department">
+        <!-- Leave the stage as soon as ONE department rejects; Flowable then
+             destroys the remaining parallel instances (DELETE listeners fire,
+             audited as TASK_CANCELLED). All instances done + no rejection
+             means the stage is approved. -->
+        <completionCondition>${anyDepartmentRejected}</completionCondition>
+      </multiInstanceLoopCharacteristics>
+    </userTask>
+
+    <!-- ============ Stage evaluation / rejection bookkeeping ============ -->
+    <serviceTask id="evaluateDepartments" name="Evaluate Department Stage Result"
+                 flowable:expression="${clearanceProcessHandler.evaluateDepartmentStage(execution)}">
+      <documentation>
+        Copies the first rejection of the round (department + comment) into
+        lastRejected* variables for the initiator's amendment form.
+      </documentation>
+    </serviceTask>
+
+    <exclusiveGateway id="gatewayAllApproved" name="All departments approved?"/>
+
+    <!-- ============ Step 1: Finance (sequential) ============ -->
+    <userTask id="financeApprovalTask" name="Finance Department Approval"
+              flowable:candidateGroups="Finance Department"
+              flowable:formKey="clearance-task">
+      <extensionElements>
+        <flowable:taskListener event="create" delegateExpression="${clearanceTaskListener}"/>
+        <flowable:taskListener event="complete" delegateExpression="${clearanceTaskListener}"/>
+        <flowable:taskListener event="delete" delegateExpression="${clearanceTaskListener}"/>
+      </extensionElements>
+    </userTask>
+
+    <exclusiveGateway id="gatewayFinanceDecision" name="Finance approved?"/>
+
+    <serviceTask id="recordFinanceRejection" name="Record Finance Rejection"
+                 flowable:expression="${clearanceProcessHandler.recordStageRejection(execution, 'FINANCE', 'Finance Department')}"/>
+
+    <!-- ============ Step 2: Admission and Registration (sequential) ============ -->
+    <userTask id="admissionApprovalTask" name="Admission and Registration Approval"
+              flowable:candidateGroups="Admission and Registration Department"
+              flowable:formKey="clearance-task">
+      <extensionElements>
+        <flowable:taskListener event="create" delegateExpression="${clearanceTaskListener}"/>
+        <flowable:taskListener event="complete" delegateExpression="${clearanceTaskListener}"/>
+        <flowable:taskListener event="delete" delegateExpression="${clearanceTaskListener}"/>
+      </extensionElements>
+    </userTask>
+
+    <exclusiveGateway id="gatewayAdmissionDecision" name="Admission approved?"/>
+
+    <serviceTask id="recordAdmissionRejection" name="Record Admission Rejection"
+                 flowable:expression="${clearanceProcessHandler.recordStageRejection(execution, 'ADMISSION_AND_REGISTRATION', 'Admission and Registration Department')}"/>
+
+    <!-- ============ Initiator amendment (rejection loop) ============ -->
+    <userTask id="amendClearanceRequestTask" name="Amend Clearance Request"
+              flowable:assignee="${initiator}"
+              flowable:formKey="clearance-task">
+      <documentation>
+        Returned to the ORIGINAL initiator whenever any department, Finance or
+        Admission rejects. Shows lastRejectedStage / lastRejectedDepartment /
+        lastRejectionComment. Completing it loops back to Resolve Required
+        Departments - a fresh approval round starts (dynamic again).
+      </documentation>
+      <extensionElements>
+        <flowable:taskListener event="create" delegateExpression="${clearanceTaskListener}"/>
+        <flowable:taskListener event="complete" delegateExpression="${clearanceTaskListener}"/>
+        <flowable:taskListener event="delete" delegateExpression="${clearanceTaskListener}"/>
+      </extensionElements>
+    </userTask>
+
+    <serviceTask id="recordAmendment" name="Record Amendment"
+                 flowable:expression="${clearanceProcessHandler.recordAmendment(execution)}"/>
+
+    <!-- ============ Completion ============ -->
+    <serviceTask id="completeClearance" name="Complete Clearance (Result + FYI)"
+                 flowable:expression="${clearanceProcessHandler.completeClearance(execution)}">
+      <documentation>
+        Only reached when ALL dynamically selected departments, Finance and
+        Admission approved. Sets clearanceResult=APPROVED, e-mails the
+        initiator, creates the initiator result task and the Internal Audit
+        FYI task (standalone tasks - neither blocks the process end).
+      </documentation>
+    </serviceTask>
+
+    <endEvent id="endClearance" name="Clearance finished"/>
+
+    <!-- ===================== Flows ===================== -->
+    <sequenceFlow id="flowStart" sourceRef="startClearance" targetRef="resolveDepartments"/>
+
+    <sequenceFlow id="flowResolveToDepartments" sourceRef="resolveDepartments"
+                  targetRef="departmentApprovalTask"/>
+
+    <sequenceFlow id="flowDepartmentsToEvaluation" sourceRef="departmentApprovalTask"
+                  targetRef="evaluateDepartments"/>
+
+    <sequenceFlow id="flowEvaluationToGateway" sourceRef="evaluateDepartments"
+                  targetRef="gatewayAllApproved"/>
+
+    <sequenceFlow id="flowAllApprovedYes" name="all approved"
+                  sourceRef="gatewayAllApproved" targetRef="financeApprovalTask">
+      <conditionExpression xsi:type="tFormalExpression">${!anyDepartmentRejected}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flowAllApprovedNo" name="rejected"
+                  sourceRef="gatewayAllApproved" targetRef="amendClearanceRequestTask"/>
+
+    <sequenceFlow id="flowFinanceToGateway" sourceRef="financeApprovalTask"
+                  targetRef="gatewayFinanceDecision"/>
+
+    <sequenceFlow id="flowFinanceApproved" name="approved"
+                  sourceRef="gatewayFinanceDecision" targetRef="admissionApprovalTask">
+      <conditionExpression xsi:type="tFormalExpression">${decision == 'approve'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flowFinanceRejected" name="rejected"
+                  sourceRef="gatewayFinanceDecision" targetRef="recordFinanceRejection"/>
+    <sequenceFlow id="flowRecordFinanceRejection" sourceRef="recordFinanceRejection"
+                  targetRef="amendClearanceRequestTask"/>
+
+    <sequenceFlow id="flowAdmissionToGateway" sourceRef="admissionApprovalTask"
+                  targetRef="gatewayAdmissionDecision"/>
+
+    <sequenceFlow id="flowAdmissionApproved" name="approved"
+                  sourceRef="gatewayAdmissionDecision" targetRef="completeClearance">
+      <conditionExpression xsi:type="tFormalExpression">${decision == 'approve'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flowAdmissionRejected" name="rejected"
+                  sourceRef="gatewayAdmissionDecision" targetRef="recordAdmissionRejection"/>
+    <sequenceFlow id="flowRecordAdmissionRejection" sourceRef="recordAdmissionRejection"
+                  targetRef="amendClearanceRequestTask"/>
+
+    <sequenceFlow id="flowAmendToRecord" sourceRef="amendClearanceRequestTask"
+                  targetRef="recordAmendment"/>
+
+    <!-- the amendment loop: back to dynamic department resolution -->
+    <sequenceFlow id="flowAmendmentLoop" name="re-resolve departments"
+                  sourceRef="recordAmendment" targetRef="resolveDepartments"/>
+
+    <sequenceFlow id="flowCompleteToEnd" sourceRef="completeClearance"
+                  targetRef="endClearance"/>
+
+  </process>
+
+  <!-- ===================== Diagram (layout only, engine-irrelevant) ===================== -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_clearanceLetterProcess">
+    <bpmndi:BPMNPlane bpmnElement="clearanceLetterProcess" id="BPMNPlane_clearanceLetterProcess">
+      <bpmndi:BPMNShape bpmnElement="startClearance" id="BPMNShape_start">
+        <omgdc:Bounds height="30.0" width="30.0" x="60.0" y="200.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="resolveDepartments" id="BPMNShape_resolve">
+        <omgdc:Bounds height="60.0" width="120.0" x="140.0" y="185.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="departmentApprovalTask" id="BPMNShape_departments">
+        <omgdc:Bounds height="80.0" width="160.0" x="310.0" y="175.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="evaluateDepartments" id="BPMNShape_eval">
+        <omgdc:Bounds height="60.0" width="120.0" x="520.0" y="185.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="gatewayAllApproved" id="BPMNShape_gwAll">
+        <omgdc:Bounds height="40.0" width="40.0" x="685.0" y="195.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="financeApprovalTask" id="BPMNShape_finance">
+        <omgdc:Bounds height="60.0" width="140.0" x="770.0" y="185.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="gatewayFinanceDecision" id="BPMNShape_gwFin">
+        <omgdc:Bounds height="40.0" width="40.0" x="945.0" y="195.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="admissionApprovalTask" id="BPMNShape_admission">
+        <omgdc:Bounds height="60.0" width="160.0" x="1030.0" y="185.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="gatewayAdmissionDecision" id="BPMNShape_gwAdm">
+        <omgdc:Bounds height="40.0" width="40.0" x="1225.0" y="195.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="completeClearance" id="BPMNShape_complete">
+        <omgdc:Bounds height="60.0" width="140.0" x="1310.0" y="185.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endClearance" id="BPMNShape_end">
+        <omgdc:Bounds height="28.0" width="28.0" x="1490.0" y="201.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="recordFinanceRejection" id="BPMNShape_recFin">
+        <omgdc:Bounds height="60.0" width="120.0" x="905.0" y="330.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="recordAdmissionRejection" id="BPMNShape_recAdm">
+        <omgdc:Bounds height="60.0" width="120.0" x="1185.0" y="430.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="amendClearanceRequestTask" id="BPMNShape_amend">
+        <omgdc:Bounds height="60.0" width="160.0" x="640.0" y="430.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="recordAmendment" id="BPMNShape_recAmend">
+        <omgdc:Bounds height="60.0" width="120.0" x="440.0" y="430.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="flowStart" id="BPMNEdge_flowStart">
+        <omgdi:waypoint x="90.0" y="215.0"/>
+        <omgdi:waypoint x="140.0" y="215.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowResolveToDepartments" id="BPMNEdge_flowResolve">
+        <omgdi:waypoint x="260.0" y="215.0"/>
+        <omgdi:waypoint x="310.0" y="215.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowDepartmentsToEvaluation" id="BPMNEdge_flowDepts">
+        <omgdi:waypoint x="470.0" y="215.0"/>
+        <omgdi:waypoint x="520.0" y="215.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowEvaluationToGateway" id="BPMNEdge_flowEval">
+        <omgdi:waypoint x="640.0" y="215.0"/>
+        <omgdi:waypoint x="685.0" y="215.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowAllApprovedYes" id="BPMNEdge_allYes">
+        <omgdi:waypoint x="725.0" y="215.0"/>
+        <omgdi:waypoint x="770.0" y="215.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowAllApprovedNo" id="BPMNEdge_allNo">
+        <omgdi:waypoint x="705.0" y="235.0"/>
+        <omgdi:waypoint x="705.0" y="460.0"/>
+        <omgdi:waypoint x="800.0" y="460.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowFinanceToGateway" id="BPMNEdge_finGw">
+        <omgdi:waypoint x="910.0" y="215.0"/>
+        <omgdi:waypoint x="945.0" y="215.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowFinanceApproved" id="BPMNEdge_finYes">
+        <omgdi:waypoint x="985.0" y="215.0"/>
+        <omgdi:waypoint x="1030.0" y="215.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowFinanceRejected" id="BPMNEdge_finNo">
+        <omgdi:waypoint x="965.0" y="235.0"/>
+        <omgdi:waypoint x="965.0" y="360.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowRecordFinanceRejection" id="BPMNEdge_recFin">
+        <omgdi:waypoint x="905.0" y="360.0"/>
+        <omgdi:waypoint x="800.0" y="445.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowAdmissionToGateway" id="BPMNEdge_admGw">
+        <omgdi:waypoint x="1190.0" y="215.0"/>
+        <omgdi:waypoint x="1225.0" y="215.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowAdmissionApproved" id="BPMNEdge_admYes">
+        <omgdi:waypoint x="1265.0" y="215.0"/>
+        <omgdi:waypoint x="1310.0" y="215.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowAdmissionRejected" id="BPMNEdge_admNo">
+        <omgdi:waypoint x="1245.0" y="235.0"/>
+        <omgdi:waypoint x="1245.0" y="430.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowRecordAdmissionRejection" id="BPMNEdge_recAdm">
+        <omgdi:waypoint x="1185.0" y="460.0"/>
+        <omgdi:waypoint x="800.0" y="465.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowAmendToRecord" id="BPMNEdge_amendRec">
+        <omgdi:waypoint x="640.0" y="460.0"/>
+        <omgdi:waypoint x="560.0" y="460.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowAmendmentLoop" id="BPMNEdge_loop">
+        <omgdi:waypoint x="440.0" y="460.0"/>
+        <omgdi:waypoint x="200.0" y="460.0"/>
+        <omgdi:waypoint x="200.0" y="245.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowCompleteToEnd" id="BPMNEdge_end">
+        <omgdi:waypoint x="1450.0" y="215.0"/>
+        <omgdi:waypoint x="1490.0" y="215.0"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

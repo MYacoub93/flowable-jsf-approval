@@ -156,3 +156,6 @@ java -jar target/flowable-jsf-approval-1.0.0-SNAPSHOT.jar
 ---
 
 Created as a complete reference implementation for senior Java BPM architects.
+
+
+See [docs-clearance.md](docs-clearance.md) for the complete Clearance Letter process documentation (BPMN design, dynamic parallel department approvals, rejection/amendment loop, notifications, audit trail).
