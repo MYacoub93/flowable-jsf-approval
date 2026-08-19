@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    Oracle (external datasource) mapper for the pre-existing BPM_* business
+    audit tables. Sequence names are passed in from BpmAuditProperties so the
+    DBA can point them at existing sequences (bpm.audit.*-sequence in
+    application.yml).
+-->
+<mapper namespace="com.example.approval.mapper.BpmAuditMapper">
+
+    <!-- ================================================================== -->
+    <!-- BPM_AUDIT_LOG (master case record)                                 -->
+    <!-- ================================================================== -->
+
+    <resultMap id="auditLogMap" type="com.example.approval.audit.model.BpmAuditLog">
+        <id property="caseId" column="CASE_ID"/>
+        <result property="requestorId" column="REQUESTOR_ID"/>
+        <result property="documentCode" column="DOCUMENT_CODE"/>
+        <result property="entryUser" column="ENTRY_USER"/>
+        <result property="entryDate" column="ENTRY_DATE"/>
+        <result property="terminal" column="TERMINAL"/>
+        <result property="osUser" column="OS_USER"/>
+    </resultMap>
+
+    <!-- Id allocation: MAX+1 (default) or DBA-provided sequences.        -->
+    <select id="maxCaseId" resultType="java.lang.Long">
+        SELECT NVL(MAX(CASE_ID), 0) FROM BPM_AUDIT_LOG
+    </select>
+
+    <select id="nextCaseId" resultType="java.lang.Long">
+        SELECT ${sequenceName}.NEXTVAL FROM DUAL
+    </select>
+
+    <insert id="insertAuditLog" parameterType="com.example.approval.audit.model.BpmAuditLog">
+        INSERT INTO BPM_AUDIT_LOG (
+            CASE_ID, REQUESTOR_ID, DOCUMENT_CODE,
+            ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER
+        ) VALUES (
+            #{caseId, jdbcType=DECIMAL},
+            #{requestorId, jdbcType=DECIMAL},
+            #{documentCode, jdbcType=DECIMAL},
+            #{entryUser, jdbcType=DECIMAL},
+            #{entryDate, jdbcType=TIMESTAMP},
+            #{terminal, jdbcType=VARCHAR},
+            #{osUser, jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <select id="findAuditLogByCaseId" resultMap="auditLogMap">
+        SELECT CASE_ID, REQUESTOR_ID, DOCUMENT_CODE, ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER
+        FROM BPM_AUDIT_LOG
+        WHERE CASE_ID = #{caseId, jdbcType=DECIMAL}
+    </select>
+
+    <!-- ================================================================== -->
+    <!-- BPM_AUDIT_LOG_DTL (task / action level detail)                     -->
+    <!-- ================================================================== -->
+
+    <resultMap id="auditLogDtlMap" type="com.example.approval.audit.model.BpmAuditLogDtl">
+        <id property="serial" column="SERIAL"/>
+        <result property="caseId" column="CASE_ID"/>
+        <result property="actionCode" column="ACTION_CODE"/>
+        <result property="note" column="NOTE"/>
+        <result property="entryUser" column="ENTRY_USER"/>
+        <result property="entryDate" column="ENTRY_DATE"/>
+        <result property="terminal" column="TERMINAL"/>
+        <result property="osUser" column="OS_USER"/>
+        <result property="isFinished" column="IS_FINISHED"/>
+    </resultMap>
+
+    <select id="maxDetailSerial" resultType="java.lang.Long">
+        SELECT NVL(MAX(SERIAL), 0) FROM BPM_AUDIT_LOG_DTL
+    </select>
+
+    <select id="nextDetailSerial" resultType="java.lang.Long">
+        SELECT ${sequenceName}.NEXTVAL FROM DUAL
+    </select>
+
+    <insert id="insertAuditLogDtl" parameterType="com.example.approval.audit.model.BpmAuditLogDtl">
+        INSERT INTO BPM_AUDIT_LOG_DTL (
+            SERIAL, CASE_ID, ACTION_CODE, NOTE,
+            ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER, IS_FINISHED
+        ) VALUES (
+            #{serial, jdbcType=DECIMAL},
+            #{caseId, jdbcType=DECIMAL},
+            #{actionCode, jdbcType=DECIMAL},
+            #{note, jdbcType=VARCHAR},
+            #{entryUser, jdbcType=DECIMAL},
+            #{entryDate, jdbcType=TIMESTAMP},
+            #{terminal, jdbcType=VARCHAR},
+            #{osUser, jdbcType=VARCHAR},
+            NVL(#{isFinished, jdbcType=DECIMAL}, 0)
+        )
+    </insert>
+
+    <select id="findDetailsByCaseId" resultMap="auditLogDtlMap">
+        SELECT SERIAL, CASE_ID, ACTION_CODE, NOTE, ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER, IS_FINISHED
+        FROM BPM_AUDIT_LOG_DTL
+        WHERE CASE_ID = #{caseId, jdbcType=DECIMAL}
+        ORDER BY SERIAL ASC
+    </select>
+
+    <!-- ================================================================== -->
+    <!-- BPM_CASE_ATTACHMENTS                                               -->
+    <!-- ================================================================== -->
+
+    <resultMap id="caseAttachmentMap" type="com.example.approval.audit.model.BpmCaseAttachment">
+        <id property="serial" column="SERIAL"/>
+        <result property="caseId" column="CASE_ID"/>
+        <result property="contentId" column="CONTENT_ID"/>
+        <result property="contentName" column="CONTENT_NAME"/>
+        <result property="entryUser" column="ENTRY_USER"/>
+        <result property="entryDate" column="ENTRY_DATE"/>
+        <result property="terminal" column="TERMINAL"/>
+        <result property="osUser" column="OS_USER"/>
+    </resultMap>
+
+    <select id="maxAttachmentSerial" resultType="java.lang.Long">
+        SELECT NVL(MAX(SERIAL), 0) FROM BPM_CASE_ATTACHMENTS
+    </select>
+
+    <select id="nextAttachmentSerial" resultType="java.lang.Long">
+        SELECT ${sequenceName}.NEXTVAL FROM DUAL
+    </select>
+
+    <insert id="insertCaseAttachment" parameterType="com.example.approval.audit.model.BpmCaseAttachment">
+        INSERT INTO BPM_CASE_ATTACHMENTS (
+            SERIAL, CASE_ID, CONTENT_ID, CONTENT_NAME,
+            ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER
+        ) VALUES (
+            #{serial, jdbcType=DECIMAL},
+            #{caseId, jdbcType=DECIMAL},
+            #{contentId, jdbcType=VARCHAR},
+            #{contentName, jdbcType=VARCHAR},
+            #{entryUser, jdbcType=DECIMAL},
+            #{entryDate, jdbcType=TIMESTAMP},
+            #{terminal, jdbcType=VARCHAR},
+            #{osUser, jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <select id="findAttachmentsByCaseId" resultMap="caseAttachmentMap">
+        SELECT SERIAL, CASE_ID, CONTENT_ID, CONTENT_NAME, ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER
+        FROM BPM_CASE_ATTACHMENTS
+        WHERE CASE_ID = #{caseId, jdbcType=DECIMAL}
+        ORDER BY SERIAL ASC
+    </select>
+
+    <select id="findAttachmentBySerial" parameterType="long" resultMap="caseAttachmentMap">
+        SELECT SERIAL, CASE_ID, CONTENT_ID, CONTENT_NAME, ENTRY_USER, ENTRY_DATE,
+               TERMINAL, OS_USER
+        FROM BPM_CASE_ATTACHMENTS
+        WHERE SERIAL = #{serial}
+    </select>
+
+    <!-- ================================================================== -->
+    <!-- Lookups                                                            -->
+    <!-- ================================================================== -->
+
+    <!-- Numeric business user id (DIC_USERS.USER_ID) behind a Flowable username. -->
+    <select id="findNumericUserId" resultType="java.lang.Integer">
+        SELECT TO_NUMBER(MAX(ID_))
+        FROM FLOWABLE_USERS_VW
+        WHERE USERNAME_ = LOWER(#{username})
+    </select>
+
+    <!-- Lookup BPM_DOCUMENTS by DOCUMENT_NAME (configured per process key). -->
+    <select id="findDocumentCode" resultType="java.lang.Integer">
+        SELECT MAX(DOCUMENT_CODE)
+        FROM BPM_DOCUMENTS
+        WHERE UPPER(DOCUMENT_NAME) = UPPER(#{documentName})
+    </select>
+
+</mapper>

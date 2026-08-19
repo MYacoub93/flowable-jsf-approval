@@ -1,6 +1,6 @@
 package com.example.approval.config;
 
-import com.example.approval.mapper.AuditLogMapper;
+import com.example.approval.mapper.BpmAuditMapper;
 import com.example.approval.mapper.CommonMapper;
 import com.example.approval.mapper.FlowableIdentityMapper;
 import com.example.approval.mapper.UserMapper;
@@ -34,14 +34,15 @@ import javax.sql.DataSource;
  * once this class exists - each factory below points at its own XML file
  * explicitly instead.</p>
  *
- * <p>{@code UserMapper.xml} + {@code AuditLogMapper.xml} -> primaryDataSource (MySQL)<br>
- * {@code CommonMapper.xml} + {@code FlowableIdentityMapper.xml} -> externalDataSource (Oracle SIS/HRS schema)</p>
+ * <p>{@code UserMapper.xml} -> primaryDataSource (MySQL)<br>
+ * {@code CommonMapper.xml} + {@code FlowableIdentityMapper.xml} + {@code BpmAuditMapper.xml}
+ * -> externalDataSource (Oracle SIS/HRS schema, home of the {@code BPM_*} audit tables)</p>
  */
 @Configuration
 public class MyBatisConfig {
 
     // ------------------------------------------------------------------
-    // Primary (MySQL) - UserMapper, AuditLogMapper
+    // Primary (MySQL) - UserMapper
     // ------------------------------------------------------------------
 
     @Bean(name = "primarySqlSessionFactory")
@@ -50,8 +51,7 @@ public class MyBatisConfig {
             @Qualifier("primaryDataSource") DataSource primaryDataSource,
             MybatisProperties mybatisProperties) throws Exception {
         return buildSqlSessionFactory(primaryDataSource, mybatisProperties,
-                "classpath:mapper/UserMapper.xml",
-                "classpath:mapper/AuditLogMapper.xml");
+                "classpath:mapper/UserMapper.xml");
     }
 
     @Bean(name = "primarySqlSessionTemplate")
@@ -69,27 +69,21 @@ public class MyBatisConfig {
         return mapperFactoryBean;
     }
 
-    @Bean
-    public MapperFactoryBean<AuditLogMapper> auditLogMapper(
-            @Qualifier("primarySqlSessionFactory") SqlSessionFactory sqlSessionFactory) {
-        MapperFactoryBean<AuditLogMapper> mapperFactoryBean = new MapperFactoryBean<>(AuditLogMapper.class);
-        mapperFactoryBean.setSqlSessionFactory(sqlSessionFactory);
-        return mapperFactoryBean;
-    }
-
     // ------------------------------------------------------------------
-    // External (Oracle) - CommonMapper, FlowableIdentityMapper
+    // External (Oracle) - CommonMapper, FlowableIdentityMapper, BpmAuditMapper
     // ------------------------------------------------------------------
 
     @Bean(name = "externalSqlSessionFactory")
     public SqlSessionFactory externalSqlSessionFactory(
             @Qualifier("externalDataSource") DataSource externalDataSource,
             MybatisProperties mybatisProperties) throws Exception {
-        // Both CommonMapper.xml and FlowableIdentityMapper.xml are Oracle SQL
-        // (NVL, dic_pkg.decrypt_data, FLOWABLE_USERS_VW) -> externalDataSource.
+        // CommonMapper.xml / FlowableIdentityMapper.xml are Oracle SQL against
+        // SIS/HRS views; BpmAuditMapper.xml writes the BPM_* business audit
+        // tables (BPM_AUDIT_LOG, BPM_AUDIT_LOG_DTL, BPM_CASE_ATTACHMENTS).
         return buildSqlSessionFactory(externalDataSource, mybatisProperties,
                 "classpath:mapper/CommonMapper.xml",
-                "classpath:mapper/FlowableIdentityMapper.xml");
+                "classpath:mapper/FlowableIdentityMapper.xml",
+                "classpath:mapper/BpmAuditMapper.xml");
     }
 
     @Bean(name = "externalSqlSessionTemplate")
@@ -110,6 +104,14 @@ public class MyBatisConfig {
     public MapperFactoryBean<FlowableIdentityMapper> flowableIdentityMapper(
             @Qualifier("externalSqlSessionFactory") SqlSessionFactory sqlSessionFactory) {
         MapperFactoryBean<FlowableIdentityMapper> mapperFactoryBean = new MapperFactoryBean<>(FlowableIdentityMapper.class);
+        mapperFactoryBean.setSqlSessionFactory(sqlSessionFactory);
+        return mapperFactoryBean;
+    }
+
+    @Bean
+    public MapperFactoryBean<BpmAuditMapper> bpmAuditMapper(
+            @Qualifier("externalSqlSessionFactory") SqlSessionFactory sqlSessionFactory) {
+        MapperFactoryBean<BpmAuditMapper> mapperFactoryBean = new MapperFactoryBean<>(BpmAuditMapper.class);
         mapperFactoryBean.setSqlSessionFactory(sqlSessionFactory);
         return mapperFactoryBean;
     }

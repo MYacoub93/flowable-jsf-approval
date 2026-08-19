@@ -8,6 +8,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.approval.audit.BpmAuditConstants;
+import com.example.approval.clearance.service.AuditService;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,14 +30,29 @@ public class ProcessStartService {
 
     private final RuntimeService runtimeService;
     private final IdentityService identityService;
+    private final AuditService auditService;
 
-    public ProcessStartService(RuntimeService runtimeService, IdentityService identityService) {
+    public ProcessStartService(RuntimeService runtimeService,
+                               IdentityService identityService,
+                               AuditService auditService) {
         this.runtimeService = runtimeService;
         this.identityService = identityService;
+        this.auditService = auditService;
     }
 
     /**
      * Start a new process instance by definition key.
+     *
+     * <p>BPM audit case handling runs in two steps around the start:</p>
+     * <ol>
+     *   <li>the numeric {@code CASE_ID} is reserved before the start and
+     *       passed as the {@code bpmCaseId} start variable - the
+     *       synchronous part of the start (service tasks, first
+     *       task-create listeners) already writes {@code BPM_AUDIT_LOG_DTL}
+     *       rows that need the case linkage;</li>
+     *   <li>once the instance is running, {@code openCase} inserts the
+     *       {@code BPM_AUDIT_LOG} master row for the started instance.</li>
+     * </ol>
      *
      * @param processDefinitionKey Flowable process definition key (from the contract)
      * @param initiatorUsername    authenticated user id recorded as the initiator
@@ -47,12 +65,23 @@ public class ProcessStartService {
         try {
             Map<String, Object> vars = new HashMap<>(variables);
             vars.putIfAbsent("initiator", initiatorUsername);
+
+            // 1) reserve the CASE_ID pre-start so listeners / service tasks
+            //    running inside the start command can already link to it
+            Long bpmCaseId = auditService.allocateCaseId();
+            vars.put(BpmAuditConstants.VAR_CASE_ID, bpmCaseId);
+
             ProcessInstance instance = runtimeService.startProcessInstanceByKey(
                     processDefinitionKey,
                     processDefinitionKey + "-" + System.currentTimeMillis(),
                     vars);
-            log.info("Started process instance {} (key {}) for initiator {}",
-                    instance.getId(), processDefinitionKey, initiatorUsername);
+
+            // 2) the process is started - now write the BPM_AUDIT_LOG master
+            //    row for this instance (uses the bpmCaseId already set)
+            auditService.openCase(processDefinitionKey, instance.getId(), initiatorUsername);
+
+            log.info("Started process instance {} (key {}) for initiator {} (BPM case {})",
+                    instance.getId(), processDefinitionKey, initiatorUsername, bpmCaseId);
             return instance;
         } finally {
             identityService.setAuthenticatedUserId(null);

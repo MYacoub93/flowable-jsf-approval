@@ -138,3 +138,22 @@ clearance:
     # optional per-initiator overrides, e.g.:
     # initiator-overrides:
     #   student.john: DEN,HOD,IT Department
+
+# BPM business audit configuration (Oracle BPM_* tables on the external
+# datasource; see com.example.approval.audit.* and docs/oracle-bpm-audit.md)
+bpm:
+  audit:
+    # Flowable process definition key -> BPM_DOCUMENTS.DOCUMENT_CODE
+    document-codes:
+      clearanceLetterProcess: 1
+    default-document-code: 1
+    # Primary-key generation: MAX_PLUS_ONE works on the pre-existing schema
+    # (no Oracle sequences required); switch to SEQUENCE once the DBA has
+    # created the sequences below.
+    id-strategy: MAX_PLUS_ONE
+    # Oracle sequences backing the numeric primary keys (SEQUENCE strategy only)
+    case-id-sequence: BPM_AUDIT_LOG_SEQ
+    detail-serial-sequence: BPM_AUDIT_LOG_DTL_SEQ
+    attachment-serial-sequence: BPM_CASE_ATTACH_SEQ
+    # directory the uploaded attachment binaries are written to
+    upload-dir: ${java.io.tmpdir}/bpm-attachments

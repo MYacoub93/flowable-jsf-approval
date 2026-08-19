@@ -9,6 +9,7 @@ import org.flowable.task.api.Task;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.example.approval.clearance.service.AuditService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,13 +36,16 @@ public class ApprovalService {
     private final RuntimeService runtimeService;
     private final TaskService taskService;
     private final IdentityService identityService;
+    private final AuditService auditService;
 
     public ApprovalService(RuntimeService runtimeService,
                            TaskService taskService,
-                           IdentityService identityService) {
+                           IdentityService identityService,
+                           AuditService auditService) {
         this.runtimeService = runtimeService;
         this.taskService = taskService;
         this.identityService = identityService;
+        this.auditService = auditService;
     }
 
     // -------------------------------------------------------------------------
@@ -113,6 +117,10 @@ public class ApprovalService {
             vars.put("rejectedBy", null);
         }
 
+        auditService.logTaskCompleted(task.getProcessInstanceId(),
+                task.getTaskDefinitionKey(), null, username,
+                approved ? "approve" : "reject", comments, taskId, null);
+
         taskService.complete(taskId, vars);
         log.info("Task {} completed by {} with approved={}", taskId, username, approved);
     }
@@ -144,6 +152,10 @@ public class ApprovalService {
         // Clear previous decision
         vars.put("approved", null);
         vars.put("comments", "");
+
+        auditService.logProcessAction(task.getProcessInstanceId(),
+                "REQUEST_AMENDED", task.getTaskDefinitionKey(), department,
+                username, null, "Request updated: " + title);
 
         taskService.complete(taskId, vars);
         log.info("Update Request task {} completed by {}", taskId, username);
