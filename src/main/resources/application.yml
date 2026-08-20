@@ -139,21 +139,25 @@ clearance:
     # initiator-overrides:
     #   student.john: DEN,HOD,IT Department
 
-# BPM business audit configuration (Oracle BPM_* tables on the external
+# BPM business audit configuration (Oracle F_BPM_* tables on the external
 # datasource; see com.example.approval.audit.* and docs/oracle-bpm-audit.md)
+#
+# CASE_ID of every F_BPM_* table is the Flowable process instance id of the
+# started case, supplied by the caller - it is never generated here (no
+# sequence / serial). Only the SERIAL columns of F_BPM_AUDIT_LOG_DTL and
+# F_BPM_CASE_ATTACHMENTS are allocated below.
 bpm:
   audit:
     # Flowable process definition key -> BPM_DOCUMENTS.DOCUMENT_CODE
     document-codes:
       clearanceLetterProcess: 1
     default-document-code: 1
-    # Primary-key generation: MAX_PLUS_ONE works on the pre-existing schema
+    # SERIAL-column generation: MAX_PLUS_ONE works on the shipped schema
     # (no Oracle sequences required); switch to SEQUENCE once the DBA has
     # created the sequences below.
     id-strategy: MAX_PLUS_ONE
-    # Oracle sequences backing the numeric primary keys (SEQUENCE strategy only)
-    case-id-sequence: BPM_AUDIT_LOG_SEQ
-    detail-serial-sequence: BPM_AUDIT_LOG_DTL_SEQ
-    attachment-serial-sequence: BPM_CASE_ATTACH_SEQ
+    # Oracle sequences backing the SERIAL columns (SEQUENCE strategy only)
+    detail-serial-sequence: F_BPM_AUDIT_LOG_DTL_SEQ
+    attachment-serial-sequence: F_BPM_CASE_ATTACH_SEQ
     # directory the uploaded attachment binaries are written to
     upload-dir: ${java.io.tmpdir}/bpm-attachments

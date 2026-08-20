@@ -4,21 +4,22 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 
 /**
- * Maps to Oracle table BPM_AUDIT_LOG (master record of a business case).
+ * Maps to Oracle table F_BPM_AUDIT_LOG (master record of a business case).
  *
  * <pre>
- * CASE_ID       NUMBER(9)   -- primary key (from BPM_CASE_ID_SEQ)
- * REQUESTOR_ID  NUMBER(9)   -- numeric id of the employee who initiated the case
- * DOCUMENT_CODE NUMBER(3)   -- process/document type (FK to BPM_DOCUMENTS)
- * ENTRY_USER    NUMBER(7)   -- numeric id of the user who inserted the row
- * ENTRY_DATE    DATE        -- insertion timestamp
+ * CASE_ID       VARCHAR2(64) -- primary key = Flowable process instance id (caller-supplied)
+ * REQUESTOR_ID  NUMBER(9)    -- numeric id of the employee who initiated the case
+ * DOCUMENT_CODE NUMBER(3)    -- process/document type (FK to BPM_DOCUMENTS)
+ * ENTRY_USER    NUMBER(7)    -- numeric id of the user who inserted the row
+ * ENTRY_DATE    DATE         -- insertion timestamp
  * TERMINAL      VARCHAR2(100)
  * OS_USER       VARCHAR2(100)
  * </pre>
  */
 public class BpmAuditLog {
 
-    private Long caseId;
+    /** Flowable process instance id supplied by the caller (never generated). */
+    private String caseId;
     private Long requestorId;
     private Integer documentCode;
     private Integer entryUser;
@@ -29,7 +30,7 @@ public class BpmAuditLog {
     public BpmAuditLog() {
     }
 
-    public BpmAuditLog(Long caseId, Long requestorId, Integer documentCode,
+    public BpmAuditLog(String caseId, Long requestorId, Integer documentCode,
                        Integer entryUser, LocalDateTime entryDate, String terminal, String osUser) {
         this.caseId = caseId;
         this.requestorId = requestorId;
@@ -40,11 +41,11 @@ public class BpmAuditLog {
         this.osUser = osUser;
     }
 
-    public Long getCaseId() {
+    public String getCaseId() {
         return caseId;
     }
 
-    public void setCaseId(Long caseId) {
+    public void setCaseId(String caseId) {
         this.caseId = caseId;
     }
 
@@ -115,7 +116,7 @@ public class BpmAuditLog {
 
     @Override
     public String toString() {
-        return "BpmAuditLog{caseId=" + caseId
+        return "BpmAuditLog{caseId='" + caseId + '\''
                 + ", requestorId=" + requestorId
                 + ", documentCode=" + documentCode
                 + ", entryUser=" + entryUser

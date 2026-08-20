@@ -13,11 +13,16 @@ import java.util.Map;
  * <pre>
  * bpm:
  *   audit:
- *     id-strategy: MAX_PLUS_ONE   # or SEQUENCE
+ *     id-strategy: MAX_PLUS_ONE   # or SEQUENCE (SERIAL columns only)
  *     document-codes:
  *       clearanceLetterProcess: 1
  *       expenseProcess: 2
  * </pre>
+ *
+ * <p>Note: {@code CASE_ID} (the Flowable process instance id) is always
+ * supplied by the caller - the id strategy only governs the {@code SERIAL}
+ * columns of {@code F_BPM_AUDIT_LOG_DTL} and
+ * {@code F_BPM_CASE_ATTACHMENTS}.</p>
  */
 @Component
 @ConfigurationProperties(prefix = "bpm.audit")
@@ -33,26 +38,25 @@ public class BpmAuditProperties {
     private Integer defaultDocumentCode = 1;
 
     /**
-     * How the numeric primary keys ({@code CASE_ID} / {@code SERIAL}) are
-     * generated. The pre-existing schema ships without Oracle sequences, so
+     * How the {@code SERIAL} columns of {@code F_BPM_AUDIT_LOG_DTL} and
+     * {@code F_BPM_CASE_ATTACHMENTS} are generated. {@code CASE_ID} is not
+     * affected - it is always the caller-supplied process instance id.
+     * The schema ships without Oracle sequences, so
      * {@link IdStrategy#MAX_PLUS_ONE MAX_PLUS_ONE} (allocation guarded by a
      * JVM lock) is the default. Switch to {@link IdStrategy#SEQUENCE
      * SEQUENCE} once the DBA provides the sequences.
      */
     private IdStrategy idStrategy = IdStrategy.MAX_PLUS_ONE;
 
-    /** Oracle sequence backing {@code BPM_AUDIT_LOG.CASE_ID} (SEQUENCE strategy only). */
-    private String caseIdSequence = "BPM_AUDIT_LOG_SEQ";
+    /** Oracle sequence backing {@code F_BPM_AUDIT_LOG_DTL.SERIAL} (SEQUENCE strategy only). */
+    private String detailSerialSequence = "F_BPM_AUDIT_LOG_DTL_SEQ";
 
-    /** Oracle sequence backing {@code BPM_AUDIT_LOG_DTL.SERIAL} (SEQUENCE strategy only). */
-    private String detailSerialSequence = "BPM_AUDIT_LOG_DTL_SEQ";
-
-    /** Oracle sequence backing {@code BPM_CASE_ATTACHMENTS.SERIAL} (SEQUENCE strategy only). */
-    private String attachmentSerialSequence = "BPM_CASE_ATTACH_SEQ";
+    /** Oracle sequence backing {@code F_BPM_CASE_ATTACHMENTS.SERIAL} (SEQUENCE strategy only). */
+    private String attachmentSerialSequence = "F_BPM_CASE_ATTACH_SEQ";
 
     /**
      * Directory the uploaded binaries are written to; only the resulting
-     * content id / name are stored in {@code BPM_CASE_ATTACHMENTS}.
+     * content id / name are stored in {@code F_BPM_CASE_ATTACHMENTS}.
      */
     private String uploadDir = System.getProperty("java.io.tmpdir", ".");
 
@@ -78,14 +82,6 @@ public class BpmAuditProperties {
 
     public void setIdStrategy(IdStrategy idStrategy) {
         this.idStrategy = idStrategy;
-    }
-
-    public String getCaseIdSequence() {
-        return caseIdSequence;
-    }
-
-    public void setCaseIdSequence(String caseIdSequence) {
-        this.caseIdSequence = caseIdSequence;
     }
 
     public String getDetailSerialSequence() {
@@ -117,11 +113,11 @@ public class BpmAuditProperties {
         return documentCodes.getOrDefault(processDefinitionKey, defaultDocumentCode);
     }
 
-    /** Primary-key generation strategy of the {@code BPM_*} audit tables. */
+    /** Serial generation strategy of the {@code F_BPM_*} audit tables. */
     public enum IdStrategy {
 
         /**
-         * {@code MAX(id) + 1} per table. Works on the pre-existing schema
+         * {@code MAX(id) + 1} per table. Works on the schema
          * without any Oracle sequences; allocation is serialized inside the
          * JVM ({@code BpmAuditIdAllocator}). Suitable for single-instance
          * deployments - which this JSF monolith is.

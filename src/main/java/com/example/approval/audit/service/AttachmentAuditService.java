@@ -4,7 +4,6 @@ import com.example.approval.audit.BpmAuditAction;
 import com.example.approval.audit.BpmAuditConstants;
 import com.example.approval.audit.BpmAuditProperties;
 import com.example.approval.audit.model.BpmCaseAttachment;
-import com.example.approval.audit.service.BpmAuditIdAllocator;
 import com.example.approval.clearance.service.AuditService;
 import com.example.approval.mapper.BpmAuditMapper;
 import org.slf4j.Logger;
@@ -24,17 +23,22 @@ import java.util.UUID;
 
 /**
  * Registers uploaded case attachments in the pre-existing Oracle
- * {@code BPM_CASE_ATTACHMENTS} table.
+ * {@code F_BPM_CASE_ATTACHMENTS} table.
  *
- * <p>The binary itself is stored in a content directory on disk; this
- * service only records the linkage row ({@code CONTENT_ID} +
- * {@code CONTENT_NAME}) plus the standard audit columns ({@code ENTRY_USER},
- * {@code ENTRY_DATE}, {@code TERMINAL}, {@code OS_USER}).</p>
+ * <p><b>Case linkage:</b> {@code CASE_ID} is the Flowable process instance
+ * id supplied by the caller (never generated). The binary itself is stored
+ * in a content directory on disk; this service only records the linkage row
+ * ({@code CONTENT_ID} + {@code CONTENT_NAME}) plus the standard audit
+ * columns ({@code ENTRY_USER}, {@code ENTRY_DATE}, {@code TERMINAL},
+ * {@code OS_USER}).</p>
  */
 @Service
 public class AttachmentAuditService {
 
     private static final Logger log = LoggerFactory.getLogger(AttachmentAuditService.class);
+
+    /** Fallback for the NOT NULL {@code ENTRY_USER} column. */
+    private static final int UNKNOWN_USER_ID = 0;
 
     private final BpmAuditMapper bpmAuditMapper;
     private final BpmAuditProperties properties;
@@ -54,7 +58,7 @@ public class AttachmentAuditService {
     /**
      * Records one uploaded attachment.
      *
-     * @param processInstanceId process instance the file belongs to
+     * @param processInstanceId Flowable process instance (used directly as CASE_ID)
      * @param contentId         repository id of the stored content
      * @param contentName       original file name
      * @param uploadedBy        username of the uploader
@@ -64,18 +68,15 @@ public class AttachmentAuditService {
                                                 String contentId,
                                                 String contentName,
                                                 String uploadedBy) {
-        Long caseId = auditService.caseIdOfProcessInstance(processInstanceId);
-        if (caseId == null) {
-            throw new IllegalStateException("No bpmCaseId variable on process instance "
-                    + processInstanceId + " - cannot register attachment");
-        }
+        String caseId = requireCaseId(processInstanceId);
 
         BpmCaseAttachment attachment = new BpmCaseAttachment();
         attachment.setSerial(idAllocator.nextAttachmentSerial());
         attachment.setCaseId(caseId);
         attachment.setContentId(truncate(contentId, BpmAuditConstants.CONTENT_ID_MAX_LENGTH));
         attachment.setContentName(truncate(contentName, BpmAuditConstants.CONTENT_NAME_MAX_LENGTH));
-        attachment.setEntryUser(numericUserOf(uploadedBy));
+        Integer entryUser = numericUserOf(uploadedBy);
+        attachment.setEntryUser(entryUser != null ? entryUser : UNKNOWN_USER_ID);
         attachment.setEntryDate(LocalDateTime.now());
         attachment.setTerminal(truncate(terminal(), BpmAuditConstants.TERMINAL_MAX_LENGTH_ATTACHMENT));
         attachment.setOsUser(truncate(System.getProperty("user.name", "unknown"),
@@ -95,10 +96,10 @@ public class AttachmentAuditService {
 
     /** All attachments of the case behind a process instance, oldest first. */
     public List<BpmCaseAttachment> findAttachmentsOfProcessInstance(String processInstanceId) {
-        Long caseId = auditService.caseIdOfProcessInstance(processInstanceId);
-        return caseId != null
-                ? bpmAuditMapper.findAttachmentsByCaseId(caseId)
-                : List.of();
+        if (processInstanceId == null || processInstanceId.isBlank()) {
+            return List.of();
+        }
+        return bpmAuditMapper.findAttachmentsByCaseId(processInstanceId);
     }
 
     /** Single attachment row by its {@code SERIAL} primary key. */
@@ -109,7 +110,7 @@ public class AttachmentAuditService {
     /**
      * Writes the uploaded binary to the upload directory and returns the
      * generated content id (UUID file name) that is stored in
-     * {@code BPM_CASE_ATTACHMENTS.CONTENT_ID}.
+     * {@code F_BPM_CASE_ATTACHMENTS.CONTENT_ID}.
      */
     public String storeFile(MultipartFile file, String uploadDir) throws IOException {
         String contentId = UUID.randomUUID().toString();
@@ -124,6 +125,18 @@ public class AttachmentAuditService {
     // helpers
     // ------------------------------------------------------------------
 
+    /**
+     * CASE_ID must always be the caller-supplied process instance id of the
+     * Flowable case that was started - there is nothing to allocate.
+     */
+    private String requireCaseId(String processInstanceId) {
+        if (processInstanceId == null || processInstanceId.isBlank()) {
+            throw new IllegalStateException("Missing processInstanceId (business CASE_ID) "
+                    + "- cannot register attachment");
+        }
+        return truncate(processInstanceId, BpmAuditConstants.CASE_ID_MAX_LENGTH);
+    }
+
     private Integer numericUserOf(String username) {
         if (username == null || username.isBlank()) {
             return null;
@@ -131,7 +144,8 @@ public class AttachmentAuditService {
         try {
             return bpmAuditMapper.findNumericUserId(username);
         } catch (Exception e) {
-            log.warn("Could not resolve numeric user id of '{}' - storing null", username, e);
+            log.warn("Could not resolve numeric user id of '{}' - storing fallback {}", username,
+                    UNKNOWN_USER_ID, e);
             return null;
         }
     }

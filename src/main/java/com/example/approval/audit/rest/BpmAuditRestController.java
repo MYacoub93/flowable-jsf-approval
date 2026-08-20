@@ -26,13 +26,18 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * REST API for the BPM business audit tables:
+ * REST API for the Oracle {@code F_BPM_*} business audit tables.
+ * The path variable is always the Flowable process instance id, which is
+ * used directly as the business {@code CASE_ID} (caller-supplied, never
+ * generated):
  * <ul>
  *   <li>{@code POST /api/audit/{processInstanceId}/attachments} - upload a file,
- *       store it on disk and insert the {@code BPM_CASE_ATTACHMENTS} row + an
- *       {@code ATTACHMENT_UPLOADED} action in {@code BPM_AUDIT_LOG_DTL};</li>
- *   <li>{@code GET  /api/audit/{processInstanceId}} - master case record;</li>
- *   <li>{@code GET  /api/audit/{processInstanceId}/details} - full action trail;</li>
+ *       store it on disk and insert the {@code F_BPM_CASE_ATTACHMENTS} row + an
+ *       {@code ATTACHMENT_UPLOADED} action in {@code F_BPM_AUDIT_LOG_DTL};</li>
+ *   <li>{@code GET  /api/audit/{processInstanceId}} - master case record
+ *       ({@code F_BPM_AUDIT_LOG});</li>
+ *   <li>{@code GET  /api/audit/{processInstanceId}/details} - full action trail
+ *       ({@code F_BPM_AUDIT_LOG_DTL});</li>
  *   <li>{@code GET  /api/audit/{processInstanceId}/attachments} - attachment list;</li>
  *   <li>{@code GET  /api/audit/attachments/{serial}/content} - download binary.</li>
  * </ul>

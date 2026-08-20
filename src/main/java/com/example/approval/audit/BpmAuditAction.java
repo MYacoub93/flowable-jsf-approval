@@ -3,7 +3,7 @@ package com.example.approval.audit;
 /**
  * Action types of the audit trail, mapped onto the numeric codes of the
  * pre-populated {@code BPM_ACTIONS} lookup table
- * ({@code ACTION_CODE NUMBER(4)} in {@code BPM_AUDIT_LOG_DTL}).
+ * ({@code ACTION_CODE NUMBER(4)} in {@code F_BPM_AUDIT_LOG_DTL}).
  *
  * <p>The application maps every workflow event it audits onto one of these
  * types; the actual numeric codes are defined once in
@@ -13,7 +13,7 @@ package com.example.approval.audit;
  */
 public enum BpmAuditAction {
 
-    /** Case opened / process instance created (master row in BPM_AUDIT_LOG). */
+    /** Case opened / process instance created (master row in F_BPM_AUDIT_LOG). */
     CASE_OPENED(BpmAuditConstants.ACTION_CODE_CASE_OPENED, "Case opened (process instance created)"),
     /** A task was offered to an approver group. */
     TASK_ASSIGNED(BpmAuditConstants.ACTION_CODE_TASK_ASSIGNED, "Task assigned to approver group"),

@@ -9,9 +9,6 @@ import com.example.approval.audit.service.BpmAuditIdAllocator;
 import com.example.approval.clearance.ClearanceConstants;
 import com.example.approval.clearance.service.AuditService;
 import com.example.approval.mapper.BpmAuditMapper;
-import org.flowable.engine.HistoryService;
-import org.flowable.engine.RuntimeService;
-import org.flowable.variable.api.history.HistoricVariableInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -21,16 +18,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Implementation of {@link AuditService} writing to the pre-existing Oracle
- * {@code BPM_*} business audit tables through the
+ * Implementation of {@link AuditService} writing to the Oracle
+ * {@code F_BPM_*} business audit tables through the
  * {@code externalSqlSessionFactory} (Oracle datasource).
  *
- * <p><b>Case linkage:</b> the schema has no {@code PROCESS_INSTANCE_ID}
- * column, so every insert resolves the case via the Flowable process
- * variable {@code bpmCaseId}. The id is reserved with
- * {@link #allocateCaseId()} before the instance starts (the synchronous
- * start already writes detail rows that need it) and the master row is
- * inserted by {@link #openCase} once the instance is running.</p>
+ * <p><b>Case linkage:</b> {@code CASE_ID} is the Flowable process instance
+ * id of the started case, supplied by the caller on every call - it is
+ * never generated (no sequence / serial). Only the {@code SERIAL} columns
+ * of the detail / attachment tables are allocated via
+ * {@link BpmAuditIdAllocator}.</p>
  *
  * <p><b>Failure tolerance:</b> audit persistence runs inside the Flowable
  * command/transaction. A hard failure would roll the workflow step back -
@@ -41,47 +37,42 @@ public class AuditServiceImpl implements AuditService {
 
     private static final Logger log = LoggerFactory.getLogger(AuditServiceImpl.class);
 
+    /**
+     * Fallback for the NOT NULL {@code ENTRY_USER} / {@code REQUESTOR_ID}
+     * columns when the acting username cannot be resolved to a numeric id.
+     */
+    private static final int UNKNOWN_USER_ID = 0;
+
     private final BpmAuditMapper bpmAuditMapper;
     private final BpmAuditProperties properties;
     private final BpmAuditIdAllocator idAllocator;
-    private final RuntimeService runtimeService;
-    private final HistoryService historyService;
 
     public AuditServiceImpl(BpmAuditMapper bpmAuditMapper,
                             BpmAuditProperties properties,
-                            BpmAuditIdAllocator idAllocator,
-                            RuntimeService runtimeService,
-                            HistoryService historyService) {
+                            BpmAuditIdAllocator idAllocator) {
         this.bpmAuditMapper = bpmAuditMapper;
         this.properties = properties;
         this.idAllocator = idAllocator;
-        this.runtimeService = runtimeService;
-        this.historyService = historyService;
     }
 
     // ------------------------------------------------------------------
-    // Master case record (BPM_AUDIT_LOG)
+    // Master case record (F_BPM_AUDIT_LOG)
     // ------------------------------------------------------------------
 
     @Override
-    public Long allocateCaseId() {
-        return idAllocator.nextCaseId();
-    }
-
-    @Override
-    public Long openCase(String processDefinitionKey, String processInstanceId, String initiatorUsername) {
-        // the id was reserved pre-start and now travels as bpmCaseId
-        Long caseId = requireCaseId(processInstanceId);
+    public String openCase(String processDefinitionKey, String processInstanceId, String initiatorUsername) {
+        // CASE_ID = the caller-supplied Flowable process instance id
+        String caseId = requireCaseId(processInstanceId);
         Integer requestorId = numericUserOf(initiatorUsername);
         Integer documentCode = properties.documentCodeOf(processDefinitionKey);
 
         BpmAuditLog master = new BpmAuditLog();
         master.setCaseId(caseId);
-        master.setRequestorId(requestorId != null ? requestorId.longValue() : null);
+        master.setRequestorId(requestorId != null ? requestorId.longValue() : (long) UNKNOWN_USER_ID);
         master.setDocumentCode(documentCode);
-        master.setEntryUser(requestorId);
+        master.setEntryUser(requestorId != null ? requestorId : UNKNOWN_USER_ID);
         master.setEntryDate(LocalDateTime.now());
-        master.setTerminal(terminal());
+        master.setTerminal(truncate(terminal(), BpmAuditConstants.TERMINAL_MAX_LENGTH_DTL));
         master.setOsUser(osUser());
         bpmAuditMapper.insertAuditLog(master);
         log.info("BPM audit: opened case {} (process instance {}, key {}, requestor {} / {})",
@@ -90,7 +81,7 @@ public class AuditServiceImpl implements AuditService {
     }
 
     // ------------------------------------------------------------------
-    // Task lifecycle (BPM_AUDIT_LOG_DTL)
+    // Task lifecycle (F_BPM_AUDIT_LOG_DTL)
     // ------------------------------------------------------------------
 
     @Override
@@ -152,44 +143,18 @@ public class AuditServiceImpl implements AuditService {
 
     @Override
     public BpmAuditLog findCaseOfProcessInstance(String processInstanceId) {
-        Long caseId = caseIdOfProcessInstance(processInstanceId);
-        return caseId != null ? bpmAuditMapper.findAuditLogByCaseId(caseId) : null;
+        if (processInstanceId == null || processInstanceId.isBlank()) {
+            return null;
+        }
+        return bpmAuditMapper.findAuditLogByCaseId(processInstanceId);
     }
 
     @Override
     public List<BpmAuditLogDtl> findDetailsOfProcessInstance(String processInstanceId) {
-        Long caseId = caseIdOfProcessInstance(processInstanceId);
-        return caseId != null
-                ? bpmAuditMapper.findDetailsByCaseId(caseId)
-                : List.of();
-    }
-
-    // ------------------------------------------------------------------
-    // Case-id resolution (process variable bpmCaseId, history fallback)
-    // ------------------------------------------------------------------
-
-    @Override
-    public Long caseIdOfProcessInstance(String processInstanceId) {
         if (processInstanceId == null || processInstanceId.isBlank()) {
-            return null;
+            return List.of();
         }
-        try {
-            Object runtime = runtimeService.getVariable(processInstanceId, BpmAuditConstants.VAR_CASE_ID);
-            if (runtime instanceof Number n) {
-                return n.longValue();
-            }
-        } catch (org.flowable.common.engine.api.FlowableObjectNotFoundException e) {
-            // process instance already finished - fall through to history
-        }
-        return historyService.createHistoricVariableInstanceQuery()
-                .processInstanceId(processInstanceId)
-                .variableName(BpmAuditConstants.VAR_CASE_ID)
-                .list().stream()
-                .map(HistoricVariableInstance::getValue)
-                .filter(v -> v instanceof Number)
-                .map(v -> ((Number) v).longValue())
-                .findFirst()
-                .orElse(null);
+        return bpmAuditMapper.findDetailsByCaseId(processInstanceId);
     }
 
     // ------------------------------------------------------------------
@@ -201,13 +166,14 @@ public class AuditServiceImpl implements AuditService {
                                   String user,
                                   String note,
                                   int isFinished) {
-        Long caseId = requireCaseId(processInstanceId);
+        String caseId = requireCaseId(processInstanceId);
+        Integer entryUser = numericUserOf(user);
         BpmAuditLogDtl dtl = new BpmAuditLogDtl();
         dtl.setSerial(idAllocator.nextDetailSerial());
         dtl.setCaseId(caseId);
         dtl.setActionCode(action.code());
         dtl.setNote(truncate(note, BpmAuditConstants.NOTE_MAX_LENGTH));
-        dtl.setEntryUser(numericUserOf(user));
+        dtl.setEntryUser(entryUser != null ? entryUser : UNKNOWN_USER_ID);
         dtl.setEntryDate(LocalDateTime.now());
         dtl.setTerminal(truncate(terminal(), BpmAuditConstants.TERMINAL_MAX_LENGTH_DTL));
         dtl.setOsUser(osUser());
@@ -217,13 +183,16 @@ public class AuditServiceImpl implements AuditService {
         return dtl;
     }
 
-    private Long requireCaseId(String processInstanceId) {
-        Long caseId = caseIdOfProcessInstance(processInstanceId);
-        if (caseId == null) {
-            throw new IllegalStateException("No bpmCaseId variable on process instance "
-                    + processInstanceId + " - cannot write BPM audit row");
+    /**
+     * CASE_ID must always be the caller-supplied process instance id of the
+     * Flowable case that was started - there is nothing to allocate.
+     */
+    private String requireCaseId(String processInstanceId) {
+        if (processInstanceId == null || processInstanceId.isBlank()) {
+            throw new IllegalStateException("Missing processInstanceId (business CASE_ID) "
+                    + "- cannot write BPM audit row");
         }
-        return caseId;
+        return truncate(processInstanceId, BpmAuditConstants.CASE_ID_MAX_LENGTH);
     }
 
     /** Maps legacy ClearanceConstants.ACTION_* strings onto numeric codes. */
@@ -255,7 +224,8 @@ public class AuditServiceImpl implements AuditService {
         try {
             return bpmAuditMapper.findNumericUserId(username);
         } catch (Exception e) {
-            log.warn("Could not resolve numeric user id of '{}' - storing null", username, e);
+            log.warn("Could not resolve numeric user id of '{}' - storing fallback {}", username,
+                    UNKNOWN_USER_ID, e);
             return null;
         }
     }

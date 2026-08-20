@@ -2,13 +2,13 @@ package com.example.approval.audit;
 
 /**
  * Shared constants of the custom business audit subsystem that writes to the
- * pre-existing Oracle {@code BPM_*} tables
- * ({@code BPM_AUDIT_LOG}, {@code BPM_AUDIT_LOG_DTL}, {@code BPM_CASE_ATTACHMENTS}).
+ * Oracle {@code F_BPM_*} tables
+ * ({@code F_BPM_AUDIT_LOG}, {@code F_BPM_AUDIT_LOG_DTL},
+ * {@code F_BPM_CASE_ATTACHMENTS}).
  *
- * <p>The Oracle schema has no {@code PROCESS_INSTANCE_ID} column anywhere, so
- * the link between a Flowable process instance and its numeric business
- * {@code CASE_ID} is kept as a process variable named
- * {@link #VAR_CASE_ID}.</p>
+ * <p>{@code CASE_ID} is a {@code VARCHAR2(64)} that holds the Flowable
+ * process instance id of the audited case - it is always supplied by the
+ * caller and never generated (no sequence / serial involved).</p>
  */
 public final class BpmAuditConstants {
 
@@ -16,10 +16,10 @@ public final class BpmAuditConstants {
     }
 
     /**
-     * Flowable process variable holding the numeric {@code BPM_AUDIT_LOG.CASE_ID}
-     * of the process instance (set when the case is opened).
+     * Max length of {@code CASE_ID VARCHAR2(64)} - the Flowable process
+     * instance id passed in by the caller (used to truncate before insert).
      */
-    public static final String VAR_CASE_ID = "bpmCaseId";
+    public static final int CASE_ID_MAX_LENGTH = 64;
 
     // ------------------------------------------------------------------
     // Action codes (BPM_ACTIONS lookup - PRE-POPULATED table)
@@ -27,7 +27,7 @@ public final class BpmAuditConstants {
 
     /**
      * {@code ACTION_CODE} values of the pre-populated {@code BPM_ACTIONS}
-     * lookup table ({@code BPM_AUDIT_LOG_DTL.ACTION_CODE NUMBER(4)}).
+     * lookup table ({@code F_BPM_AUDIT_LOG_DTL.ACTION_CODE NUMBER(4)}).
      *
      * <p>The lookup table already ships with the DBA's own rows, so this
      * block is the single place to align the application with the codes

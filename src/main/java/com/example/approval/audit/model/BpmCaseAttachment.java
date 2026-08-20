@@ -4,7 +4,8 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * One uploaded attachment of a case, mapped to {@code BPM_CASE_ATTACHMENTS}.
+ * One uploaded attachment of a case, mapped to {@code F_BPM_CASE_ATTACHMENTS}
+ * (primary key: {@code SERIAL}, {@code CASE_ID}, {@code CONTENT_ID}).
  */
 public class BpmCaseAttachment implements Serializable {
 
@@ -13,8 +14,8 @@ public class BpmCaseAttachment implements Serializable {
     /** NUMBER(9,0) */
     private Long serial;
 
-    /** NUMBER(9,0) - FK to BPM_AUDIT_LOG.CASE_ID. */
-    private Long caseId;
+    /** VARCHAR2(64) - Flowable process instance id supplied by the caller. */
+    private String caseId;
 
     /** VARCHAR2(1000) - content/document repository id. */
     private String contentId;
@@ -42,11 +43,11 @@ public class BpmCaseAttachment implements Serializable {
         this.serial = serial;
     }
 
-    public Long getCaseId() {
+    public String getCaseId() {
         return caseId;
     }
 
-    public void setCaseId(Long caseId) {
+    public void setCaseId(String caseId) {
         this.caseId = caseId;
     }
 

@@ -1,215 +1,142 @@
-# Oracle BPM Audit Tables - DDL, Sequences & Seed Data
+# Oracle BPM Audit (F_BPM_* tables)
 
-The Flowable application writes its **business audit trail** to the
-pre-existing Oracle schema (external datasource `app.datasource.external`,
-user `MEU`). Audit rows are produced whenever:
+The application writes a business-level audit trail of every workflow case
+to the pre-existing Oracle schema `MEU`, alongside the Flowable engine
+database. All access goes through the **external Oracle datasource** and
+the `externalSqlSessionFactory` (see `MyBatisConfig`), so audit rows land
+in Oracle even though Flowable itself runs on the primary datasource.
 
-- a process instance is created → `BPM_AUDIT_LOG` (master case row),
-- a task is assigned / completed / a workflow action happens → `BPM_AUDIT_LOG_DTL`,
-- an attachment is uploaded → `BPM_CASE_ATTACHMENTS` (+ an
-  `ATTACHMENT_UPLOADED` action in `BPM_AUDIT_LOG_DTL`).
+## Tables
 
-Case linkage: the Oracle tables have no `PROCESS_INSTANCE_ID` column, so the
-generated `CASE_ID` is stored as the Flowable process variable
-`bpmCaseId` at start time (`ProcessStartService`).
+| Table | Purpose | Primary key |
+|---|---|---|
+| `F_BPM_AUDIT_LOG` | One master row per started case (process instance) | `CASE_ID` |
+| `F_BPM_AUDIT_LOG_DTL` | One row per audited action (assigned / approved / rejected / amended / FYI / upload …) | `SERIAL`, `CASE_ID`, `ACTION_CODE` |
+| `F_BPM_CASE_ATTACHMENTS` | One row per uploaded attachment | `SERIAL`, `CASE_ID`, `CONTENT_ID` |
 
-## 1. Tables (reference DDL)
+### Case linkage: `CASE_ID` is the Flowable process instance id
 
-```sql
--- Lookup for action types (ACTION_CODE is NUMBER(4) in BPM_AUDIT_LOG_DTL)
-CREATE TABLE BPM_ACTIONS (
-    ACTION_CODE   NUMBER(5,0),
-    ACTION_DESC   VARCHAR2(200),
-    ACTION_DESC_S VARCHAR2(200),
-    ENTRY_USER    NUMBER(7,0),
-    ENTRY_DATE    DATE,
-    TERMINAL      VARCHAR2(200),
-    OS_USER       VARCHAR2(200),
-    DEPT_DESC     VARCHAR2(200),
-    DEPT_DESC_S   VARCHAR2(200)
-);
+`CASE_ID` is a `VARCHAR2(64)` that holds the **Flowable process instance id**
+of the started case:
 
--- Master process record (one row per started process instance)
-CREATE TABLE BPM_AUDIT_LOG (
-    CASE_ID       NUMBER(9,0),
-    REQUESTOR_ID  NUMBER(9,0),
-    DOCUMENT_CODE NUMBER(3,0),
-    ENTRY_USER    NUMBER(7,0),
-    ENTRY_DATE    DATE,
-    TERMINAL      VARCHAR2(100),
-    OS_USER       VARCHAR2(100)
-);
+- it is **always supplied by the caller** — listeners/delegates read it from
+  `DelegateTask`/`DelegateExecution`, `ProcessStartService` passes the id of
+  the instance it just started, and the REST layer takes it as a path
+  variable;
+- it is **never generated** — there is no sequence, serial or auto-increment
+  behind it;
+- every `F_BPM_*` table references the case by this natural key, which is
+  also the sole primary key of `F_BPM_AUDIT_LOG`.
 
--- Task / action level detail (one row per audited action)
-CREATE TABLE BPM_AUDIT_LOG_DTL (
-    SERIAL      NUMBER(9,0),
-    CASE_ID     NUMBER(9,0),
-    ACTION_CODE NUMBER(4,0),
-    NOTE        VARCHAR2(500),
-    ENTRY_USER  NUMBER(7,0),
-    ENTRY_DATE  DATE,
-    TERMINAL    VARCHAR2(100),
-    OS_USER     VARCHAR2(100),
-    IS_FINISHED NUMBER DEFAULT 0
-);
+Only the `SERIAL` columns of `F_BPM_AUDIT_LOG_DTL` and
+`F_BPM_CASE_ATTACHMENTS` are allocated by `BpmAuditIdAllocator`
+(`bpm.audit.id-strategy`):
 
--- Uploaded attachments of a case
-CREATE TABLE BPM_CASE_ATTACHMENTS (
-    SERIAL       NUMBER(9,0),
-    CASE_ID      NUMBER(9,0),
-    CONTENT_ID   VARCHAR2(1000),
-    CONTENT_NAME VARCHAR2(1000),
-    ENTRY_USER   NUMBER(6,0),
-    ENTRY_DATE   DATE,
-    TERMINAL     VARCHAR2(30),
-    OS_USER      VARCHAR2(30)
-);
+| Strategy | Behaviour |
+|---|---|
+| `MAX_PLUS_ONE` (default) | `MAX(SERIAL) + 1` per table, allocation serialized inside the JVM — works on the shipped schema without Oracle sequences |
+| `SEQUENCE` | `SELECT seq.NEXTVAL FROM DUAL` once the DBA provides `F_BPM_AUDIT_LOG_DTL_SEQ` / `F_BPM_CASE_ATTACH_SEQ` |
 
--- Lookup for process types
-CREATE TABLE BPM_DOCUMENTS (
-    DOCUMENT_CODE            NUMBER(3,0),
-    DOCUMENT_NAME            VARCHAR2(100),
-    DOCUMENT_NAME_S          VARCHAR2(100),
-    IS_DOCUMENT              NUMBER(1,0) DEFAULT 1,
-    IS_RECEIVED_BY_HAND      NUMBER(1,0) DEFAULT 0,
-    IS_RECEIVED_ELECTRONIC   NUMBER(1,0) DEFAULT 0,
-    CHECK_BACKOFFICE_SETTINGS NUMBER(1,0) DEFAULT 0,
-    FINANCIAL_APPROVAL       NUMBER(1,0) DEFAULT 0,
-    PROCESS_SIGNATURE        VARCHAR2(200),
-    ENTRY_USER               NUMBER(7,0),
-    ENTRY_DATE               DATE,
-    TERMINAL                 VARCHAR2(30),
-    OS_USER                  VARCHAR2(30),
-    IS_PRICE                 NUMBER(1,0) DEFAULT 0,
-    ALL_MAJORS               NUMBER(1,0) DEFAULT 0
-);
-```
-
-## 2. Primary-key generation (`bpm.audit.id-strategy`)
-
-Two strategies, selected in `application.yml`:
-
-- **`MAX_PLUS_ONE` (default)** - keys are allocated as `MAX(id) + 1` per
-  table, serialized by a JVM-wide lock (`BpmAuditIdAllocator`). Works on
-  the pre-existing schema **without any Oracle sequences**; suitable for
-  this single-node JSF application.
-- **`SEQUENCE`** - classic `SELECT seq.NEXTVAL FROM DUAL` (ORA-02289 will
-  occur if the sequences are missing). Create them first:
+## Reference DDL
 
 ```sql
-CREATE SEQUENCE BPM_AUDIT_LOG_SEQ     START WITH 1 INCREMENT BY 1 NOCACHE;
-CREATE SEQUENCE BPM_AUDIT_LOG_DTL_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
-CREATE SEQUENCE BPM_CASE_ATTACH_SEQ   START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE TABLE "MEU"."F_BPM_AUDIT_LOG"
+(
+    "CASE_ID"       VARCHAR2(64 BYTE) NOT NULL ENABLE,
+    "REQUESTOR_ID"  NUMBER(9,0) NOT NULL ENABLE,
+    "DOCUMENT_CODE" NUMBER(3,0) NOT NULL ENABLE,
+    "ENTRY_USER"    NUMBER(7,0) NOT NULL ENABLE,
+    "ENTRY_DATE"    DATE NOT NULL ENABLE,
+    "TERMINAL"      VARCHAR2(100 BYTE) NOT NULL ENABLE,
+    "OS_USER"       VARCHAR2(100 BYTE) NOT NULL ENABLE,
+
+    CONSTRAINT "F_BPM_AUDIT_LOG_PK"
+        PRIMARY KEY ("CASE_ID")
+);
+
+CREATE TABLE "MEU"."F_BPM_AUDIT_LOG_DTL"
+(
+    "SERIAL"       NUMBER(9,0) NOT NULL ENABLE,
+    "CASE_ID"      VARCHAR2(64 BYTE) NOT NULL ENABLE,
+    "ACTION_CODE"  NUMBER(4,0) NOT NULL ENABLE,
+    "NOTE"         VARCHAR2(500 BYTE),
+    "ENTRY_USER"   NUMBER(7,0) NOT NULL ENABLE,
+    "ENTRY_DATE"   DATE NOT NULL ENABLE,
+    "TERMINAL"     VARCHAR2(100 BYTE) NOT NULL ENABLE,
+    "OS_USER"      VARCHAR2(100 BYTE) NOT NULL ENABLE,
+    "IS_FINISHED"  NUMBER DEFAULT 0,
+
+    CONSTRAINT "F_BPM_AUDIT_LOG_DTL_PK"
+        PRIMARY KEY ("SERIAL", "CASE_ID", "ACTION_CODE")
+);
+
+CREATE TABLE "MEU"."F_BPM_CASE_ATTACHMENTS"
+(
+    "SERIAL"       NUMBER(9,0) NOT NULL ENABLE,
+    "CASE_ID"      VARCHAR2(64 BYTE) NOT NULL ENABLE,
+    "CONTENT_ID"   VARCHAR2(1000 BYTE) NOT NULL ENABLE,
+    "CONTENT_NAME" VARCHAR2(1000 BYTE) NOT NULL ENABLE,
+    "ENTRY_USER"   NUMBER(6,0) NOT NULL ENABLE,
+    "ENTRY_DATE"   DATE NOT NULL ENABLE,
+    "TERMINAL"     VARCHAR2(30 BYTE) NOT NULL ENABLE,
+    "OS_USER"      VARCHAR2(30 BYTE) NOT NULL ENABLE,
+
+    CONSTRAINT "F_BPM_CASE_ATTACHMENTS_PK"
+        PRIMARY KEY ("SERIAL", "CASE_ID", "CONTENT_ID")
+);
 ```
 
-When switching to `SEQUENCE` on a table that already contains rows, start
-the sequences above the current `MAX(id)` of each table.
+## User / document resolution
 
-## 3. Recommended constraints (optional but advised)
+| Column | Source |
+|---|---|
+| `REQUESTOR_ID` (`NUMBER(9)`) | numeric id resolved from the initiator username (`FLOWABLE_USERS_VW`, fallback `0`) |
+| `DOCUMENT_CODE` (`NUMBER(3)`) | `bpm.audit.document-codes` map keyed by process definition key (`BPM_DOCUMENTS`) |
+| `ENTRY_USER` (`NUMBER(7)`/`NUMBER(6)`) | numeric id of the acting user, same lookup as above (fallback `0`) |
+| `TERMINAL` / `OS_USER` | server host name / `user.name` (truncated to the column sizes) |
 
-```sql
-ALTER TABLE BPM_AUDIT_LOG     ADD CONSTRAINT PK_BPM_AUDIT_LOG PRIMARY KEY (CASE_ID);
-ALTER TABLE BPM_AUDIT_LOG_DTL ADD CONSTRAINT PK_BPM_AUDIT_LOG_DTL PRIMARY KEY (SERIAL);
-ALTER TABLE BPM_CASE_ATTACHMENTS ADD CONSTRAINT PK_BPM_CASE_ATTACH PRIMARY KEY (SERIAL);
-ALTER TABLE BPM_AUDIT_LOG_DTL ADD CONSTRAINT FK_BPM_DTL_CASE
-    FOREIGN KEY (CASE_ID) REFERENCES BPM_AUDIT_LOG (CASE_ID);
-ALTER TABLE BPM_CASE_ATTACHMENTS ADD CONSTRAINT FK_BPM_ATT_CASE
-    FOREIGN KEY (CASE_ID) REFERENCES BPM_AUDIT_LOG (CASE_ID);
-CREATE INDEX IX_BPM_DTL_CASE ON BPM_AUDIT_LOG_DTL (CASE_ID, ENTRY_DATE);
-CREATE INDEX IX_BPM_ATT_CASE ON BPM_CASE_ATTACHMENTS (CASE_ID);
+## Code map
+
+| Concern | Class |
+|---|---|
+| Table access | `mapper/BpmAuditMapper.java` + `resources/mapper/BpmAuditMapper.xml` |
+| Entities | `audit/model/BpmAuditLog.java`, `BpmAuditLogDtl.java`, `BpmCaseAttachment.java` |
+| Audit facade | `clearance/service/AuditService.java` + `impl/AuditServiceImpl.java` |
+| Attachments | `audit/service/AttachmentAuditService.java` + `audit/rest/BpmAuditRestController.java` |
+| SERIAL allocation | `audit/service/BpmAuditIdAllocator.java` (`bpm.audit.id-strategy`) |
+| Action codes | `audit/BpmAuditConstants.java` (`ACTION_CODE_*`, values of `BPM_ACTIONS`) |
+| Configuration | `audit/BpmAuditProperties.java` (`bpm.audit.*` in `application.yml`) |
+
+## REST API
+
+All path variables are the Flowable **process instance id** (used directly
+as `CASE_ID`):
+
+```
+POST /api/audit/{processInstanceId}/attachments      multipart upload (file, username)
+GET  /api/audit/{processInstanceId}                  master case record
+GET  /api/audit/{processInstanceId}/details          full action trail (oldest first)
+GET  /api/audit/{processInstanceId}/attachments      attachment metadata list
+GET  /api/audit/attachments/{serial}/content         download attachment binary
 ```
 
-## 4. Seed data
+## Audit write points
 
-### 4.1 `BPM_DOCUMENTS` - process types
+Every workflow mutation writes exactly one `F_BPM_AUDIT_LOG_DTL` row
+(through `AuditService`), keyed by the process instance id of the case:
 
-`DOCUMENT_CODE` is what the application writes into
-`BPM_AUDIT_LOG.DOCUMENT_CODE`. The mapping from the Flowable process
-definition key is configured in `application.yml`:
+| Event | Action code |
+|---|---|
+| Task created and offered to an approver group | `TASK_ASSIGNED` (2) |
+| Approval task completed | `APPROVED` (3) / `REJECTED` (4) |
+| Initiator amended a rejected request | `REQUEST_AMENDED` (5) |
+| Multi-instance completion removed an open sibling task | `TASK_CANCELLED` (6) |
+| Case finished successfully | `CASE_FINISHED` (7) — `IS_FINISHED = 1` |
+| Result / FYI task created | `FYI_CREATED` (8) |
+| Result / FYI task acknowledged | `FYI_ACKNOWLEDGED` (9) |
+| Attachment uploaded | `ATTACHMENT_UPLOADED` (10) |
+| Anything else (departments resolved, generic actions) | `GENERIC` (99) |
 
-```yaml
-bpm:
-  audit:
-    document-codes:
-      clearanceLetterProcess: 1
-```
-
-```sql
-INSERT INTO BPM_DOCUMENTS (DOCUMENT_CODE, DOCUMENT_NAME, DOCUMENT_NAME_S, IS_DOCUMENT)
-VALUES (1, 'Clearance Letter Request', 'طلب إخلاء طرف', 0);
-COMMIT;
-```
-
-### 4.2 `BPM_ACTIONS` - action type lookup
-
-The `BPM_ACTIONS` table is **pre-populated** by the DBA - do **not** seed it.
-The application writes the `ACTION_CODE` values configured in
-`com.example.approval.audit.BpmAuditConstants` (`ACTION_CODE_*`, referenced by
-the `BpmAuditAction` enum). Align those constants with the rows that already
-exist in the table; the defaults the application currently ships with:
-
-| ACTION_CODE | Meaning |
-|-------------|---------|
-| 1  | Case opened (process started) |
-| 2  | Task assigned |
-| 3  | Task completed - approved |
-| 4  | Task completed - rejected |
-| 5  | Request amended |
-| 6  | Task cancelled |
-| 7  | Case finished (process completed) |
-| 8  | FYI task created |
-| 9  | FYI / result acknowledged |
-| 10 | Attachment uploaded |
-| 99 | Generic action |
-
-Reference seed (only needed on an empty / scratch schema - **not** on the
-pre-populated production table):
-
-```sql
-INSERT INTO BPM_ACTIONS (ACTION_CODE, ACTION_DESC) VALUES (1,  'Case opened');
-INSERT INTO BPM_ACTIONS (ACTION_CODE, ACTION_DESC) VALUES (2,  'Task assigned');
-INSERT INTO BPM_ACTIONS (ACTION_CODE, ACTION_DESC) VALUES (3,  'Approved');
-INSERT INTO BPM_ACTIONS (ACTION_CODE, ACTION_DESC) VALUES (4,  'Rejected');
-INSERT INTO BPM_ACTIONS (ACTION_CODE, ACTION_DESC) VALUES (5,  'Request amended');
-INSERT INTO BPM_ACTIONS (ACTION_CODE, ACTION_DESC) VALUES (6,  'Task cancelled');
-INSERT INTO BPM_ACTIONS (ACTION_CODE, ACTION_DESC) VALUES (7,  'Case finished');
-INSERT INTO BPM_ACTIONS (ACTION_CODE, ACTION_DESC) VALUES (8,  'FYI created');
-INSERT INTO BPM_ACTIONS (ACTION_CODE, ACTION_DESC) VALUES (9,  'FYI acknowledged');
-INSERT INTO BPM_ACTIONS (ACTION_CODE, ACTION_DESC) VALUES (10, 'Attachment uploaded');
-INSERT INTO BPM_ACTIONS (ACTION_CODE, ACTION_DESC) VALUES (99, 'Generic action');
-COMMIT;
-```
-
-## 5. Numeric user ids (`ENTRY_USER`, `REQUESTOR_ID`)
-
-The audit columns `ENTRY_USER` / `REQUESTOR_ID` are numeric ids. The app
-resolves the current Flowable username through the mapper query
-`findNumericUserId` (see `BpmAuditMapper.xml`) - keep it pointed at your
-business user table / view (e.g. `DIC_USERS` or `FLOWABLE_USERS_VW`).
-If the lookup fails, `null` is stored and a warning is logged.
-
-## 6. Configuration summary (`application.yml`)
-
-```yaml
-bpm:
-  audit:
-    document-codes:
-      clearanceLetterProcess: 1
-    default-document-code: 1
-    # MAX_PLUS_ONE (default, no sequences needed) or SEQUENCE
-    id-strategy: MAX_PLUS_ONE
-    case-id-sequence: BPM_AUDIT_LOG_SEQ
-    detail-serial-sequence: BPM_AUDIT_LOG_DTL_SEQ
-    attachment-serial-sequence: BPM_CASE_ATTACH_SEQ
-    upload-dir: ${java.io.tmpdir}/bpm-attachments
-```
-
-## 7. REST API
-
-| Method | URL | Purpose |
-|--------|-----|---------|
-| POST | `/api/audit/{processInstanceId}/attachments` | upload file (multipart `file`, `username`) |
-| GET  | `/api/audit/{processInstanceId}` | master case record |
-| GET  | `/api/audit/{processInstanceId}/details` | action trail |
-| GET  | `/api/audit/{processInstanceId}/attachments` | attachment list |
-| GET  | `/api/audit/attachments/{serial}/content` | download attachment binary |
+The `F_BPM_AUDIT_LOG` master row is inserted by `ProcessStartService`
+right after `runtimeService.startProcessInstanceByKey(...)` returns, using
+the brand-new process instance id as `CASE_ID`.

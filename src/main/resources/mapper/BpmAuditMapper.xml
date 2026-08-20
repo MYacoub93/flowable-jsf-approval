@@ -2,15 +2,22 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <!--
-    Oracle (external datasource) mapper for the pre-existing BPM_* business
-    audit tables. Sequence names are passed in from BpmAuditProperties so the
-    DBA can point them at existing sequences (bpm.audit.*-sequence in
-    application.yml).
+    Oracle (external datasource) mapper for the F_BPM_* business audit
+    tables (schema MEU):
+
+    - F_BPM_AUDIT_LOG         master case row; CASE_ID = Flowable process
+                              instance id supplied by the caller (PK)
+    - F_BPM_AUDIT_LOG_DTL     one row per audited action; PK (SERIAL, CASE_ID, ACTION_CODE)
+    - F_BPM_CASE_ATTACHMENTS  one row per uploaded attachment; PK (SERIAL, CASE_ID, CONTENT_ID)
+
+    CASE_ID is never generated - it IS the process instance id. Only the
+    SERIAL columns are allocated: MAX+1 (default) or a DBA-provided
+    sequence (bpm.audit.*-sequence in application.yml).
 -->
 <mapper namespace="com.example.approval.mapper.BpmAuditMapper">
 
     <!-- ================================================================== -->
-    <!-- BPM_AUDIT_LOG (master case record)                                 -->
+    <!-- F_BPM_AUDIT_LOG (master case record)                               -->
     <!-- ================================================================== -->
 
     <resultMap id="auditLogMap" type="com.example.approval.audit.model.BpmAuditLog">
@@ -23,21 +30,12 @@
         <result property="osUser" column="OS_USER"/>
     </resultMap>
 
-    <!-- Id allocation: MAX+1 (default) or DBA-provided sequences.        -->
-    <select id="maxCaseId" resultType="java.lang.Long">
-        SELECT NVL(MAX(CASE_ID), 0) FROM BPM_AUDIT_LOG
-    </select>
-
-    <select id="nextCaseId" resultType="java.lang.Long">
-        SELECT ${sequenceName}.NEXTVAL FROM DUAL
-    </select>
-
     <insert id="insertAuditLog" parameterType="com.example.approval.audit.model.BpmAuditLog">
-        INSERT INTO BPM_AUDIT_LOG (
+        INSERT INTO F_BPM_AUDIT_LOG (
             CASE_ID, REQUESTOR_ID, DOCUMENT_CODE,
             ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER
         ) VALUES (
-            #{caseId, jdbcType=DECIMAL},
+            #{caseId, jdbcType=VARCHAR},
             #{requestorId, jdbcType=DECIMAL},
             #{documentCode, jdbcType=DECIMAL},
             #{entryUser, jdbcType=DECIMAL},
@@ -49,18 +47,18 @@
 
     <select id="findAuditLogByCaseId" resultMap="auditLogMap">
         SELECT CASE_ID, REQUESTOR_ID, DOCUMENT_CODE, ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER
-        FROM BPM_AUDIT_LOG
-        WHERE CASE_ID = #{caseId, jdbcType=DECIMAL}
+        FROM F_BPM_AUDIT_LOG
+        WHERE CASE_ID = #{caseId, jdbcType=VARCHAR}
     </select>
 
     <!-- ================================================================== -->
-    <!-- BPM_AUDIT_LOG_DTL (task / action level detail)                     -->
+    <!-- F_BPM_AUDIT_LOG_DTL (task / action level detail)                   -->
     <!-- ================================================================== -->
 
     <resultMap id="auditLogDtlMap" type="com.example.approval.audit.model.BpmAuditLogDtl">
         <id property="serial" column="SERIAL"/>
-        <result property="caseId" column="CASE_ID"/>
-        <result property="actionCode" column="ACTION_CODE"/>
+        <id property="caseId" column="CASE_ID"/>
+        <id property="actionCode" column="ACTION_CODE"/>
         <result property="note" column="NOTE"/>
         <result property="entryUser" column="ENTRY_USER"/>
         <result property="entryDate" column="ENTRY_DATE"/>
@@ -69,8 +67,9 @@
         <result property="isFinished" column="IS_FINISHED"/>
     </resultMap>
 
+    <!-- Id allocation of SERIAL: MAX+1 (default) or DBA-provided sequence. -->
     <select id="maxDetailSerial" resultType="java.lang.Long">
-        SELECT NVL(MAX(SERIAL), 0) FROM BPM_AUDIT_LOG_DTL
+        SELECT NVL(MAX(SERIAL), 0) FROM F_BPM_AUDIT_LOG_DTL
     </select>
 
     <select id="nextDetailSerial" resultType="java.lang.Long">
@@ -78,12 +77,12 @@
     </select>
 
     <insert id="insertAuditLogDtl" parameterType="com.example.approval.audit.model.BpmAuditLogDtl">
-        INSERT INTO BPM_AUDIT_LOG_DTL (
+        INSERT INTO F_BPM_AUDIT_LOG_DTL (
             SERIAL, CASE_ID, ACTION_CODE, NOTE,
             ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER, IS_FINISHED
         ) VALUES (
             #{serial, jdbcType=DECIMAL},
-            #{caseId, jdbcType=DECIMAL},
+            #{caseId, jdbcType=VARCHAR},
             #{actionCode, jdbcType=DECIMAL},
             #{note, jdbcType=VARCHAR},
             #{entryUser, jdbcType=DECIMAL},
@@ -96,19 +95,19 @@
 
     <select id="findDetailsByCaseId" resultMap="auditLogDtlMap">
         SELECT SERIAL, CASE_ID, ACTION_CODE, NOTE, ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER, IS_FINISHED
-        FROM BPM_AUDIT_LOG_DTL
-        WHERE CASE_ID = #{caseId, jdbcType=DECIMAL}
+        FROM F_BPM_AUDIT_LOG_DTL
+        WHERE CASE_ID = #{caseId, jdbcType=VARCHAR}
         ORDER BY SERIAL ASC
     </select>
 
     <!-- ================================================================== -->
-    <!-- BPM_CASE_ATTACHMENTS                                               -->
+    <!-- F_BPM_CASE_ATTACHMENTS                                             -->
     <!-- ================================================================== -->
 
     <resultMap id="caseAttachmentMap" type="com.example.approval.audit.model.BpmCaseAttachment">
         <id property="serial" column="SERIAL"/>
-        <result property="caseId" column="CASE_ID"/>
-        <result property="contentId" column="CONTENT_ID"/>
+        <id property="caseId" column="CASE_ID"/>
+        <id property="contentId" column="CONTENT_ID"/>
         <result property="contentName" column="CONTENT_NAME"/>
         <result property="entryUser" column="ENTRY_USER"/>
         <result property="entryDate" column="ENTRY_DATE"/>
@@ -117,7 +116,7 @@
     </resultMap>
 
     <select id="maxAttachmentSerial" resultType="java.lang.Long">
-        SELECT NVL(MAX(SERIAL), 0) FROM BPM_CASE_ATTACHMENTS
+        SELECT NVL(MAX(SERIAL), 0) FROM F_BPM_CASE_ATTACHMENTS
     </select>
 
     <select id="nextAttachmentSerial" resultType="java.lang.Long">
@@ -125,12 +124,12 @@
     </select>
 
     <insert id="insertCaseAttachment" parameterType="com.example.approval.audit.model.BpmCaseAttachment">
-        INSERT INTO BPM_CASE_ATTACHMENTS (
+        INSERT INTO F_BPM_CASE_ATTACHMENTS (
             SERIAL, CASE_ID, CONTENT_ID, CONTENT_NAME,
             ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER
         ) VALUES (
             #{serial, jdbcType=DECIMAL},
-            #{caseId, jdbcType=DECIMAL},
+            #{caseId, jdbcType=VARCHAR},
             #{contentId, jdbcType=VARCHAR},
             #{contentName, jdbcType=VARCHAR},
             #{entryUser, jdbcType=DECIMAL},
@@ -142,15 +141,25 @@
 
     <select id="findAttachmentsByCaseId" resultMap="caseAttachmentMap">
         SELECT SERIAL, CASE_ID, CONTENT_ID, CONTENT_NAME, ENTRY_USER, ENTRY_DATE, TERMINAL, OS_USER
-        FROM BPM_CASE_ATTACHMENTS
-        WHERE CASE_ID = #{caseId, jdbcType=DECIMAL}
+        FROM F_BPM_CASE_ATTACHMENTS
+        WHERE CASE_ID = #{caseId, jdbcType=VARCHAR}
         ORDER BY SERIAL ASC
     </select>
 
-    <select id="findAttachmentBySerial" parameterType="long" resultMap="caseAttachmentMap">
+    <!-- PK is composite (SERIAL, CASE_ID, CONTENT_ID) - the case id disambiguates. -->
+    <select id="findAttachmentBySerialAndCaseId" resultMap="caseAttachmentMap">
         SELECT SERIAL, CASE_ID, CONTENT_ID, CONTENT_NAME, ENTRY_USER, ENTRY_DATE,
                TERMINAL, OS_USER
-        FROM BPM_CASE_ATTACHMENTS
+        FROM F_BPM_CASE_ATTACHMENTS
+        WHERE SERIAL = #{serial}
+          AND CASE_ID = #{caseId, jdbcType=VARCHAR}
+    </select>
+
+    <!-- SERIAL is allocated table-wide, so it is unique in practice (downloads). -->
+    <select id="findAttachmentBySerial" resultMap="caseAttachmentMap">
+        SELECT SERIAL, CASE_ID, CONTENT_ID, CONTENT_NAME, ENTRY_USER, ENTRY_DATE,
+               TERMINAL, OS_USER
+        FROM F_BPM_CASE_ATTACHMENTS
         WHERE SERIAL = #{serial}
     </select>
 

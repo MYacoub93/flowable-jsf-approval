@@ -9,69 +9,80 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 
 /**
- * MyBatis mapper for the pre-existing Oracle {@code BPM_*} business audit
- * tables (external/Oracle datasource):
+ * MyBatis mapper for the Oracle {@code F_BPM_*} business audit tables
+ * (external/Oracle datasource, schema {@code MEU}):
  *
  * <ul>
- *   <li>{@code BPM_AUDIT_LOG} - one master row per process instance (case);</li>
- *   <li>{@code BPM_AUDIT_LOG_DTL} - one row per audited workflow action;</li>
- *   <li>{@code BPM_CASE_ATTACHMENTS} - one row per uploaded attachment;</li>
+ *   <li>{@code F_BPM_AUDIT_LOG} - one master row per started process
+ *       instance (case), keyed by {@code CASE_ID};</li>
+ *   <li>{@code F_BPM_AUDIT_LOG_DTL} - one row per audited workflow action,
+ *       PK {@code (SERIAL, CASE_ID, ACTION_CODE)};</li>
+ *   <li>{@code F_BPM_CASE_ATTACHMENTS} - one row per uploaded attachment,
+ *       PK {@code (SERIAL, CASE_ID, CONTENT_ID)};</li>
  *   <li>{@code BPM_DOCUMENTS} / {@code BPM_ACTIONS} - lookups.</li>
  * </ul>
  *
- * <p>Primary keys ({@code CASE_ID}, {@code SERIAL}) are allocated by
- * {@code BpmAuditIdAllocator}: either {@code MAX(id) + 1} (default - the
- * pre-existing schema has no Oracle sequences) or a DBA-provided sequence
- * ({@code bpm.audit.id-strategy=SEQUENCE}, see BpmAuditProperties).</p>
+ * <p><b>Case linkage:</b> {@code CASE_ID} is a {@code VARCHAR2(64)} holding
+ * the Flowable process instance id - it is always supplied by the caller
+ * and never generated. Only the {@code SERIAL} columns are allocated by
+ * {@code BpmAuditIdAllocator}: either {@code MAX(id) + 1} (default) or a
+ * DBA-provided sequence ({@code bpm.audit.id-strategy=SEQUENCE}).</p>
  */
 @Mapper
 public interface BpmAuditMapper {
 
     // ------------------------------------------------------------------
-    // Id allocation
+    // Serial allocation (MAX_PLUS_ONE / SEQUENCE strategies)
     // ------------------------------------------------------------------
 
-    /** Current max {@code BPM_AUDIT_LOG.CASE_ID} (MAX_PLUS_ONE strategy). */
-    Long maxCaseId();
-
-    /** Current max {@code BPM_AUDIT_LOG_DTL.SERIAL} (MAX_PLUS_ONE strategy). */
+    /** Current max {@code F_BPM_AUDIT_LOG_DTL.SERIAL} (MAX_PLUS_ONE strategy). */
     Long maxDetailSerial();
 
-    /** Current max {@code BPM_CASE_ATTACHMENTS.SERIAL} (MAX_PLUS_ONE strategy). */
+    /** Current max {@code F_BPM_CASE_ATTACHMENTS.SERIAL} (MAX_PLUS_ONE strategy). */
     Long maxAttachmentSerial();
 
-    /** Next value of the case-id sequence (Oracle SELECT seq.NEXTVAL FROM DUAL). */
-    Long nextCaseId(@Param("sequenceName") String sequenceName);
-
-    /** Next value of the detail serial sequence. */
+    /** Next value of the detail serial sequence (Oracle SELECT seq.NEXTVAL FROM DUAL). */
     Long nextDetailSerial(@Param("sequenceName") String sequenceName);
 
     /** Next value of the attachment serial sequence. */
     Long nextAttachmentSerial(@Param("sequenceName") String sequenceName);
 
+    // ------------------------------------------------------------------
+    // F_BPM_AUDIT_LOG (master case record)
+    // ------------------------------------------------------------------
+
+    /**
+     * Inserts the master row of a case. {@code CASE_ID} must be the Flowable
+     * process instance id supplied by the caller.
+     */
     int insertAuditLog(BpmAuditLog record);
 
-    BpmAuditLog findAuditLogByCaseId(@Param("caseId") Long caseId);
+    /** Master row of a case; {@code caseId} = process instance id. */
+    BpmAuditLog findAuditLogByCaseId(@Param("caseId") String caseId);
 
     // ------------------------------------------------------------------
-    // BPM_AUDIT_LOG_DTL (actions)
+    // F_BPM_AUDIT_LOG_DTL (actions)
     // ------------------------------------------------------------------
 
     int insertAuditLogDtl(BpmAuditLogDtl record);
 
-    /** All actions of a case, oldest first. */
-    List<BpmAuditLogDtl> findDetailsByCaseId(@Param("caseId") Long caseId);
+    /** All actions of a case ({@code caseId} = process instance id), oldest first. */
+    List<BpmAuditLogDtl> findDetailsByCaseId(@Param("caseId") String caseId);
 
     // ------------------------------------------------------------------
-    // BPM_CASE_ATTACHMENTS
+    // F_BPM_CASE_ATTACHMENTS
     // ------------------------------------------------------------------
 
     int insertCaseAttachment(BpmCaseAttachment record);
 
-    /** All attachments of a case, oldest first. */
-    List<BpmCaseAttachment> findAttachmentsByCaseId(@Param("caseId") Long caseId);
+    /** All attachments of a case ({@code caseId} = process instance id), oldest first. */
+    List<BpmCaseAttachment> findAttachmentsByCaseId(@Param("caseId") String caseId);
 
-    /** Single attachment row by its SERIAL primary key. */
+    /** Single attachment row by its composite key {@code (SERIAL, CASE_ID)}. */
+    BpmCaseAttachment findAttachmentBySerialAndCaseId(@Param("serial") Long serial,
+                                                      @Param("caseId") String caseId);
+
+    /** Single attachment row by its {@code SERIAL} (table-wide allocated, downloads). */
     BpmCaseAttachment findAttachmentBySerial(@Param("serial") Long serial);
 
     // ------------------------------------------------------------------
