@@ -13,6 +13,7 @@ import java.util.Map;
  * <pre>
  * bpm:
  *   audit:
+ *     enabled: true               # global on/off switch for the whole audit trail
  *     id-strategy: MAX_PLUS_ONE   # or SEQUENCE (SERIAL columns only)
  *     document-codes:
  *       clearanceLetterProcess: 1
@@ -27,6 +28,15 @@ import java.util.Map;
 @Component
 @ConfigurationProperties(prefix = "bpm.audit")
 public class BpmAuditProperties {
+
+    /**
+     * Global on/off switch of the whole BPM audit trail. When {@code false}
+     * no rows are written to any {@code F_BPM_*} table (audit log, details,
+     * attachments) and the REST API of {@code BpmAuditRestController}
+     * answers {@code 503 SERVICE_UNAVAILABLE}. The workflow itself keeps
+     * running - only the trail recording stops.
+     */
+    private boolean enabled = true;
 
     /**
      * Flowable process definition key -> {@code BPM_DOCUMENTS.DOCUMENT_CODE}.
@@ -59,6 +69,14 @@ public class BpmAuditProperties {
      * content id / name are stored in {@code F_BPM_CASE_ATTACHMENTS}.
      */
     private String uploadDir = System.getProperty("java.io.tmpdir", ".");
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
 
     public Map<String, Integer> getDocumentCodes() {
         return documentCodes;

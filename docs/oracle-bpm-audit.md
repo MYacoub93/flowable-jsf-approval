@@ -6,6 +6,32 @@ database. All access goes through the **external Oracle datasource** and
 the `externalSqlSessionFactory` (see `MyBatisConfig`), so audit rows land
 in Oracle even though Flowable itself runs on the primary datasource.
 
+## Global on/off switch
+
+The whole audit trail can be turned off with a single property:
+
+```yaml
+bpm:
+  audit:
+    enabled: false   # default: true
+```
+
+When `enabled: false`:
+
+- `AuditServiceImpl` performs **no writes** — `openCase` returns the
+  process instance id unchanged (the case-id contract still holds) and
+  every `log*` method is a no-op returning `null`;
+- `AttachmentAuditService.registerAttachment` skips the
+  `F_BPM_CASE_ATTACHMENTS` insert and the `ATTACHMENT_UPLOADED` audit row;
+- every endpoint of `BpmAuditRestController` answers
+  **`503 SERVICE_UNAVAILABLE`** (uploads, listing, downloads, case and
+  detail queries).
+
+The workflow itself (approvals, rejections, process flow) keeps running
+normally — only the trail recording stops. The guards live inside the two
+audit services, so none of the callers (Flowable listeners/delegates, JSF
+backing services, REST layer) need to check the flag themselves.
+
 ## Tables
 
 | Table | Purpose | Primary key |
@@ -104,7 +130,7 @@ CREATE TABLE "MEU"."F_BPM_CASE_ATTACHMENTS"
 | Audit facade | `clearance/service/AuditService.java` + `impl/AuditServiceImpl.java` |
 | Attachments | `audit/service/AttachmentAuditService.java` + `audit/rest/BpmAuditRestController.java` |
 | SERIAL allocation | `audit/service/BpmAuditIdAllocator.java` (`bpm.audit.id-strategy`) |
-| Action codes | `audit/BpmAuditConstants.java` (`ACTION_CODE_*`, values of `BPM_ACTIONS`) |
+| Action codes | `audit/BpmAuditConstants.java` (`ACTION_CODE_*`, all 164 rows of `BPM_ACTIONS`) + `audit/BpmAuditAction.java` (enum + department resolver) |
 | Configuration | `audit/BpmAuditProperties.java` (`bpm.audit.*` in `application.yml`) |
 
 ## REST API
@@ -123,19 +149,28 @@ GET  /api/audit/attachments/{serial}/content         download attachment binary
 ## Audit write points
 
 Every workflow mutation writes exactly one `F_BPM_AUDIT_LOG_DTL` row
-(through `AuditService`), keyed by the process instance id of the case:
+(through `AuditService`), keyed by the process instance id of the case.
+`ACTION_CODE` is always one of the 164 pre-populated `BPM_ACTIONS` rows
+(`docs/bpm_actions.htm`): **0** = Entered, **1–4** = applicant actions,
+**5–124** = per-department Approval / Rejection / Review triplets
+(104, 108, 121 are special payment/claim codes), **125–163** = per-department
+*Task Received* (استلام مهمة).
+
+Department-aware events resolve the acting department's own row via
+`BpmAuditAction.of(department, ActionType)` — the resolver understands both
+the `BPM_ACTIONS` department names and the clearance group ids
+(`HOD`, `DEN`, `LibraryDepartment`, `Finance Department`, …). Unknown
+departments fall back to `ENTERED` (0), so inserts can never hit a missing
+lookup row.
 
 | Event | Action code |
 |---|---|
-| Task created and offered to an approver group | `TASK_ASSIGNED` (2) |
-| Approval task completed | `APPROVED` (3) / `REJECTED` (4) |
-| Initiator amended a rejected request | `REQUEST_AMENDED` (5) |
-| Multi-instance completion removed an open sibling task | `TASK_CANCELLED` (6) |
-| Case finished successfully | `CASE_FINISHED` (7) — `IS_FINISHED = 1` |
-| Result / FYI task created | `FYI_CREATED` (8) |
-| Result / FYI task acknowledged | `FYI_ACKNOWLEDGED` (9) |
-| Attachment uploaded | `ATTACHMENT_UPLOADED` (10) |
-| Anything else (departments resolved, generic actions) | `GENERIC` (99) |
+| Task created and offered to an approver group | department's *Task Received* row (125–163) |
+| Approval task completed | department's *Approval* row (5–124) |
+| Rejection on an approval task | department's *Rejection* row (5–124) |
+| Initiator amended a rejected request | `APPLICANT_CONTINUATION` (1) |
+| Process completed / applicant acknowledged the result | `APPLICANT_VIEWED_FINAL_RESULT` (4) — `IS_FINISHED = 1` |
+| Departments resolved, task cancelled, FYI created/acknowledged, attachment uploaded, unknown actions | `ENTERED` (0) — the `NOTE` column carries the specifics |
 
 The `F_BPM_AUDIT_LOG` master row is inserted by `ProcessStartService`
 right after `runtimeService.startProcessInstanceByKey(...)` returns, using

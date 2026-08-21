@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import java.io.IOException;
@@ -41,6 +42,9 @@ import org.springframework.web.multipart.MultipartFile;
  *   <li>{@code GET  /api/audit/{processInstanceId}/attachments} - attachment list;</li>
  *   <li>{@code GET  /api/audit/attachments/{serial}/content} - download binary.</li>
  * </ul>
+ *
+ * <p>All endpoints answer {@code 503 SERVICE_UNAVAILABLE} while the global
+ * switch {@code bpm.audit.enabled} is set to {@code false}.</p>
  */
 @RestController
 @RequestMapping("/api/audit")
@@ -68,6 +72,9 @@ public class BpmAuditRestController {
     public ResponseEntity<BpmCaseAttachment> uploadAttachment(@PathVariable String processInstanceId,
                                                               @RequestParam("file") MultipartFile file,
                                                               @RequestParam("username") String username) {
+        if (auditDisabled()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
@@ -83,12 +90,18 @@ public class BpmAuditRestController {
     }
 
     @GetMapping("/{processInstanceId}/attachments")
-    public List<BpmCaseAttachment> listAttachments(@PathVariable String processInstanceId) {
-        return attachmentAuditService.findAttachmentsOfProcessInstance(processInstanceId);
+    public ResponseEntity<List<BpmCaseAttachment>> listAttachments(@PathVariable String processInstanceId) {
+        if (auditDisabled()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+        return ResponseEntity.ok(attachmentAuditService.findAttachmentsOfProcessInstance(processInstanceId));
     }
 
     @GetMapping("/attachments/{serial}/content")
     public ResponseEntity<Resource> downloadAttachment(@PathVariable Long serial) {
+        if (auditDisabled()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         BpmCaseAttachment meta = attachmentAuditService.findAttachmentBySerial(serial);
         if (meta == null) {
             return ResponseEntity.notFound().build();
@@ -113,12 +126,31 @@ public class BpmAuditRestController {
 
     @GetMapping("/{processInstanceId}")
     public ResponseEntity<BpmAuditLog> getCase(@PathVariable String processInstanceId) {
+        if (auditDisabled()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         BpmAuditLog master = auditService.findCaseOfProcessInstance(processInstanceId);
         return master != null ? ResponseEntity.ok(master) : ResponseEntity.notFound().build();
     }
 
     @GetMapping("/{processInstanceId}/details")
-    public List<BpmAuditLogDtl> getDetails(@PathVariable String processInstanceId) {
-        return auditService.findDetailsOfProcessInstance(processInstanceId);
+    public ResponseEntity<List<BpmAuditLogDtl>> getDetails(@PathVariable String processInstanceId) {
+        if (auditDisabled()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+        return ResponseEntity.ok(auditService.findDetailsOfProcessInstance(processInstanceId));
+    }
+
+    /**
+     * Global kill-switch check: {@code bpm.audit.enabled=false} disables the
+     * whole audit subsystem - every endpoint then answers
+     * {@code 503 SERVICE_UNAVAILABLE}.
+     */
+    private boolean auditDisabled() {
+        if (!properties.isEnabled()) {
+            log.debug("BPM audit disabled (bpm.audit.enabled=false) - rejecting audit REST call");
+            return true;
+        }
+        return false;
     }
 }
