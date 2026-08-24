@@ -2,6 +2,7 @@ package com.example.approval.config;
 
 import com.example.approval.mapper.BpmAuditMapper;
 import com.example.approval.mapper.CommonMapper;
+import com.example.approval.mapper.ExternalGroupMapper;
 import com.example.approval.mapper.FlowableIdentityMapper;
 import com.example.approval.mapper.UserMapper;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -79,11 +80,14 @@ public class MyBatisConfig {
             MybatisProperties mybatisProperties) throws Exception {
         // CommonMapper.xml / FlowableIdentityMapper.xml are Oracle SQL against
         // SIS/HRS views; BpmAuditMapper.xml writes the BPM_* business audit
-        // tables (BPM_AUDIT_LOG, BPM_AUDIT_LOG_DTL, BPM_CASE_ATTACHMENTS).
+        // tables (BPM_AUDIT_LOG, BPM_AUDIT_LOG_DTL, BPM_CASE_ATTACHMENTS);
+        // ExternalGroupMapper.xml manages the WEB_ROLES / WEB_USER_ROLES
+        // external group-manager tables.
         return buildSqlSessionFactory(externalDataSource, mybatisProperties,
                 "classpath:mapper/CommonMapper.xml",
                 "classpath:mapper/FlowableIdentityMapper.xml",
-                "classpath:mapper/BpmAuditMapper.xml");
+                "classpath:mapper/BpmAuditMapper.xml",
+                "classpath:mapper/ExternalGroupMapper.xml");
     }
 
     @Bean(name = "externalSqlSessionTemplate")
@@ -112,6 +116,14 @@ public class MyBatisConfig {
     public MapperFactoryBean<BpmAuditMapper> bpmAuditMapper(
             @Qualifier("externalSqlSessionFactory") SqlSessionFactory sqlSessionFactory) {
         MapperFactoryBean<BpmAuditMapper> mapperFactoryBean = new MapperFactoryBean<>(BpmAuditMapper.class);
+        mapperFactoryBean.setSqlSessionFactory(sqlSessionFactory);
+        return mapperFactoryBean;
+    }
+
+    @Bean
+    public MapperFactoryBean<ExternalGroupMapper> externalGroupMapper(
+            @Qualifier("externalSqlSessionFactory") SqlSessionFactory sqlSessionFactory) {
+        MapperFactoryBean<ExternalGroupMapper> mapperFactoryBean = new MapperFactoryBean<>(ExternalGroupMapper.class);
         mapperFactoryBean.setSqlSessionFactory(sqlSessionFactory);
         return mapperFactoryBean;
     }

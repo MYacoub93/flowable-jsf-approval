@@ -133,9 +133,9 @@ class ExternalGroupServiceTest {
         PageResult<ExternalUser> result = service.findUsers(1, 10, null);
 
         assertThat(result.getRows()).hasSize(1);
-        assertThat(result.getTotalCount()).isEqualTo(25L);
+        assertThat(result.getTotalRows()).isEqualTo(25L);
         assertThat(result.getPageNumber()).isEqualTo(1);
-        assertThat(result.getTotalPages()).isEqualTo(3);
+        assertThat(result.getLastPage()).isEqualTo(3);
     }
 
     @Test
@@ -156,7 +156,7 @@ class ExternalGroupServiceTest {
         PageResult<ExternalUser> result = service.findUsers(1, 10, "");
 
         assertThat(result.getRows()).isEmpty();
-        assertThat(result.getTotalCount()).isZero();
+        assertThat(result.getTotalRows()).isZero();
         verify(mapper, never()).findUsersPage(anyLong(), anyInt(), any());
     }
 

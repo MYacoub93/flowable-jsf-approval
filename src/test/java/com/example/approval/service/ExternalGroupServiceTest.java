@@ -59,7 +59,7 @@ class ExternalGroupServiceTest {
 
     @Test
     void createRole_rejectsNonAdmin() {
-        asAdmin("nobody-else");
+        when(identityService.createGroupQuery()).thenReturn(groupQuery); when(groupQuery.groupMember("somebody")).thenReturn(groupQuery); when(groupQuery.groupId(ExternalGroupService.ADMIN_ROLE_CODE)).thenReturn(groupQuery); when(groupQuery.count()).thenReturn(0L);
         WebRole role = validRole();
         assertThatThrownBy(() -> service.createRole(role, null, "somebody"))
                 .isInstanceOf(SecurityException.class);
@@ -133,9 +133,9 @@ class ExternalGroupServiceTest {
         PageResult<ExternalUser> result = service.findUsers(1, 10, null);
 
         assertThat(result.getRows()).hasSize(1);
-        assertThat(result.getTotalCount()).isEqualTo(25L);
+        assertThat(result.getTotalRows()).isEqualTo(25L);
         assertThat(result.getPageNumber()).isEqualTo(1);
-        assertThat(result.getTotalPages()).isEqualTo(3);
+        assertThat(result.getLastPage()).isEqualTo(3);
     }
 
     @Test
@@ -156,7 +156,7 @@ class ExternalGroupServiceTest {
         PageResult<ExternalUser> result = service.findUsers(1, 10, "");
 
         assertThat(result.getRows()).isEmpty();
-        assertThat(result.getTotalCount()).isZero();
+        assertThat(result.getTotalRows()).isZero();
         verify(mapper, never()).findUsersPage(anyLong(), anyInt(), any());
     }
 
@@ -217,7 +217,7 @@ class ExternalGroupServiceTest {
 
     @Test
     void addMembership_rejectsNonAdmin() {
-        asAdmin("someone-else");
+        when(identityService.createGroupQuery()).thenReturn(groupQuery); when(groupQuery.groupMember("attacker")).thenReturn(groupQuery); when(groupQuery.groupId(ExternalGroupService.ADMIN_ROLE_CODE)).thenReturn(groupQuery); when(groupQuery.count()).thenReturn(0L);
         assertThatThrownBy(() -> service.addMembership(5L, 123L, null, "attacker"))
                 .isInstanceOf(SecurityException.class);
         verify(mapper, never()).insertMembership(any());

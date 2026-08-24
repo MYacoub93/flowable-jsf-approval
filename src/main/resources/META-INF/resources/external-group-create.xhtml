@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+<ui:composition template="/templates/portal.xhtml">
+    <ui:param name="activeMenu" value="external-groups"/>
+
+    <ui:define name="title">Create External Group - Approval Workflow</ui:define>
+    <ui:define name="pageTitle">Create External Group</ui:define>
+
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <div class="anon">
+                <p>You are not logged in.</p>
+                <h:link outcome="/login" value="Go to Login" styleClass="btn"/>
+            </div>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{loginBean.loggedIn and !externalGroupCreateBean.groupAdmin}" layout="block">
+            <div class="anon">
+                <p>You are not authorized to manage external groups.</p>
+            </div>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{externalGroupCreateBean.groupAdmin}" layout="block">
+            <h3 class="section-title">New external group (WEB_ROLES)</h3>
+            <div class="card form-card">
+                <h:form id="groupCreateForm">
+                    <div class="form-group">
+                        <h:outputLabel for="roleCode" value="Role Code *"/>
+                        <h:inputText id="roleCode" value="#{externalGroupCreateBean.role.roleCode}"
+                                     required="true" maxlength="200"
+                                     requiredMessage="Role code is required"/>
+                    </div>
+                    <div class="form-group">
+                        <h:outputLabel for="roleName" value="Role Name (English) *"/>
+                        <h:inputText id="roleName" value="#{externalGroupCreateBean.role.roleName}"
+                                     required="true" maxlength="30"
+                                     requiredMessage="Role name is required"/>
+                    </div>
+                    <div class="form-group">
+                        <h:outputLabel for="roleNameS" value="Role Name (Secondary)"/>
+                        <h:inputText id="roleNameS" value="#{externalGroupCreateBean.role.roleNameS}"
+                                     maxlength="30"/>
+                    </div>
+                    <div class="form-group">
+                        <h:outputLabel for="homeMsg" value="Home Message (English)"/>
+                        <h:inputTextarea id="homeMsg" value="#{externalGroupCreateBean.role.homeMsg}"/>
+                    </div>
+                    <div class="form-group">
+                        <h:outputLabel for="homeMsgS" value="Home Message (Secondary)"/>
+                        <h:inputTextarea id="homeMsgS" value="#{externalGroupCreateBean.role.homeMsgS}"/>
+                    </div>
+                    <div class="form-actions">
+                        <h:commandButton value="Create Group" action="#{externalGroupCreateBean.save}"
+                                         styleClass="btn"/>
+                        <h:commandButton type="reset" value="Reset" styleClass="btn btn-secondary"/>
+                        <h:link outcome="/group-memberships" value="Go to Group Memberships"
+                                styleClass="btn btn-secondary"/>
+                    </div>
+                </h:form>
+            </div>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>
+</html>

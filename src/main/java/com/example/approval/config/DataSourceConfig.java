@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.transaction.PlatformTransactionManager;
 import javax.sql.DataSource;
 
 @Configuration
@@ -64,5 +66,19 @@ public class DataSourceConfig {
     public JdbcTemplate externalJdbcTemplate(
             @Qualifier("externalDataSource") DataSource externalDataSource) {
         return new JdbcTemplate(externalDataSource);
+    }
+
+    /**
+     * Transaction manager bound to the external Oracle datasource so that
+     * multi-statement Oracle operations (duplicate check + insert of the
+     * external group manager) can run atomically:
+     * {@code @Transactional(transactionManager = "externalTransactionManager")}.
+     * The default/@Primary transaction manager stays bound to
+     * {@code primaryDataSource} (MySQL / Flowable) - this bean is additive.
+     */
+    @Bean(name = "externalTransactionManager")
+    public PlatformTransactionManager externalTransactionManager(
+            @Qualifier("externalDataSource") DataSource externalDataSource) {
+        return new DataSourceTransactionManager(externalDataSource);
     }
 }

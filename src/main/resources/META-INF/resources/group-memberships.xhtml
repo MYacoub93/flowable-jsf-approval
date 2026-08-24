@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+<ui:composition template="/templates/portal.xhtml">
+    <ui:param name="activeMenu" value="group-memberships"/>
+
+    <ui:define name="title">Group Memberships - Approval Workflow</ui:define>
+    <ui:define name="pageTitle">Group Memberships</ui:define>
+
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <div class="anon">
+                <p>You are not logged in.</p>
+                <h:link outcome="/login" value="Go to Login" styleClass="btn"/>
+            </div>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{loginBean.loggedIn and !groupMembershipsBean.groupAdmin}" layout="block">
+            <div class="anon">
+                <p>You are not authorized to manage external groups.</p>
+            </div>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{groupMembershipsBean.groupAdmin}" layout="block">
+            <!-- ================= Group selection ================= -->
+            <h3 class="section-title">External Group / Role</h3>
+            <div class="card form-card">
+                <h:form id="groupForm">
+                    <div class="form-group">
+                        <h:outputLabel for="group" value="Select Group *"/>
+                        <h:selectOneMenu id="group" value="#{groupMembershipsBean.selectedRoleId}" required="true">
+                            <f:selectItem itemValue="" itemLabel="-- select group --"/>
+                            <f:selectItems value="#{groupMembershipsBean.roles}" var="r"
+                                           itemValue="#{r.roleId}"
+                                           itemLabel="#{r.roleCode} / #{r.roleName}"/>
+                            <f:ajax event="valueChange" listener="#{groupMembershipsBean.onGroupChange}"
+                                    render="membersForm"/>
+                        </f:ajax>
+                    </div>
+                </h:form>
+            </div>
+
+            <!-- ================= Users ================= -->
+            <h3 class="section-title">Users (FLOWABLE_USERS_VW)</h3>
+            <div class="card">
+                <h:form id="usersForm">
+                    <div class="form-group">
+                        <h:outputLabel for="search" value="Search User"/>
+                        <h:panelGroup layout="block" styleClass="search-bar">
+                            <h:inputText id="search" value="#{groupMembershipsBean.searchTerm}"
+                                         placeholder="username, name, email or id"/>
+                            <h:commandButton value="Search" action="#{groupMembershipsBean.search}"
+                                             styleClass="btn"/>
+                        </h:panelGroup>
+                    </div>
+
+                    <h:dataTable id="usersTable" value="#{groupMembershipsBean.users}" var="u"
+                                 styleClass="data-table" rendered="#{groupMembershipsBean.hasUsers}">
+                        <h:column>
+                            <f:facet name="header">User ID</f:facet>
+                            #{u.id}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Username</f:facet>
+                            #{u.username}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Name</f:facet>
+                            #{u.firstName} #{u.lastName}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Email</f:facet>
+                            #{u.email}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Select</f:facet>
+                            <h:selectOneRadio id="userRadio" value="#{groupMembershipsBean.selectedUserId}"
+                                              layout="pageDirection">
+                                <f:selectItem itemValue="#{u.id}" itemLabel=""/>
+                            </h:selectOneRadio>
+                        </h:column>
+                    </h:dataTable>
+
+                    <h:panelGroup rendered="#{!groupMembershipsBean.hasUsers}" layout="block">
+                        <p class="empty">No users found for the current search.</p>
+                    </h:panelGroup>
+
+                    <!-- Pagination footer -->
+                    <div class="pagination" rendered="#{groupMembershipsBean.hasUsers}">
+                        <h:commandButton value="|<" action="#{groupMembershipsBean.firstPage}"
+                                         disabled="#{!groupMembershipsBean.hasPrevious}"
+                                         styleClass="btn btn-secondary btn-sm"/>
+                        <h:commandButton value="<" action="#{groupMembershipsBean.previousPage}"
+                                         disabled="#{!groupMembershipsBean.hasPrevious}"
+                                         styleClass="btn btn-secondary btn-sm"/>
+                        <span class="page-info">#{groupMembershipsBean.rangeLabel}</span>
+                        <h:commandButton value=">" action="#{groupMembershipsBean.nextPage}"
+                                         disabled="#{!groupMembershipsBean.hasNext}"
+                                         styleClass="btn btn-secondary btn-sm"/>
+                        <h:commandButton value=">|" action="#{groupMembershipsBean.lastPage}"
+                                         disabled="#{!groupMembershipsBean.hasNext}"
+                                         styleClass="btn btn-secondary btn-sm"/>
+                    </div>
+                </h:form>
+            </div>
+
+            <!-- ================= Add to group ================= -->
+            <h3 class="section-title">Add membership</h3>
+            <div class="card form-card">
+                <h:form id="addForm">
+                    <div class="form-actions">
+                        <h:commandButton value="Add Selected User to Group"
+                                         action="#{groupMembershipsBean.addUserToGroup}"
+                                         styleClass="btn">
+                            <f:param name="preventDoubleSubmit" value="true"/>
+                        </h:commandButton>
+                    </div>
+                </h:form>
+            </div>
+
+            <!-- ================= Current members ================= -->
+            <h3 class="section-title">Current members of selected group</h3>
+            <div class="card">
+                <h:form id="membersForm">
+                    <h:dataTable id="membersTable" value="#{groupMembershipsBean.members}" var="m"
+                                 styleClass="data-table" rendered="#{not empty groupMembershipsBean.members}">
+                        <h:column>
+                            <f:facet name="header">User ID</f:facet>
+                            #{m.userId}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Username</f:facet>
+                            #{m.userWebName}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Enabled</f:facet>
+                            <h:outputText value="#{m.isEnabled == 1 ? 'Yes' : 'No'}"/>
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Added By</f:facet>
+                            #{m.createdBy}
+                        </h:column>
+                        <h:column>
+                            <f:facet name="header">Added On</f:facet>
+                            <h:outputText value="#{m.createdDate}">
+                                <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                            </h:outputText>
+                        </h:column>
+                    </h:dataTable>
+                    <h:panelGroup rendered="#{empty groupMembershipsBean.members}" layout="block">
+                        <p class="empty">No members yet - select a user above and click "Add Selected User to Group".</p>
+                    </h:panelGroup>
+                </h:form>
+            </div>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>
+</html>

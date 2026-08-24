@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    Oracle (external datasource) mapper for the external group manager:
+
+    - WEB_ROLES          roles/groups (ROLE_ID allocated MAX+1, no sequence)
+    - WEB_USER_ROLES     memberships (PK = USER_ID + ROLE_ID)
+    - FLOWABLE_USERS_VW  31k+ user rows - always server-side paginated
+
+    All statements use #{} bind parameters; user input is never concatenated
+    into SQL. The only ${} usage follows the BpmAuditMapper.nextDetailSerial
+    convention (DBA-controlled sequence name from application.yml) - not used
+    by this mapper because WEB_ROLES has no backing sequence.
+-->
+<mapper namespace="com.example.approval.mapper.ExternalGroupMapper">
+
+    <!-- ================================================================== -->
+    <!-- WEB_ROLES                                                          -->
+    <!-- ================================================================== -->
+
+    <resultMap id="webRoleMap" type="com.example.approval.entity.WebRole">
+        <id property="roleId" column="ROLE_ID"/>
+        <result property="roleCode" column="ROLE_CODE"/>
+        <result property="roleName" column="ROLE_NAME"/>
+        <result property="roleNameS" column="ROLE_NAME_S"/>
+        <result property="homeMsg" column="HOME_MSG"/>
+        <result property="homeMsgS" column="HOME_MSG_S"/>
+        <result property="isFixed" column="IS_FIXED"/>
+        <result property="keyType" column="KEY_TYPE"/>
+        <result property="createdBy" column="CREATED_BY"/>
+        <result property="createdDate" column="CREATED_DATE"/>
+    </resultMap>
+
+    <sql id="roleColumns">
+        ROLE_ID, ROLE_CODE, ROLE_NAME, ROLE_NAME_S, HOME_MSG, HOME_MSG_S,
+        IS_FIXED, KEY_TYPE, CREATED_BY, CREATED_DATE
+    </sql>
+
+    <select id="findAllRoles" resultMap="webRoleMap">
+        SELECT <include refid="roleColumns"/>
+        FROM WEB_ROLES
+        ORDER BY ROLE_NAME_S, ROLE_ID
+    </select>
+
+    <select id="findRoles" resultMap="webRoleMap">
+        SELECT <include refid="roleColumns"/>
+        FROM WEB_ROLES
+        <where>
+            <if test="roleCode != null and roleCode != ''">
+                AND UPPER(ROLE_CODE) LIKE UPPER('%' || #{roleCode} || '%')
+            </if>
+            <if test="roleName != null and roleName != ''">
+                AND (UPPER(ROLE_NAME) LIKE UPPER('%' || #{roleName} || '%')
+                     OR UPPER(ROLE_NAME_S) LIKE UPPER('%' || #{roleName} || '%'))
+            </if>
+        </where>
+        ORDER BY ROLE_NAME_S, ROLE_ID
+    </select>
+
+    <select id="findRoleById" resultMap="webRoleMap">
+        SELECT <include refid="roleColumns"/>
+        FROM WEB_ROLES
+        WHERE ROLE_ID = #{roleId}
+    </select>
+
+    <select id="findRoleByCode" resultMap="webRoleMap">
+        SELECT <include refid="roleColumns"/>
+        FROM WEB_ROLES
+        WHERE UPPER(ROLE_CODE) = UPPER(#{roleCode})
+    </select>
+
+    <!-- ROLE_ID has no sequence/trigger on this schema; same MAX+1 convention
+         as BpmAuditMapper.maxDetailSerial. Called inside the same transaction
+         as insertRole. -->
+    <select id="nextRoleId" resultType="java.lang.Long">
+        SELECT NVL(MAX(ROLE_ID), 0) + 1 FROM WEB_ROLES
+    </select>
+
+    <insert id="insertRole" parameterType="com.example.approval.entity.WebRole">
+        INSERT INTO WEB_ROLES (
+            ROLE_ID, ROLE_CODE, ROLE_NAME, ROLE_NAME_S,
+            HOME_MSG, HOME_MSG_S, IS_FIXED, KEY_TYPE,
+            CREATED_BY, CREATED_DATE
+        ) VALUES (
+            #{roleId, jdbcType=DECIMAL},
+            #{roleCode, jdbcType=VARCHAR},
+            #{roleName, jdbcType=VARCHAR},
+            #{roleNameS, jdbcType=VARCHAR},
+            #{homeMsg, jdbcType=VARCHAR},
+            #{homeMsgS, jdbcType=VARCHAR},
+            NVL(#{isFixed, jdbcType=DECIMAL}, 0),
+            NVL(#{keyType, jdbcType=DECIMAL}, 0),
+            #{createdBy, jdbcType=DECIMAL},
+            #{createdDate, jdbcType=TIMESTAMP}
+        )
+    </insert>
+
+    <!-- ================================================================== -->
+    <!-- FLOWABLE_USERS_VW (server-side pagination)                         -->
+    <!-- ================================================================== -->
+
+    <resultMap id="externalUserMap" type="com.example.approval.entity.ExternalUser">
+        <id property="id" column="ID_"/>
+        <result property="username" column="USERNAME_"/>
+        <result property="firstName" column="FIRST_NAME_"/>
+        <result property="lastName" column="LAST_NAME_"/>
+        <result property="email" column="EMAIL_"/>
+        <result property="keyType" column="KEY_TYPE_"/>
+        <result property="roleCode" column="ROLE_CODE_"/>
+    </resultMap>
+
+    <!-- Search term filters username OR display name OR email; NULL/empty
+         search matches everything. Deterministic order needed by OFFSET/FETCH. -->
+    <sql id="userSearchCondition">
+        <where>
+            <choose>
+                <when test="searchTerm != null and searchTerm != ''">
+                    AND (UPPER(USERNAME_) LIKE UPPER('%' || #{searchTerm} || '%')
+                         OR UPPER(FIRST_NAME_) LIKE UPPER('%' || #{searchTerm} || '%')
+                         OR UPPER(LAST_NAME_) LIKE UPPER('%' || #{searchTerm} || '%')
+                         OR UPPER(EMAIL_) LIKE UPPER('%' || #{searchTerm} || '%')
+                         OR UPPER(ID_) LIKE UPPER('%' || #{searchTerm} || '%'))
+                </when>
+                <otherwise>
+                    AND USERNAME_ IS NOT NULL
+                </otherwise>
+            </choose>
+        </where>
+    </sql>
+
+    <select id="findUsersPage" resultMap="externalUserMap">
+        SELECT
+            ID_, USERNAME_, FIRST_NAME_, LAST_NAME_, EMAIL_, KEY_TYPE_, ROLE_CODE_
+        FROM FLOWABLE_USERS_VW
+        <include refid="userSearchCondition"/>
+        ORDER BY USERNAME_, ID_
+        OFFSET #{offset} ROWS FETCH NEXT #{pageSize} ROWS ONLY
+    </select>
+
+    <select id="countUsers" resultType="long">
+        SELECT COUNT(*)
+        FROM FLOWABLE_USERS_VW
+        <include refid="userSearchCondition"/>
+    </select>
+
+    <select id="findUserById" resultMap="externalUserMap">
+        SELECT ID_, USERNAME_, FIRST_NAME_, LAST_NAME_, EMAIL_, KEY_TYPE_, ROLE_CODE_
+        FROM FLOWABLE_USERS_VW
+        WHERE ID_ = TO_CHAR(#{userId})
+    </select>
+
+    <!-- Numeric business user id behind a Flowable username (CREATED_BY
+         columns are the numeric DIC_USERS id, same convention as
+         BpmAuditMapper.findNumericUserId). -->
+    <select id="findNumericUserId" resultType="java.lang.Long">
+        SELECT TO_NUMBER(MAX(ID_))
+        FROM FLOWABLE_USERS_VW
+        WHERE USERNAME_ = LOWER(#{username})
+    </select>
+
+    <!-- ================================================================== -->
+    <!-- WEB_USER_ROLES                                                     -->
+    <!-- ================================================================== -->
+
+    <resultMap id="membershipMap" type="com.example.approval.entity.GroupMembership">
+        <id property="userId" column="USER_ID"/>
+        <id property="roleId" column="ROLE_ID"/>
+        <result property="userWebName" column="USER_WEB_NAME"/>
+        <result property="isEnabled" column="IS_ENABLED"/>
+        <result property="createdBy" column="CREATED_BY"/>
+        <result property="createdDate" column="CREATED_DATE"/>
+    </resultMap>
+
+    <select id="countMembership" resultType="int">
+        SELECT COUNT(*)
+        FROM WEB_USER_ROLES
+        WHERE ROLE_ID = #{roleId}
+          AND USER_ID = #{userId}
+    </select>
+
+    <insert id="insertMembership" parameterType="com.example.approval.entity.GroupMembership">
+        INSERT INTO WEB_USER_ROLES (
+            ROLE_ID, USER_WEB_NAME, USER_ID,
+            IS_ENABLED, CREATED_BY, CREATED_DATE
+        ) VALUES (
+            #{roleId, jdbcType=DECIMAL},
+            #{userWebName, jdbcType=VARCHAR},
+            #{userId, jdbcType=DECIMAL},
+            NVL(#{isEnabled, jdbcType=DECIMAL}, 1),
+            #{createdBy, jdbcType=DECIMAL},
+            #{createdDate, jdbcType=TIMESTAMP}
+        )
+    </insert>
+
+    <!-- Current members of a role with display names from the user view. -->
+    <select id="findMembershipsByRole" resultMap="membershipMap">
+        SELECT
+            ur.ROLE_ID, ur.USER_ID, ur.USER_WEB_NAME, ur.IS_ENABLED,
+            ur.CREATED_BY, ur.CREATED_DATE
+        FROM WEB_USER_ROLES ur
+        WHERE ur.ROLE_ID = #{roleId}
+        ORDER BY UPPER(ur.USER_WEB_NAME)
+    </select>
+
+    <select id="findMembershipsByUser" resultMap="membershipMap">
+        SELECT
+            ROLE_ID, USER_ID, USER_WEB_NAME, IS_ENABLED, CREATED_BY, CREATED_DATE
+        FROM WEB_USER_ROLES
+        WHERE USER_ID = #{userId}
+        ORDER BY ROLE_ID
+    </select>
+
+</mapper>
