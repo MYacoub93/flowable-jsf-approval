@@ -31,6 +31,10 @@ import java.util.List;
  * <p><b>Failure tolerance:</b> audit persistence runs inside the Flowable
  * command/transaction. A hard failure would roll the workflow step back -
  * usually desirable (no approvals without a trail).</p>
+ *
+ * <p><b>Global switch:</b> setting {@code bpm.audit.enabled=false} turns
+ * every write of this service into a no-op (debug log only) while the
+ * workflow itself keeps running.</p>
  */
 @Service
 public class AuditServiceImpl implements AuditService {
@@ -61,6 +65,11 @@ public class AuditServiceImpl implements AuditService {
 
     @Override
     public String openCase(String processDefinitionKey, String processInstanceId, String initiatorUsername) {
+        if (!properties.isEnabled()) {
+            log.debug("BPM audit disabled (bpm.audit.enabled=false) - skipping openCase for {}",
+                    processInstanceId);
+            return processInstanceId;
+        }
         // CASE_ID = the caller-supplied Flowable process instance id
         String caseId = requireCaseId(processInstanceId);
         Integer requestorId = numericUserOf(initiatorUsername);
@@ -96,7 +105,10 @@ public class AuditServiceImpl implements AuditService {
                 + " | Stage: " + nvl(stage)
                 + " | Department: " + nvl(department)
                 + " | CandidateGroup: " + nvl(candidateGroup);
-        return insert(BpmAuditAction.TASK_ASSIGNED, processInstanceId, initiator, note, 0);
+        // "task assigned" maps onto the department's Task Received row
+        // (استلام مهمة) of the BPM_ACTIONS lookup
+        return insert(BpmAuditAction.of(department, BpmAuditAction.ActionType.TASK_RECEIVED),
+                processInstanceId, initiator, note, 0);
     }
 
     @Override
@@ -108,9 +120,12 @@ public class AuditServiceImpl implements AuditService {
                                            String comment,
                                            String taskId,
                                            String initiator) {
-        BpmAuditAction action = ClearanceConstants.DECISION_APPROVE.equalsIgnoreCase(decision)
-                ? BpmAuditAction.APPROVED
-                : BpmAuditAction.REJECTED;
+        // decision maps onto the department's own Approval / Rejection row
+        // of the BPM_ACTIONS lookup
+        BpmAuditAction action = BpmAuditAction.of(department,
+                ClearanceConstants.DECISION_APPROVE.equalsIgnoreCase(decision)
+                        ? BpmAuditAction.ActionType.APPROVAL
+                        : BpmAuditAction.ActionType.REJECTION);
         String note = action.defaultDescription()
                 + " | Process: " + ClearanceConstants.PROCESS_NAME
                 + " | Stage: " + nvl(stage)
@@ -129,12 +144,12 @@ public class AuditServiceImpl implements AuditService {
                                            String user,
                                            String initiator,
                                            String details) {
-        BpmAuditAction mapped = mapAction(action);
+        BpmAuditAction mapped = mapAction(action, department);
         String note = nvl(details)
                 + " | Stage: " + nvl(stage)
                 + " | Department: " + nvl(department);
         return insert(mapped, processInstanceId, user, note,
-                BpmAuditAction.CASE_FINISHED.equals(mapped) ? 1 : 0);
+                mapped == BpmAuditAction.APPLICANT_VIEWED_FINAL_RESULT ? 1 : 0);
     }
 
     // ------------------------------------------------------------------
@@ -166,6 +181,11 @@ public class AuditServiceImpl implements AuditService {
                                   String user,
                                   String note,
                                   int isFinished) {
+        if (!properties.isEnabled()) {
+            log.debug("BPM audit disabled (bpm.audit.enabled=false) - skipping {} on case {}",
+                    action, processInstanceId);
+            return null;
+        }
         String caseId = requireCaseId(processInstanceId);
         Integer entryUser = numericUserOf(user);
         BpmAuditLogDtl dtl = new BpmAuditLogDtl();
@@ -195,25 +215,36 @@ public class AuditServiceImpl implements AuditService {
         return truncate(processInstanceId, BpmAuditConstants.CASE_ID_MAX_LENGTH);
     }
 
-    /** Maps legacy ClearanceConstants.ACTION_* strings onto numeric codes. */
-    private BpmAuditAction mapAction(String action) {
+    /**
+     * Maps the semantic {@code ClearanceConstants.ACTION_*} strings onto the
+     * pre-populated {@code BPM_ACTIONS} codes. Department-aware events
+     * (assigned / approved / rejected) resolve the department's own row via
+     * {@link BpmAuditAction#of(String, BpmAuditAction.ActionType)}; events
+     * with no BPM_ACTIONS equivalent (departments resolved, task cancelled,
+     * FYI created, attachment uploaded) fall back to {@code ENTERED} (0) -
+     * the note column carries the specifics.
+     */
+    private BpmAuditAction mapAction(String action, String department) {
         if (action == null) {
-            return BpmAuditAction.GENERIC;
+            return BpmAuditAction.ENTERED;
         }
         return switch (action) {
-            case ClearanceConstants.ACTION_PROCESS_STARTED -> BpmAuditAction.CASE_OPENED;
-            case ClearanceConstants.ACTION_DEPARTMENTS_RESOLVED -> BpmAuditAction.GENERIC;
-            case ClearanceConstants.ACTION_TASK_ASSIGNED -> BpmAuditAction.TASK_ASSIGNED;
-            case ClearanceConstants.ACTION_APPROVED -> BpmAuditAction.APPROVED;
-            case ClearanceConstants.ACTION_REJECTED -> BpmAuditAction.REJECTED;
-            case ClearanceConstants.ACTION_REQUEST_AMENDED -> BpmAuditAction.REQUEST_AMENDED;
-            case ClearanceConstants.ACTION_TASK_CANCELLED -> BpmAuditAction.TASK_CANCELLED;
-            case ClearanceConstants.ACTION_PROCESS_COMPLETED -> BpmAuditAction.CASE_FINISHED;
-            case ClearanceConstants.ACTION_FYI_CREATED -> BpmAuditAction.FYI_CREATED;
-            case "ATTACHMENT_UPLOADED" -> BpmAuditAction.ATTACHMENT_UPLOADED;
-            case ClearanceConstants.ACTION_FYI_ACKNOWLEDGED,
-                 ClearanceConstants.ACTION_RESULT_ACKNOWLEDGED -> BpmAuditAction.FYI_ACKNOWLEDGED;
-            default -> BpmAuditAction.GENERIC;
+            case ClearanceConstants.ACTION_PROCESS_STARTED -> BpmAuditAction.ENTERED;
+            case ClearanceConstants.ACTION_DEPARTMENTS_RESOLVED -> BpmAuditAction.ENTERED;
+            case ClearanceConstants.ACTION_TASK_ASSIGNED ->
+                    BpmAuditAction.of(department, BpmAuditAction.ActionType.TASK_RECEIVED);
+            case ClearanceConstants.ACTION_APPROVED ->
+                    BpmAuditAction.of(department, BpmAuditAction.ActionType.APPROVAL);
+            case ClearanceConstants.ACTION_REJECTED ->
+                    BpmAuditAction.of(department, BpmAuditAction.ActionType.REJECTION);
+            case ClearanceConstants.ACTION_REQUEST_AMENDED -> BpmAuditAction.APPLICANT_CONTINUATION;
+            case ClearanceConstants.ACTION_TASK_CANCELLED -> BpmAuditAction.ENTERED;
+            case ClearanceConstants.ACTION_PROCESS_COMPLETED -> BpmAuditAction.APPLICANT_VIEWED_FINAL_RESULT;
+            case ClearanceConstants.ACTION_FYI_CREATED -> BpmAuditAction.ENTERED;
+            case "ATTACHMENT_UPLOADED" -> BpmAuditAction.ENTERED;
+            case ClearanceConstants.ACTION_FYI_ACKNOWLEDGED -> BpmAuditAction.ENTERED;
+            case ClearanceConstants.ACTION_RESULT_ACKNOWLEDGED -> BpmAuditAction.APPLICANT_VIEWED_FINAL_RESULT;
+            default -> BpmAuditAction.ENTERED;
         };
     }
 

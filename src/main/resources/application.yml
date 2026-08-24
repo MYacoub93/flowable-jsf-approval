@@ -148,6 +148,9 @@ clearance:
 # F_BPM_CASE_ATTACHMENTS are allocated below.
 bpm:
   audit:
+    # Global on/off switch of the whole audit trail: when false no rows are
+    # written to any F_BPM_* table and /api/audit/** answers 503.
+    enabled: false
     # Flowable process definition key -> BPM_DOCUMENTS.DOCUMENT_CODE
     document-codes:
       clearanceLetterProcess: 1

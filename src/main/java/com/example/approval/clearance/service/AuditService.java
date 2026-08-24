@@ -89,8 +89,9 @@ public interface AuditService {
      * amendment, completion, FYI creation, acknowledgements, uploads...).
      *
      * @param processInstanceId process instance id (== business case id)
-     * @param action            action code (see ClearanceConstants.ACTION_*
-     *                          or BpmAuditAction.name())
+     * @param action            semantic action key (ClearanceConstants.ACTION_*
+     *                          or "ATTACHMENT_UPLOADED"); the implementation
+     *                          maps it onto the pre-populated BPM_ACTIONS codes
      * @param stage             stage code (nullable)
      * @param department        involved department / group (nullable)
      * @param user              acting user (nullable)

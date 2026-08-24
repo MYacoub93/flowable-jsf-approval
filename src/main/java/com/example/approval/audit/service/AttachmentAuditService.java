@@ -1,6 +1,5 @@
 package com.example.approval.audit.service;
 
-import com.example.approval.audit.BpmAuditAction;
 import com.example.approval.audit.BpmAuditConstants;
 import com.example.approval.audit.BpmAuditProperties;
 import com.example.approval.audit.model.BpmCaseAttachment;
@@ -40,6 +39,13 @@ public class AttachmentAuditService {
     /** Fallback for the NOT NULL {@code ENTRY_USER} column. */
     private static final int UNKNOWN_USER_ID = 0;
 
+    /**
+     * Semantic action key of the audit row written next to the attachment
+     * insert ({@code BPM_ACTIONS} has no dedicated upload code - the impl
+     * maps it onto {@code ENTERED} (0) and the note carries the file info).
+     */
+    private static final String ACTION_ATTACHMENT_UPLOADED = "ATTACHMENT_UPLOADED";
+
     private final BpmAuditMapper bpmAuditMapper;
     private final BpmAuditProperties properties;
     private final BpmAuditIdAllocator idAllocator;
@@ -68,6 +74,11 @@ public class AttachmentAuditService {
                                                 String contentId,
                                                 String contentName,
                                                 String uploadedBy) {
+        if (!properties.isEnabled()) {
+            log.debug("BPM audit disabled (bpm.audit.enabled=false) - skipping attachment"
+                    + " registration for case {}", processInstanceId);
+            return null;
+        }
         String caseId = requireCaseId(processInstanceId);
 
         BpmCaseAttachment attachment = new BpmCaseAttachment();
@@ -85,7 +96,7 @@ public class AttachmentAuditService {
 
         // the upload itself is also an audited case action
         auditService.logProcessAction(processInstanceId,
-                BpmAuditAction.ATTACHMENT_UPLOADED.name(),
+                ACTION_ATTACHMENT_UPLOADED,
                 null, null, uploadedBy, null,
                 "Attachment '" + contentName + "' uploaded (content id " + contentId + ")");
 
