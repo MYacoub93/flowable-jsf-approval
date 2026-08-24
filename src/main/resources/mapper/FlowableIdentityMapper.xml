@@ -42,22 +42,26 @@
     <!-- جلب أدوار المستخدم كمجموعات Flowable -->
     <select id="findGroupsByUser" resultType="org.flowable.idm.engine.impl.persistence.entity.GroupEntityImpl">
         SELECT
-            ROLE_CODE_ as id,
-            ROLE_CODE_ as name,
-            'security-role' as type
-        FROM FLOWABLE_USERS_VW
-        WHERE ID_ = #{userId} AND ROLE_CODE_ IS NOT NULL
+            id,
+            name,
+            type
+        FROM
+            flowable_groups_vw
+        WHERE
+            USER_ID = #{userId}
     </select>
 
     <!-- جلب مجموعة بواسطة المعرف (تُستخدم من قبل ClearanceService.isMemberOfGroup
          وغيرها من الاستعلامات التي لا تحمل userId) -->
     <select id="findGroupById" resultType="org.flowable.idm.engine.impl.persistence.entity.GroupEntityImpl">
-        SELECT DISTINCT
-            ROLE_CODE_ as id,
-            ROLE_CODE_ as name,
-            'security-role' as type
-        FROM FLOWABLE_USERS_VW
-        WHERE ROLE_CODE_ = #{groupId}
+        SELECT
+            id,
+            name,
+            type
+        FROM
+            flowable_groups_vw
+        WHERE
+            ID = #{groupId}
     </select>
 
 </mapper>
