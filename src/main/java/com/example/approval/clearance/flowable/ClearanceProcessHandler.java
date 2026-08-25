@@ -81,11 +81,11 @@ public class ClearanceProcessHandler {
         execution.setVariable(VAR_DEPARTMENT_DECISIONS, new LinkedHashMap<String, DepartmentDecision>());
         execution.setVariable(VAR_APPROVAL_ROUND, round);
 
-        auditService.logProcessAction(execution.getProcessInstanceId(),
-                ACTION_DEPARTMENTS_RESOLVED, STAGE_DEPARTMENT_RESOLUTION, null,
-                initiator, initiator,
-                "Round " + round + " requires " + departments.size()
-                        + " departments: " + departments);
+//        auditService.logProcessAction(execution.getProcessInstanceId(),
+//                ACTION_DEPARTMENTS_RESOLVED, STAGE_DEPARTMENT_RESOLUTION, null,
+//                initiator, initiator,
+//                "Round " + round + " requires " + departments.size()
+//                        + " departments: " + departments);
         log.info("Clearance {}: round {} departments = {}",
                 execution.getProcessInstanceId(), round, departments);
     }

@@ -101,9 +101,9 @@ public class AuditServiceImpl implements AuditService {
                                           String taskId,
                                           String initiator) {
         String note = "Task " + nvl(taskId) + " assigned"
-                + " | Process: " + ClearanceConstants.PROCESS_NAME
-                + " | Stage: " + nvl(stage)
-                + " | Department: " + nvl(department)
+//                + " | Process: " + ClearanceConstants.PROCESS_NAME
+//                + " | Stage: " + nvl(stage)
+//                + " | Department: " + nvl(department)
                 + " | CandidateGroup: " + nvl(candidateGroup);
         // "task assigned" maps onto the department's Task Received row
         // (استلام مهمة) of the BPM_ACTIONS lookup

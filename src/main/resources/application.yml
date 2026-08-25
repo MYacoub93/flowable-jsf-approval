@@ -126,15 +126,15 @@ clearance:
     default-departments:
       - DEN
       - HOD
-      - StudentServices
-      - Warehouses
-      - HealthCareDept
-      - LegalDepartment
-      - Student Deanship
-      - MediaAndTraining Department
-      - LibraryDepartment
-      - IT Department
-      - Enginering and Services Department
+      - STD_SRV
+      - WRH
+      - HC
+      - LGL
+      - STD_DEN
+      - MEDTRN
+      - LIB
+      - IT
+      - ENG_SRV
     # optional per-initiator overrides, e.g.:
     # initiator-overrides:
     #   student.john: DEN,HOD,IT Department
@@ -150,7 +150,7 @@ bpm:
   audit:
     # Global on/off switch of the whole audit trail: when false no rows are
     # written to any F_BPM_* table and /api/audit/** answers 503.
-    enabled: false
+    enabled: true
     # Flowable process definition key -> BPM_DOCUMENTS.DOCUMENT_CODE
     document-codes:
       clearanceLetterProcess: 1

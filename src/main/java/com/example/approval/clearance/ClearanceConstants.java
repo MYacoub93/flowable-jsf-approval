@@ -34,15 +34,15 @@ public final class ClearanceConstants {
 
     public static final String DEPT_DEN = "DEN";
     public static final String DEPT_HOD = "HOD";
-    public static final String DEPT_STUDENT_SERVICES = "StudentServices";
-    public static final String DEPT_WAREHOUSES = "Warehouses";
-    public static final String DEPT_HEALTH_CARE = "HealthCareDept";
-    public static final String DEPT_LEGAL = "LegalDepartment";
-    public static final String DEPT_STUDENT_DEANSHIP = "Student Deanship";
-    public static final String DEPT_MEDIA_AND_TRAINING = "MediaAndTraining Department";
-    public static final String DEPT_LIBRARY = "LibraryDepartment";
-    public static final String DEPT_IT = "IT Department";
-    public static final String DEPT_ENGINEERING_AND_SERVICES = "Enginering and Services Department";
+    public static final String DEPT_STUDENT_SERVICES = "STD_SRV";
+    public static final String DEPT_WAREHOUSES = "WRH";
+    public static final String DEPT_HEALTH_CARE = "HC";
+    public static final String DEPT_LEGAL = "LGL";
+    public static final String DEPT_STUDENT_DEANSHIP = "STD_DEN";
+    public static final String DEPT_MEDIA_AND_TRAINING = "MEDTRN";
+    public static final String DEPT_LIBRARY = "LIB";
+    public static final String DEPT_IT = "IT";
+    public static final String DEPT_ENGINEERING_AND_SERVICES = "ENG_SRV";
 
     /** Full default catalogue; the resolver may return all or a subset. */
     public static final List<String> ALL_DEPARTMENTS = List.of(
