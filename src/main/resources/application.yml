@@ -23,8 +23,8 @@ app:
       # 1. قاعدة بيانات المستخدمين (المستخدمة عبر MyBatis)
       # =========================================================
       url: jdbc:oracle:thin:@192.168.2.5:1521:atsdb19
-      username: meu
-      password: meu
+      username: flowable_meu
+      password: flowable_meu
       driver-class-name: oracle.jdbc.OracleDriver
       hikari:
         pool-name: ExternalHikariPool

@@ -37,7 +37,7 @@
                                            itemLabel="#{r.roleCode} / #{r.roleName}"/>
                             <f:ajax event="valueChange" listener="#{groupMembershipsBean.onGroupChange}"
                                     render="membersForm"/>
-                        </f:ajax>
+                        </h:selectOneMenu>
                     </div>
                 </h:form>
             </div>
@@ -88,21 +88,21 @@
                     </h:panelGroup>
 
                     <!-- Pagination footer -->
-                    <div class="pagination" rendered="#{groupMembershipsBean.hasUsers}">
-                        <h:commandButton value="|<" action="#{groupMembershipsBean.firstPage}"
+                    <h:panelGroup layout="block" styleClass="pagination" rendered="#{groupMembershipsBean.hasUsers}">
+                        <h:commandButton value="|&#60;" action="#{groupMembershipsBean.firstPage}"
                                          disabled="#{!groupMembershipsBean.hasPrevious}"
                                          styleClass="btn btn-secondary btn-sm"/>
-                        <h:commandButton value="<" action="#{groupMembershipsBean.previousPage}"
+                        <h:commandButton value="&#60;" action="#{groupMembershipsBean.previousPage}"
                                          disabled="#{!groupMembershipsBean.hasPrevious}"
                                          styleClass="btn btn-secondary btn-sm"/>
                         <span class="page-info">#{groupMembershipsBean.rangeLabel}</span>
-                        <h:commandButton value=">" action="#{groupMembershipsBean.nextPage}"
+                        <h:commandButton value="&#62;" action="#{groupMembershipsBean.nextPage}"
                                          disabled="#{!groupMembershipsBean.hasNext}"
                                          styleClass="btn btn-secondary btn-sm"/>
-                        <h:commandButton value=">|" action="#{groupMembershipsBean.lastPage}"
+                        <h:commandButton value="&#62;|" action="#{groupMembershipsBean.lastPage}"
                                          disabled="#{!groupMembershipsBean.hasNext}"
                                          styleClass="btn btn-secondary btn-sm"/>
-                    </div>
+                    </h:panelGroup>
                 </h:form>
             </div>
 
@@ -145,7 +145,7 @@
                         <h:column>
                             <f:facet name="header">Added On</f:facet>
                             <h:outputText value="#{m.createdDate}">
-                                <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                                <f:convertDateTime type="localDateTime" pattern="yyyy-MM-dd HH:mm"/>
                             </h:outputText>
                         </h:column>
                     </h:dataTable>
