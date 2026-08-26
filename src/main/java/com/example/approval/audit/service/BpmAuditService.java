@@ -1,4 +1,4 @@
-package com.example.approval.clearance.service;
+package com.example.approval.audit.service;
 
 import com.example.approval.audit.model.BpmAuditLog;
 import com.example.approval.audit.model.BpmAuditLogDtl;
@@ -6,18 +6,30 @@ import com.example.approval.audit.model.BpmAuditLogDtl;
 import java.util.List;
 
 /**
- * Central audit trail for workflow processes, backed by the Oracle
- * {@code F_BPM_*} business tables:
+ * Central, process-agnostic audit trail for <b>all</b> Flowable workflow
+ * processes, backed by the Oracle {@code F_BPM_*} business tables:
  *
  * <ul>
  *   <li>{@code F_BPM_AUDIT_LOG} - one master row per started process (case);</li>
  *   <li>{@code F_BPM_AUDIT_LOG_DTL} - one row per audited workflow action.</li>
  * </ul>
  *
- * <p>All audit writes go through this service - from Flowable listeners
- * (task created / completed), delegates (department resolution, completion
- * actions), the JSF layer (acknowledgement of results) and the REST layer
- * (attachment uploads). The BPMN never inserts audit rows itself.</p>
+ * <p>Any process - Clearance Letter, expense, HR, ... - records its trail
+ * through this single facade: Flowable listeners (task created / completed),
+ * delegates (department resolution, completion actions), the JSF layer
+ * (acknowledgement of results) and the REST layer (attachment uploads).
+ * The BPMN never inserts audit rows itself.</p>
+ *
+ * <p><b>Process linkage:</b> the caller always passes the Flowable process
+ * definition / instance ids; nothing in this service knows a specific
+ * process. The {@code BPM_DOCUMENTS.DOCUMENT_CODE} of a process is resolved
+ * from the {@code bpm.audit.document-codes} mapping
+ * ({@link com.example.approval.audit.BpmAuditProperties}).</p>
+ *
+ * <p><b>Vocabulary:</b> semantic action keys and decision values are shared
+ * across processes via {@link com.example.approval.audit.BpmAuditConstants}
+ * ({@code ACTION_*} / {@code DECISION_*}); the implementation maps them onto
+ * the pre-populated {@code BPM_ACTIONS} codes.</p>
  *
  * <p><b>Case linkage:</b> {@code CASE_ID} is a {@code VARCHAR2(64)} holding
  * the Flowable process instance id of the case. It is passed in by the
@@ -25,7 +37,7 @@ import java.util.List;
  * involved) - the business case id simply <i>is</i> the process instance id
  * of the Flowable case that was started.</p>
  */
-public interface AuditService {
+public interface BpmAuditService {
 
     /**
      * Opens a new case <b>after</b> the process instance was started:
@@ -47,7 +59,7 @@ public interface AuditService {
      * (action {@code TASK_ASSIGNED}).
      *
      * @param processInstanceId process instance id (== business case id)
-     * @param stage             stage code (see ClearanceConstants.STAGE_*)
+     * @param stage             stage code of the calling process (free text)
      * @param department        department / approver group name
      * @param candidateGroup    Flowable candidate group id
      * @param taskId            task id
@@ -66,10 +78,11 @@ public interface AuditService {
      * {@code REJECTED} depending on the decision).
      *
      * @param processInstanceId process instance id (== business case id)
-     * @param stage             stage code
+     * @param stage             stage code of the calling process (free text)
      * @param department        department / approver group name
      * @param completedBy       user who completed the task
-     * @param decision          "approve" or "reject"
+     * @param decision          {@code BpmAuditConstants.DECISION_APPROVE} or
+     *                          {@code BpmAuditConstants.DECISION_REJECT}
      * @param comment           free text comment (nullable)
      * @param taskId            task id
      * @param initiator         process initiator username
@@ -89,10 +102,11 @@ public interface AuditService {
      * amendment, completion, FYI creation, acknowledgements, uploads...).
      *
      * @param processInstanceId process instance id (== business case id)
-     * @param action            semantic action key (ClearanceConstants.ACTION_*
-     *                          or "ATTACHMENT_UPLOADED"); the implementation
-     *                          maps it onto the pre-populated BPM_ACTIONS codes
-     * @param stage             stage code (nullable)
+     * @param action            semantic action key
+     *                          ({@code BpmAuditConstants.ACTION_*}); the
+     *                          implementation maps it onto the pre-populated
+     *                          BPM_ACTIONS codes
+     * @param stage             stage code of the calling process (nullable)
      * @param department        involved department / group (nullable)
      * @param user              acting user (nullable)
      * @param initiator         original initiator (nullable)

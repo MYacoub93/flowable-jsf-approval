@@ -2,7 +2,7 @@ package com.example.approval.clearance.flowable;
 
 import com.example.approval.clearance.ClearanceConstants;
 import com.example.approval.clearance.model.DepartmentDecision;
-import com.example.approval.clearance.service.AuditService;
+import com.example.approval.audit.service.BpmAuditService;
 import com.example.approval.clearance.service.DepartmentResolverService;
 import com.example.approval.clearance.service.NotificationService;
 import org.flowable.engine.TaskService;
@@ -26,7 +26,7 @@ import static com.example.approval.clearance.ClearanceConstants.*;
  *
  * <p>It never talks to the database directly - it only orchestrates the three
  * reusable services ({@link DepartmentResolverService},
- * {@link NotificationService}, {@link AuditService}) and manipulates process
+ * {@link NotificationService}, {@link BpmAuditService}) and manipulates process
  * variables, so the BPMN stays free of duplicated logic.</p>
  */
 @Component("clearanceProcessHandler")
@@ -36,12 +36,12 @@ public class ClearanceProcessHandler {
 
     private final DepartmentResolverService departmentResolverService;
     private final NotificationService notificationService;
-    private final AuditService auditService;
+    private final BpmAuditService auditService;
     private final TaskService taskService;
 
     public ClearanceProcessHandler(DepartmentResolverService departmentResolverService,
                                    NotificationService notificationService,
-                                   AuditService auditService,
+            BpmAuditService auditService,
                                    TaskService taskService) {
         this.departmentResolverService = departmentResolverService;
         this.notificationService = notificationService;

@@ -1,5 +1,6 @@
 package com.example.approval.clearance.service;
 
+import com.example.approval.audit.service.BpmAuditService;
 import com.example.approval.service.ProcessStartService;
 import org.flowable.engine.IdentityService;
 import org.flowable.engine.RuntimeService;
@@ -37,13 +38,13 @@ public class ClearanceService {
     private final IdentityService identityService;
     private final TaskService taskService;
     private final RuntimeService runtimeService;
-    private final AuditService auditService;
+    private final BpmAuditService auditService;
 
     public ClearanceService(ProcessStartService processStartService,
                             IdentityService identityService,
                             TaskService taskService,
                             RuntimeService runtimeService,
-                            AuditService auditService) {
+                            BpmAuditService auditService) {
         this.processStartService = processStartService;
         this.identityService = identityService;
         this.taskService = taskService;

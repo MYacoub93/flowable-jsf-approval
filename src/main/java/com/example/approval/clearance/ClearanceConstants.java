@@ -1,5 +1,7 @@
 package com.example.approval.clearance;
 
+import com.example.approval.audit.BpmAuditConstants;
+
 import java.util.List;
 
 /**
@@ -122,27 +124,27 @@ public final class ClearanceConstants {
     public static final String VAR_NOTES = "notes";
 
     // ------------------------------------------------------------------
-    // Decision values
+    // Decision values (shared with every other process)
     // ------------------------------------------------------------------
 
-    public static final String DECISION_APPROVE = "approve";
-    public static final String DECISION_REJECT = "reject";
+    public static final String DECISION_APPROVE = BpmAuditConstants.DECISION_APPROVE;
+    public static final String DECISION_REJECT = BpmAuditConstants.DECISION_REJECT;
 
     // ------------------------------------------------------------------
-    // Audit actions
+    // Audit actions (process-agnostic keys - see BpmAuditConstants)
     // ------------------------------------------------------------------
 
-    public static final String ACTION_PROCESS_STARTED = "PROCESS_STARTED";
-    public static final String ACTION_DEPARTMENTS_RESOLVED = "DEPARTMENTS_RESOLVED";
-    public static final String ACTION_TASK_ASSIGNED = "TASK_ASSIGNED";
-    public static final String ACTION_APPROVED = "APPROVED";
-    public static final String ACTION_REJECTED = "REJECTED";
-    public static final String ACTION_REQUEST_AMENDED = "REQUEST_AMENDED";
-    public static final String ACTION_TASK_CANCELLED = "TASK_CANCELLED";
-    public static final String ACTION_PROCESS_COMPLETED = "PROCESS_COMPLETED";
-    public static final String ACTION_FYI_CREATED = "FYI_CREATED";
-    public static final String ACTION_FYI_ACKNOWLEDGED = "FYI_ACKNOWLEDGED";
-    public static final String ACTION_RESULT_ACKNOWLEDGED = "RESULT_ACKNOWLEDGED";
+    public static final String ACTION_PROCESS_STARTED = BpmAuditConstants.ACTION_PROCESS_STARTED;
+    public static final String ACTION_DEPARTMENTS_RESOLVED = BpmAuditConstants.ACTION_DEPARTMENTS_RESOLVED;
+    public static final String ACTION_TASK_ASSIGNED = BpmAuditConstants.ACTION_TASK_ASSIGNED;
+    public static final String ACTION_APPROVED = BpmAuditConstants.ACTION_APPROVED;
+    public static final String ACTION_REJECTED = BpmAuditConstants.ACTION_REJECTED;
+    public static final String ACTION_REQUEST_AMENDED = BpmAuditConstants.ACTION_REQUEST_AMENDED;
+    public static final String ACTION_TASK_CANCELLED = BpmAuditConstants.ACTION_TASK_CANCELLED;
+    public static final String ACTION_PROCESS_COMPLETED = BpmAuditConstants.ACTION_PROCESS_COMPLETED;
+    public static final String ACTION_FYI_CREATED = BpmAuditConstants.ACTION_FYI_CREATED;
+    public static final String ACTION_FYI_ACKNOWLEDGED = BpmAuditConstants.ACTION_FYI_ACKNOWLEDGED;
+    public static final String ACTION_RESULT_ACKNOWLEDGED = BpmAuditConstants.ACTION_RESULT_ACKNOWLEDGED;
 
     // ------------------------------------------------------------------
     // Stage codes (passed to the shared task/process handlers)

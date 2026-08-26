@@ -5,7 +5,7 @@ import com.example.approval.audit.model.BpmAuditLog;
 import com.example.approval.audit.model.BpmAuditLogDtl;
 import com.example.approval.audit.model.BpmCaseAttachment;
 import com.example.approval.audit.service.AttachmentAuditService;
-import com.example.approval.clearance.service.AuditService;
+import com.example.approval.audit.service.BpmAuditService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
@@ -53,11 +53,11 @@ public class BpmAuditRestController {
     private static final Logger log = LoggerFactory.getLogger(BpmAuditRestController.class);
 
     private final AttachmentAuditService attachmentAuditService;
-    private final AuditService auditService;
+    private final BpmAuditService auditService;
     private final BpmAuditProperties properties;
 
     public BpmAuditRestController(AttachmentAuditService attachmentAuditService,
-                                  AuditService auditService,
+                                  BpmAuditService auditService,
                                   BpmAuditProperties properties) {
         this.attachmentAuditService = attachmentAuditService;
         this.auditService = auditService;

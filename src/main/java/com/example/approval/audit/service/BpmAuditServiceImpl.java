@@ -1,13 +1,10 @@
-package com.example.approval.clearance.service.impl;
+package com.example.approval.audit.service;
 
 import com.example.approval.audit.BpmAuditAction;
 import com.example.approval.audit.BpmAuditConstants;
 import com.example.approval.audit.BpmAuditProperties;
 import com.example.approval.audit.model.BpmAuditLog;
 import com.example.approval.audit.model.BpmAuditLogDtl;
-import com.example.approval.audit.service.BpmAuditIdAllocator;
-import com.example.approval.clearance.ClearanceConstants;
-import com.example.approval.clearance.service.AuditService;
 import com.example.approval.mapper.BpmAuditMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,9 +15,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Implementation of {@link AuditService} writing to the Oracle
+ * Implementation of {@link BpmAuditService} writing to the Oracle
  * {@code F_BPM_*} business audit tables through the
  * {@code externalSqlSessionFactory} (Oracle datasource).
+ *
+ * <p><b>Process agnostic:</b> nothing in this class knows a specific
+ * process. Callers pass the Flowable process definition / instance ids and
+ * the shared semantic action keys / decision values of
+ * {@link BpmAuditConstants}; departments resolve to their own
+ * {@code BPM_ACTIONS} rows via {@link BpmAuditAction}.</p>
  *
  * <p><b>Case linkage:</b> {@code CASE_ID} is the Flowable process instance
  * id of the started case, supplied by the caller on every call - it is
@@ -37,9 +40,9 @@ import java.util.List;
  * workflow itself keeps running.</p>
  */
 @Service
-public class AuditServiceImpl implements AuditService {
+public class BpmAuditServiceImpl implements BpmAuditService {
 
-    private static final Logger log = LoggerFactory.getLogger(AuditServiceImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(BpmAuditServiceImpl.class);
 
     /**
      * Fallback for the NOT NULL {@code ENTRY_USER} / {@code REQUESTOR_ID}
@@ -51,9 +54,9 @@ public class AuditServiceImpl implements AuditService {
     private final BpmAuditProperties properties;
     private final BpmAuditIdAllocator idAllocator;
 
-    public AuditServiceImpl(BpmAuditMapper bpmAuditMapper,
-                            BpmAuditProperties properties,
-                            BpmAuditIdAllocator idAllocator) {
+    public BpmAuditServiceImpl(BpmAuditMapper bpmAuditMapper,
+                               BpmAuditProperties properties,
+                               BpmAuditIdAllocator idAllocator) {
         this.bpmAuditMapper = bpmAuditMapper;
         this.properties = properties;
         this.idAllocator = idAllocator;
@@ -101,9 +104,8 @@ public class AuditServiceImpl implements AuditService {
                                           String taskId,
                                           String initiator) {
         String note = "Task " + nvl(taskId) + " assigned"
-//                + " | Process: " + ClearanceConstants.PROCESS_NAME
-//                + " | Stage: " + nvl(stage)
-//                + " | Department: " + nvl(department)
+                + " | Stage: " + nvl(stage)
+                + " | Department: " + nvl(department)
                 + " | CandidateGroup: " + nvl(candidateGroup);
         // "task assigned" maps onto the department's Task Received row
         // (استلام مهمة) of the BPM_ACTIONS lookup
@@ -123,18 +125,17 @@ public class AuditServiceImpl implements AuditService {
         // decision maps onto the department's own Approval / Rejection row
         // of the BPM_ACTIONS lookup
         BpmAuditAction action = BpmAuditAction.of(department,
-                ClearanceConstants.DECISION_APPROVE.equalsIgnoreCase(decision)
+                BpmAuditConstants.DECISION_APPROVE.equalsIgnoreCase(decision)
                         ? BpmAuditAction.ActionType.APPROVAL
                         : BpmAuditAction.ActionType.REJECTION);
         String note = action.defaultDescription()
-                + " | Process: " + ClearanceConstants.PROCESS_NAME
                 + " | Stage: " + nvl(stage)
                 + " | Department: " + nvl(department)
                 + " | User: " + nvl(completedBy)
                 + " | Comment: " + nvl(comment)
                 + " | Task: " + nvl(taskId);
         return insert(action, processInstanceId, completedBy, note, 0);
-    }
+        }
 
     @Override
     public BpmAuditLogDtl logProcessAction(String processInstanceId,
@@ -216,7 +217,7 @@ public class AuditServiceImpl implements AuditService {
     }
 
     /**
-     * Maps the semantic {@code ClearanceConstants.ACTION_*} strings onto the
+     * Maps the semantic {@code BpmAuditConstants.ACTION_*} keys onto the
      * pre-populated {@code BPM_ACTIONS} codes. Department-aware events
      * (assigned / approved / rejected) resolve the department's own row via
      * {@link BpmAuditAction#of(String, BpmAuditAction.ActionType)}; events
@@ -229,21 +230,21 @@ public class AuditServiceImpl implements AuditService {
             return BpmAuditAction.ENTERED;
         }
         return switch (action) {
-            case ClearanceConstants.ACTION_PROCESS_STARTED -> BpmAuditAction.ENTERED;
-            case ClearanceConstants.ACTION_DEPARTMENTS_RESOLVED -> BpmAuditAction.ENTERED;
-            case ClearanceConstants.ACTION_TASK_ASSIGNED ->
+            case BpmAuditConstants.ACTION_PROCESS_STARTED -> BpmAuditAction.ENTERED;
+            case BpmAuditConstants.ACTION_DEPARTMENTS_RESOLVED -> BpmAuditAction.ENTERED;
+            case BpmAuditConstants.ACTION_TASK_ASSIGNED ->
                     BpmAuditAction.of(department, BpmAuditAction.ActionType.TASK_RECEIVED);
-            case ClearanceConstants.ACTION_APPROVED ->
+            case BpmAuditConstants.ACTION_APPROVED ->
                     BpmAuditAction.of(department, BpmAuditAction.ActionType.APPROVAL);
-            case ClearanceConstants.ACTION_REJECTED ->
+            case BpmAuditConstants.ACTION_REJECTED ->
                     BpmAuditAction.of(department, BpmAuditAction.ActionType.REJECTION);
-            case ClearanceConstants.ACTION_REQUEST_AMENDED -> BpmAuditAction.APPLICANT_CONTINUATION;
-            case ClearanceConstants.ACTION_TASK_CANCELLED -> BpmAuditAction.ENTERED;
-            case ClearanceConstants.ACTION_PROCESS_COMPLETED -> BpmAuditAction.APPLICANT_VIEWED_FINAL_RESULT;
-            case ClearanceConstants.ACTION_FYI_CREATED -> BpmAuditAction.ENTERED;
-            case "ATTACHMENT_UPLOADED" -> BpmAuditAction.ENTERED;
-            case ClearanceConstants.ACTION_FYI_ACKNOWLEDGED -> BpmAuditAction.ENTERED;
-            case ClearanceConstants.ACTION_RESULT_ACKNOWLEDGED -> BpmAuditAction.APPLICANT_VIEWED_FINAL_RESULT;
+            case BpmAuditConstants.ACTION_REQUEST_AMENDED -> BpmAuditAction.APPLICANT_CONTINUATION;
+            case BpmAuditConstants.ACTION_TASK_CANCELLED -> BpmAuditAction.ENTERED;
+            case BpmAuditConstants.ACTION_PROCESS_COMPLETED -> BpmAuditAction.APPLICANT_VIEWED_FINAL_RESULT;
+            case BpmAuditConstants.ACTION_FYI_CREATED -> BpmAuditAction.ENTERED;
+            case BpmAuditConstants.ACTION_ATTACHMENT_UPLOADED -> BpmAuditAction.ENTERED;
+            case BpmAuditConstants.ACTION_FYI_ACKNOWLEDGED -> BpmAuditAction.ENTERED;
+            case BpmAuditConstants.ACTION_RESULT_ACKNOWLEDGED -> BpmAuditAction.APPLICANT_VIEWED_FINAL_RESULT;
             default -> BpmAuditAction.ENTERED;
         };
     }

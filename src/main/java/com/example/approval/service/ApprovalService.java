@@ -9,7 +9,7 @@ import org.flowable.task.api.Task;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.example.approval.clearance.service.AuditService;
+import com.example.approval.audit.service.BpmAuditService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,12 +36,12 @@ public class ApprovalService {
     private final RuntimeService runtimeService;
     private final TaskService taskService;
     private final IdentityService identityService;
-    private final AuditService auditService;
+    private final BpmAuditService auditService;
 
     public ApprovalService(RuntimeService runtimeService,
                            TaskService taskService,
                            IdentityService identityService,
-                           AuditService auditService) {
+                           BpmAuditService auditService) {
         this.runtimeService = runtimeService;
         this.taskService = taskService;
         this.identityService = identityService;

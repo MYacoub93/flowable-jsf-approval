@@ -22,6 +22,45 @@ public final class BpmAuditConstants {
     public static final int CASE_ID_MAX_LENGTH = 64;
 
     // ------------------------------------------------------------------
+    // Shared workflow vocabulary (process-agnostic)
+    // ------------------------------------------------------------------
+
+    /**
+     * Decision values written by <b>every</b> approval task of <b>every</b>
+     * process into the {@code decision} process variable. Shared so the
+     * {@code BPM_ACTIONS} mapping of {@code BpmAuditServiceImpl} stays
+     * uniform across processes.
+     */
+    public static final String DECISION_APPROVE = "approve";
+    public static final String DECISION_REJECT = "reject";
+
+    /**
+     * Semantic action keys of the workflow audit trail, used by
+     * <b>all</b> processes (not just one specific process). Any listener,
+     * delegate, JSF bean or REST controller passes these keys to
+     * {@code BpmAuditService.logProcessAction(...)}; the implementation
+     * maps them onto the pre-populated {@code BPM_ACTIONS} codes below.
+     */
+    public static final String ACTION_PROCESS_STARTED = "PROCESS_STARTED";
+    public static final String ACTION_DEPARTMENTS_RESOLVED = "DEPARTMENTS_RESOLVED";
+    public static final String ACTION_TASK_ASSIGNED = "TASK_ASSIGNED";
+    public static final String ACTION_APPROVED = "APPROVED";
+    public static final String ACTION_REJECTED = "REJECTED";
+    public static final String ACTION_REQUEST_AMENDED = "REQUEST_AMENDED";
+    public static final String ACTION_TASK_CANCELLED = "TASK_CANCELLED";
+    public static final String ACTION_PROCESS_COMPLETED = "PROCESS_COMPLETED";
+    public static final String ACTION_FYI_CREATED = "FYI_CREATED";
+    public static final String ACTION_FYI_ACKNOWLEDGED = "FYI_ACKNOWLEDGED";
+    public static final String ACTION_RESULT_ACKNOWLEDGED = "RESULT_ACKNOWLEDGED";
+
+    /**
+     * Attachment uploads have no dedicated {@code BPM_ACTIONS} row - the
+     * implementation maps this key onto {@code ENTERED} (0) and the note
+     * column carries the file info.
+     */
+    public static final String ACTION_ATTACHMENT_UPLOADED = "ATTACHMENT_UPLOADED";
+
+    // ------------------------------------------------------------------
     // Action codes (BPM_ACTIONS lookup - PRE-POPULATED table, codes 0-163)
     // ------------------------------------------------------------------
 

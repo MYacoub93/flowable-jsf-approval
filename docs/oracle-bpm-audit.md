@@ -18,7 +18,7 @@ bpm:
 
 When `enabled: false`:
 
-- `AuditServiceImpl` performs **no writes** — `openCase` returns the
+- `BpmAuditServiceImpl` performs **no writes** — `openCase` returns the
   process instance id unchanged (the case-id contract still holds) and
   every `log*` method is a no-op returning `null`;
 - `AttachmentAuditService.registerAttachment` skips the
@@ -127,7 +127,7 @@ CREATE TABLE "MEU"."F_BPM_CASE_ATTACHMENTS"
 |---|---|
 | Table access | `mapper/BpmAuditMapper.java` + `resources/mapper/BpmAuditMapper.xml` |
 | Entities | `audit/model/BpmAuditLog.java`, `BpmAuditLogDtl.java`, `BpmCaseAttachment.java` |
-| Audit facade | `clearance/service/AuditService.java` + `impl/AuditServiceImpl.java` |
+| Audit facade | `audit/service/BpmAuditService.java` + `impl/BpmAuditServiceImpl.java` |
 | Attachments | `audit/service/AttachmentAuditService.java` + `audit/rest/BpmAuditRestController.java` |
 | SERIAL allocation | `audit/service/BpmAuditIdAllocator.java` (`bpm.audit.id-strategy`) |
 | Action codes | `audit/BpmAuditConstants.java` (`ACTION_CODE_*`, all 164 rows of `BPM_ACTIONS`) + `audit/BpmAuditAction.java` (enum + department resolver) |
@@ -149,7 +149,7 @@ GET  /api/audit/attachments/{serial}/content         download attachment binary
 ## Audit write points
 
 Every workflow mutation writes exactly one `F_BPM_AUDIT_LOG_DTL` row
-(through `AuditService`), keyed by the process instance id of the case.
+(through `BpmAuditService`), keyed by the process instance id of the case.
 `ACTION_CODE` is always one of the 164 pre-populated `BPM_ACTIONS` rows
 (`docs/bpm_actions.htm`): **0** = Entered, **1–4** = applicant actions,
 **5–124** = per-department Approval / Rejection / Review triplets

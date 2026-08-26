@@ -2,7 +2,7 @@ package com.example.approval.clearance.flowable;
 
 import com.example.approval.clearance.ClearanceConstants;
 import com.example.approval.clearance.model.DepartmentDecision;
-import com.example.approval.clearance.service.AuditService;
+import com.example.approval.audit.service.BpmAuditService;
 import com.example.approval.clearance.service.NotificationService;
 import org.flowable.engine.delegate.TaskListener;
 import org.flowable.task.service.delegate.DelegateTask;
@@ -23,7 +23,7 @@ import static com.example.approval.clearance.ClearanceConstants.*;
  * <ul>
  *   <li><b>create</b> - sends the "task is waiting" e-mail via
  *       {@link NotificationService} and writes the {@code TASK_ASSIGNED}
- *       audit row via {@link AuditService};</li>
+ *       audit row via {@link BpmAuditService};</li>
  *   <li><b>complete</b> - writes the {@code APPROVED}/{@code REJECTED} audit
  *       row, stores the {@link DepartmentDecision} in the
  *       {@code departmentDecisions} map and raises
@@ -46,10 +46,10 @@ public class ClearanceTaskListener implements TaskListener {
     private static final Logger log = LoggerFactory.getLogger(ClearanceTaskListener.class);
 
     private final NotificationService notificationService;
-    private final AuditService auditService;
+    private final BpmAuditService auditService;
 
     public ClearanceTaskListener(NotificationService notificationService,
-                                 AuditService auditService) {
+            BpmAuditService auditService) {
         this.notificationService = notificationService;
         this.auditService = auditService;
     }

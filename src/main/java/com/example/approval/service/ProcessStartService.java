@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.approval.clearance.service.AuditService;
+import com.example.approval.audit.service.BpmAuditService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,11 +37,11 @@ public class ProcessStartService {
 
     private final RuntimeService runtimeService;
     private final IdentityService identityService;
-    private final AuditService auditService;
+    private final BpmAuditService auditService;
 
     public ProcessStartService(RuntimeService runtimeService,
                                IdentityService identityService,
-                               AuditService auditService) {
+                               BpmAuditService auditService) {
         this.runtimeService = runtimeService;
         this.identityService = identityService;
         this.auditService = auditService;

@@ -3,7 +3,6 @@ package com.example.approval.audit.service;
 import com.example.approval.audit.BpmAuditConstants;
 import com.example.approval.audit.BpmAuditProperties;
 import com.example.approval.audit.model.BpmCaseAttachment;
-import com.example.approval.clearance.service.AuditService;
 import com.example.approval.mapper.BpmAuditMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,22 +38,15 @@ public class AttachmentAuditService {
     /** Fallback for the NOT NULL {@code ENTRY_USER} column. */
     private static final int UNKNOWN_USER_ID = 0;
 
-    /**
-     * Semantic action key of the audit row written next to the attachment
-     * insert ({@code BPM_ACTIONS} has no dedicated upload code - the impl
-     * maps it onto {@code ENTERED} (0) and the note carries the file info).
-     */
-    private static final String ACTION_ATTACHMENT_UPLOADED = "ATTACHMENT_UPLOADED";
-
     private final BpmAuditMapper bpmAuditMapper;
     private final BpmAuditProperties properties;
     private final BpmAuditIdAllocator idAllocator;
-    private final AuditService auditService;
+    private final BpmAuditService auditService;
 
     public AttachmentAuditService(BpmAuditMapper bpmAuditMapper,
                                   BpmAuditProperties properties,
                                   BpmAuditIdAllocator idAllocator,
-                                  AuditService auditService) {
+                                  BpmAuditService auditService) {
         this.bpmAuditMapper = bpmAuditMapper;
         this.properties = properties;
         this.idAllocator = idAllocator;
@@ -96,7 +88,7 @@ public class AttachmentAuditService {
 
         // the upload itself is also an audited case action
         auditService.logProcessAction(processInstanceId,
-                ACTION_ATTACHMENT_UPLOADED,
+                BpmAuditConstants.ACTION_ATTACHMENT_UPLOADED,
                 null, null, uploadedBy, null,
                 "Attachment '" + contentName + "' uploaded (content id " + contentId + ")");
 
