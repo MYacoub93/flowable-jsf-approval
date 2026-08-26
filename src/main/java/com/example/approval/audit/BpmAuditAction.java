@@ -1,5 +1,8 @@
 package com.example.approval.audit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -443,6 +446,8 @@ public enum BpmAuditAction {
     // lookups
     // ------------------------------------------------------------------
 
+    private static final Logger LOG = LoggerFactory.getLogger(BpmAuditAction.class);
+
     /** Fast code -> enum lookup (built once). */
     private static final Map<Integer, BpmAuditAction> BY_CODE = new HashMap<>();
     static {
@@ -515,7 +520,7 @@ public enum BpmAuditAction {
         register(new String[]{"directmanager"},
                 DIRECT_MANAGER_APPROVAL, DIRECT_MANAGER_REJECTION, DIRECT_MANAGER_REVIEW,
                 TASK_RECEIVED_DIRECT_MANAGER);
-        register(new String[]{"healthcare", "healthcaredept", "healthcaredepartment"},
+        register(new String[]{"healthcare", "healthcaredept", "healthcaredepartment", "hc"},
                 HEALTH_CARE_APPROVAL, HEALTH_CARE_REJECTION, HEALTH_CARE_REVIEW,
                 TASK_RECEIVED_HEALTH_CARE);
         register(new String[]{"maintenancehos"},
@@ -524,10 +529,10 @@ public enum BpmAuditAction {
         register(new String[]{"maintenanceemployee"},
                 MAINTENANCE_EMPLOYEE_APPROVAL, MAINTENANCE_EMPLOYEE_REJECTION, MAINTENANCE_EMPLOYEE_REVIEW,
                 TASK_RECEIVED_MAINTENANCE_EMPLOYEE);
-        register(new String[]{"library", "librarydepartment"},
+        register(new String[]{"library", "librarydepartment", "lib"},
                 LIBRARY_APPROVAL, LIBRARY_REJECTION, LIBRARY_REVIEW,
                 TASK_RECEIVED_LIBRARY);
-        register(new String[]{"warehouse", "warehouses", "warehousedepartment"},
+        register(new String[]{"warehouse", "warehouses", "warehousedepartment", "wrh"},
                 WAREHOUSE_APPROVAL, WAREHOUSE_REJECTION, WAREHOUSE_REVIEW,
                 TASK_RECEIVED_WAREHOUSE);
         register(new String[]{"it", "itdepartment"},
@@ -536,7 +541,8 @@ public enum BpmAuditAction {
         register(new String[]{"prdepartment", "pr", "publicrelations", "publicrelationsdepartment"},
                 PR_DEPARTMENT_APPROVAL, PR_DEPARTMENT_REJECTION, PR_DEPARTMENT_REVIEW,
                 TASK_RECEIVED_PUBLIC_RELATIONS);
-        register(new String[]{"training", "trainingdepartment", "mediaandtraining", "mediaandtrainingdepartment"},
+        register(new String[]{"training", "trainingdepartment", "mediaandtraining", "mediaandtrainingdepartment",
+                "medtrn"},
                 TRAINING_DEPARTMENT_APPROVAL, TRAINING_DEPARTMENT_REJECTION, TRAINING_DEPARTMENT_REVIEW,
                 TASK_RECEIVED_TRAINING);
         register(new String[]{"consulting", "consultingdepartment"},
@@ -555,13 +561,13 @@ public enum BpmAuditAction {
         register(new String[]{"academiccounselor"},
                 ACADEMIC_COUNSELOR_APPROVAL, ACADEMIC_COUNSELOR_REJECTION, ACADEMIC_COUNSELOR_REVIEW,
                 TASK_RECEIVED_ACADEMIC_COUNSELOR);
-        register(new String[]{"studentsservices", "studentservices", "studentservicesdepartment"},
+        register(new String[]{"studentsservices", "studentservices", "studentservicesdepartment", "stdsrv"},
                 STUDENTS_SERVICES_APPROVAL, STUDENTS_SERVICES_REJECTION, STUDENTS_SERVICES_REVIEW,
                 TASK_RECEIVED_STUDENTS_SERVICES);
         register(new String[]{"delegationauthority"},
                 DELEGATION_AUTHORITY_APPROVAL, DELEGATION_AUTHORITY_REJECTION, DELEGATION_AUTHORITY_REVIEW,
                 TASK_RECEIVED_DELEGATION_AUTHORITY);
-        register(new String[]{"studentdeanship"},
+        register(new String[]{"studentdeanship", "stdden"},
                 STUDENT_DEANSHIP_APPROVAL, STUDENT_DEANSHIP_REJECTION, STUDENT_DEANSHIP_REVIEW,
                 TASK_RECEIVED_STUDENT_DEANSHIP);
         register(new String[]{"purchasing", "purchasingdepartment", "purshasing", "purshasingdepartment"},
@@ -594,22 +600,37 @@ public enum BpmAuditAction {
         register(new String[]{"cashier"},
                 CASHIER_APPROVAL, CASHIER_REJECTION, CASHIER_REVIEW,
                 TASK_RECEIVED_CASHIER);
-        register(new String[]{"legal", "legaldepartment"},
+        register(new String[]{"legal", "legaldepartment", "lgl"},
                 LEGAL_DEPARTMENT_APPROVAL, LEGAL_DEPARTMENT_REJECTION, LEGAL_DEPARTMENT_REVIEW,
                 TASK_RECEIVED_LEGAL);
         register(new String[]{"foreignstudentsoffice"},
                 FOREIGN_STUDENTS_OFFICE_APPROVAL, FOREIGN_STUDENTS_OFFICE_REJECTION, FOREIGN_STUDENTS_OFFICE_REVIEW,
                 TASK_RECEIVED_FOREIGN_STUDENTS_OFFICE);
         register(new String[]{"engineeringservices", "engineeringandservices", "engineringandservices",
-                "engineringandservicesdepartment"},
+                "engineringandservicesdepartment", "engsrv"},
                 ENGINEERING_SERVICES_APPROVAL, ENGINEERING_SERVICES_REJECTION, ENGINEERING_SERVICES_REVIEW,
                 TASK_RECEIVED_ENGINEERING_SERVICES);
     }
 
+    /**
+     * Registers one department under all its aliases. Aliases are normalized
+     * exactly like the lookup key in {@link #of(String, ActionType)} (lower
+     * case, non-alphanumerics stripped), so registering {@code "LGL"} stores
+     * the key {@code "lgl"} and matches the normalized runtime group ids.
+     */
     private static void register(String[] aliases, BpmAuditAction... actions) {
         for (String alias : aliases) {
-            DEPARTMENT_ACTIONS.put(alias, actions);
+            DEPARTMENT_ACTIONS.put(normalize(alias), actions);
         }
+    }
+
+    /**
+     * Normalizes a department name / alias for lookup: lower-cased with all
+     * characters but {@code a-z0-9} removed, so {@code "LGL"}, {@code "lgl"},
+     * {@code "Legal Department"} and {@code "legal-department"} share one key.
+     */
+    private static String normalize(String department) {
+        return department.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
     }
 
     /**
@@ -629,9 +650,13 @@ public enum BpmAuditAction {
         if (department == null || department.isBlank() || type == null) {
             return ENTERED;
         }
-        BpmAuditAction[] actions =
-                DEPARTMENT_ACTIONS.get(department.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", ""));
+        BpmAuditAction[] actions = DEPARTMENT_ACTIONS.get(normalize(department));
         if (actions == null) {
+            // never break the workflow over an unknown department, but make
+            // the ENTERED (0) fallback visible: it silently replaces the
+            // department's real BPM_ACTIONS code (e.g. LGL -> 162).
+            LOG.warn("Unknown BPM audit department '{}' (type {}) - falling back to ENTERED (0)",
+                    department, type);
             return ENTERED;
         }
         return switch (type) {
