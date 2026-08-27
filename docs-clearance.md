@@ -51,7 +51,8 @@ End
 | Parallel approvals | `<userTask>` with `<multiInstanceLoopCharacteristics isSequential="false">`, `flowable:collection="requiredDepartments"`, `flowable:elementVariable="department"` |
 | One task per department | `flowable:candidateGroups="${department}"` — department name IS the Flowable group id |
 | Any-reject detection | TaskListener sets `anyDepartmentRejected=true`; MI `completionCondition="${anyDepartmentRejected or nrOfCompletedInstances == nrOfInstances}"` cancels remaining instances |
-| Before-task logic | Single TaskListener (`${clearanceTaskListener}`) on `create` event: e-mail + `TASK_ASSIGNED` audit |
+| Before-task logic | Single TaskListener (`${clearanceTaskListener}`) on `create` event: e-mail (all group members from `FLOWABLE_USERS_VW`) + `TASK_ASSIGNED` audit |
+| Claim handling | Same listener on `assignment` event: personal e-mail to the claimer only (address from `FLOWABLE_USERS_VW`) |
 | After-task logic | Same listener on `complete`: `APPROVED`/`REJECTED` audit + decision stored in `departmentDecisions` map |
 | Cancellation audit | Same listener on `delete`: `TASK_CANCELLED` audit for still-open sibling tasks |
 | Amendment loop | Gateway `allDepartmentsApproved` / `financeApproved` / `admissionApproved` route to `Amend Clearance Request`; the service task `Prepare Next Approval Round` resets round variables; flow returns to `Resolve Required Departments` |
@@ -74,7 +75,7 @@ com.example.approval.clearance
 ├── flowable/
 │   ├── ClearanceProcessHandler   JavaDelegate/ExecutionListener (resolve, reset round,
 │   │                              finalize completion, log amendment)
-│   └── ClearanceTaskListener     TaskListener (create/complete/delete)
+│   └── ClearanceTaskListener     TaskListener (create/assignment/complete/delete)
 └── backing/
     ├── StartClearanceBean        JSF start form
     └── ClearanceTaskBean         JSF approve/reject/amend/FYI form
@@ -82,11 +83,13 @@ com.example.approval.clearance
 com.example.approval.notification (global - usable by every process)
 ├── NotificationProperties        @ConfigurationProperties("notification")
 ├── model/
-│   └── NotificationMessage       process-agnostic message (builder)
+│   └── NotificationMessage       process-agnostic message (builder, incl. assigneeUser)
 └── service/
+    ├── NotificationRecipientResolver  group-member / assignee e-mails pulled live
+    │                                  from FLOWABLE_USERS_VW (DB-first)
     ├── NotificationService       send(NotificationMessage)
-    └── impl/EmailNotificationService  SMTP implementation (recipient resolution,
-                                       task deep links, failure tolerant)
+    └── impl/EmailNotificationService  SMTP implementation (DB-first recipient
+                                       resolution, task deep links, failure tolerant)
 ```
 
 ## Process variables
@@ -113,9 +116,15 @@ notification:                              # global - shared by every process
   from: noreply@example.edu
   task-link-base: http://localhost:8080
   always-log: true
+  # DB-FIRST resolution: group member / assignee addresses are pulled live
+  # from the Oracle view FLOWABLE_USERS_VW:
+  #   - unclaimed group task -> e-mail of EVERY group member
+  #   - claimed task         -> only the assignee's e-mail
+  # the entries below are only static FALLBACKS for when the view returns
+  # nothing
   user-email-domain: students.example.edu  # username -> username@domain
   group-mailboxes:
-    IT Department: it@example.edu          # one address per candidate group
+    IT Department: it@example.edu          # shared inbox per candidate group
   user-mailboxes:                          # explicit mailbox per username
     student.john: john@example.edu
   task-link-paths:                         # process key -> JSF task page
@@ -129,11 +138,29 @@ clearance:
       some.student: [DEN, HOD, IT Department]   # per-student subsets
 ```
 
-- `notification.*` – global settings, group mailboxes and deep-link paths
-  used by every process (see `com.example.approval.notification`).
+- `notification.*` – global settings and deep-link paths used by every
+  process (see `com.example.approval.notification`). Recipients are resolved
+  **database-first** from `FLOWABLE_USERS_VW`: an unclaimed group task mails
+  every member of the candidate group, a claimed task mails only the assignee;
+  the configured mailboxes are fallbacks.
 - `mode: ALL` – all 11 departments for every initiator.
 - `initiator-overrides` – comma-separated or list values select a subset
   for a specific initiator (re-evaluated after every amendment).
+
+## E-mail recipient resolution (FLOWABLE_USERS_VW)
+
+The notification package never hardcodes recipients - addresses are pulled
+live from the SIS view via dedicated queries in `FlowableIdentityMapper`:
+
+| Situation | Query | Recipients |
+|---|---|---|
+| Task created for a candidate group (not claimed) | `findEmailsByGroup(groupId)` (`ROLE_CODE_` = group id) | every member address of the group |
+| Task claimed (`assignment` event or created with assignee) | `findEmailByUsername(assignee)` | only the claimer's address |
+| Initiator result notification | `findEmailByUsername(initiator)` | only the initiator |
+
+Static `notification.group-mailboxes` / `user-mailboxes` /
+`user-email-domain` are only used when the view returns nothing, and any
+lookup/SendMail failure is logged without breaking the Flowable transaction.
 
 ## Audit trail
 

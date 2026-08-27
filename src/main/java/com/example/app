@@ -1,282 +1,32 @@
-package com.example.approval.clearance.backing;
+package com.example.approval.mapper;
 
-import com.example.approval.backing.UserLoginBean;
-import com.example.approval.clearance.ClearanceConstants;
-import com.example.approval.clearance.model.DepartmentDecision;
-import com.example.approval.clearance.service.ClearanceService;
-import jakarta.annotation.PostConstruct;
-import jakarta.faces.application.FacesMessage;
-import jakarta.faces.context.FacesContext;
-import org.flowable.task.api.Task;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.web.context.annotation.RequestScope;
-
-import java.io.Serializable;
-import java.util.ArrayList;
+import org.apache.ibatis.annotations.Mapper;
+import org.flowable.idm.engine.impl.persistence.entity.GroupEntityImpl;
+import org.flowable.idm.engine.impl.persistence.entity.UserEntityImpl;
 import java.util.List;
-import java.util.Map;
 
-/**
- * Backing bean for ALL Clearance Letter tasks: the parallel department
- * approvals, Finance, Admission & Registration, the initiator amendment task
- * and the standalone result / FYI tasks. The single form switches sections by
- * task definition key / category.
- *
- * Pure Spring bean (like the other backing beans): JoinFaces resolves it
- * through the Spring EL resolver so @Autowired injection works.
- */
-@Component("clearanceTaskBean")
-@RequestScope
-public class ClearanceTaskBean implements Serializable {
+@Mapper
+public interface FlowableIdentityMapper {
+    UserEntityImpl findUserByUsernameForAuth(String username);
+    UserEntityImpl findUserById(String id);
+    UserEntityImpl findUserByUsername(String username);
+    List<GroupEntityImpl> findGroupsByUser(String userId);
 
-    private static final long serialVersionUID = 1L;
+    /** Groups with the exact id, sourced from the SIS view (usually 0..1 rows). */
+    List<GroupEntityImpl> findGroupById(String groupId);
 
-    @Autowired
-    private UserLoginBean loginBean;
+    /**
+     * E-mail addresses of every member of a group (FLOWABLE_USERS_VW rows whose
+     * ROLE_CODE_ equals the group id). Used by the notification subsystem to
+     * mail all approvers of a candidate group; empty when the group has no
+     * members with an e-mail.
+     */
+    List<String> findEmailsByGroup(String groupId);
 
-    @Autowired
-    private ClearanceService clearanceService;
-
-    private String taskId;
-    private Task task;
-    private Map<String, Object> variables;
-    private List<DepartmentDecision> decisionHistory = new ArrayList<>();
-
-    private String comments;
-
-    /** editable copies for the amendment form (initialised from variables). */
-    private String studentFullName;
-    private String studentId;
-    private String program;
-    private String notes;
-
-    @PostConstruct
-    public void init() {
-        Map<String, String> params = FacesContext.getCurrentInstance()
-                .getExternalContext().getRequestParameterMap();
-        taskId = params.get("taskId");
-        if (taskId == null) {
-            Object flashTaskId = FacesContext.getCurrentInstance()
-                    .getExternalContext().getFlash().get("taskId");
-            if (flashTaskId != null) {
-                taskId = flashTaskId.toString();
-            }
-        }
-        if (taskId != null && loginBean.isLoggedIn()) {
-            loadTask();
-        }
-    }
-
-    private void loadTask() {
-        task = clearanceService.getTaskById(taskId);
-        if (task != null) {
-            variables = clearanceService.getTaskVariables(taskId);
-            Object decisions = variables.get(ClearanceConstants.VAR_DEPARTMENT_DECISIONS);
-            if (decisions instanceof Map<?, ?> map) {
-                decisionHistory = new ArrayList<>();
-                for (Object value : map.values()) {
-                    if (value instanceof DepartmentDecision dd) {
-                        decisionHistory.add(dd);
-                    }
-                }
-            }
-            // prefill the amendment form with the current values
-            studentFullName = str(variables, ClearanceConstants.VAR_STUDENT_FULL_NAME);
-            studentId = str(variables, ClearanceConstants.VAR_STUDENT_ID);
-            program = str(variables, ClearanceConstants.VAR_PROGRAM);
-            notes = str(variables, ClearanceConstants.VAR_NOTES);
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // form mode helpers
-    // ------------------------------------------------------------------
-
-    /** true when this is one of the approval tasks (department/Finance/Admission). */
-    public boolean isApprovalTask() {
-        if (task == null) {
-            return false;
-        }
-        String key = task.getTaskDefinitionKey();
-        return ClearanceConstants.TASK_DEPARTMENT_APPROVAL.equals(key)
-                || ClearanceConstants.TASK_FINANCE_APPROVAL.equals(key)
-                || ClearanceConstants.TASK_ADMISSION_APPROVAL.equals(key);
-    }
-
-    /** true when this is the initiator's amendment task. */
-    public boolean isAmendmentTask() {
-        return task != null
-                && ClearanceConstants.TASK_AMEND.equals(task.getTaskDefinitionKey());
-    }
-
-    /** true when this is a standalone FYI / result notification task. */
-    public boolean isNotificationTask() {
-        if (task == null || task.getTaskDefinitionKey() != null) {
-            return false;
-        }
-        // standalone tasks created with taskService.newTask() have no definition key
-        return ClearanceConstants.CATEGORY_FYI.equals(task.getCategory())
-                || ClearanceConstants.CATEGORY_RESULT.equals(task.getCategory());
-    }
-
-    // ------------------------------------------------------------------
-    // actions
-    // ------------------------------------------------------------------
-
-    public String approve() {
-        return completeDecision(ClearanceConstants.DECISION_APPROVE);
-    }
-
-    public String reject() {
-        return completeDecision(ClearanceConstants.DECISION_REJECT);
-    }
-
-    private String completeDecision(String decision) {
-        if (!loginBean.isLoggedIn() || task == null) {
-            addError("Invalid state");
-            return null;
-        }
-        try {
-            clearanceService.completeApprovalTask(
-                    taskId, decision, comments, loginBean.getCurrentUser().getId());
-            FacesContext.getCurrentInstance().addMessage(null,
-                    new FacesMessage(FacesMessage.SEVERITY_INFO,
-                            ClearanceConstants.DECISION_APPROVE.equals(decision)
-                                    ? "Request approved" : "Request rejected", null));
-            return "/dashboard?faces-redirect=true";
-        } catch (Exception e) {
-            addError("Failed to complete task: " + e.getMessage());
-            return null;
-        }
-    }
-
-    public String submitAmendment() {
-        if (!loginBean.isLoggedIn() || task == null) {
-            addError("Invalid state");
-            return null;
-        }
-        try {
-            clearanceService.completeAmendment(
-                    taskId,
-                    studentFullName,
-                    studentId,
-                    program,
-                    notes,
-                    comments,
-                    loginBean.getCurrentUser().getId());
-            FacesContext.getCurrentInstance().addMessage(null,
-                    new FacesMessage(FacesMessage.SEVERITY_INFO,
-                            "Amendment submitted - the clearance process restarts", null));
-            return "/dashboard?faces-redirect=true";
-        } catch (Exception e) {
-            addError("Failed to submit amendment: " + e.getMessage());
-            return null;
-        }
-    }
-
-    public String acknowledge() {
-        if (!loginBean.isLoggedIn() || task == null) {
-            addError("Invalid state");
-            return null;
-        }
-        try {
-            clearanceService.acknowledgeTask(taskId, loginBean.getCurrentUser().getId());
-            FacesContext.getCurrentInstance().addMessage(null,
-                    new FacesMessage(FacesMessage.SEVERITY_INFO, "Noted", null));
-            return "/dashboard?faces-redirect=true";
-        } catch (Exception e) {
-            addError("Failed to acknowledge: " + e.getMessage());
-            return null;
-        }
-    }
-
-    private void addError(String msg) {
-        FacesContext.getCurrentInstance().addMessage(null,
-                new FacesMessage(FacesMessage.SEVERITY_ERROR, msg, null));
-    }
-
-    // ------------------------------------------------------------------
-    // convenience getters for the form
-    // ------------------------------------------------------------------
-
-    public String getStudentFullName() {
-        return studentFullName;
-    }
-
-    public void setStudentFullName(String studentFullName) {
-        this.studentFullName = studentFullName;
-    }
-
-    public String getStudentId() {
-        return studentId;
-    }
-
-    public void setStudentId(String studentId) {
-        this.studentId = studentId;
-    }
-
-    public String getProgram() {
-        return program;
-    }
-
-    public void setProgram(String program) {
-        this.program = program;
-    }
-
-    public String getNotes() {
-        return notes;
-    }
-
-    public void setNotes(String notes) {
-        this.notes = notes;
-    }
-
-    public String getInitiator() {
-        return str(variables, ClearanceConstants.VAR_INITIATOR);
-    }
-
-    public String getApprovalRound() {
-        return str(variables, ClearanceConstants.VAR_APPROVAL_ROUND);
-    }
-
-    public String getLastRejectedStage() {
-        return str(variables, ClearanceConstants.VAR_LAST_REJECTED_STAGE);
-    }
-
-    public String getLastRejectedDepartment() {
-        return str(variables, ClearanceConstants.VAR_LAST_REJECTED_DEPARTMENT);
-    }
-
-    public String getLastRejectionComment() {
-        return str(variables, ClearanceConstants.VAR_LAST_REJECTION_COMMENT);
-    }
-
-    public List<DepartmentDecision> getDecisionHistory() {
-        return decisionHistory;
-    }
-
-    public Task getTask() {
-        return task;
-    }
-
-    public String getTaskId() {
-        return taskId;
-    }
-
-    public String getComments() {
-        return comments;
-    }
-
-    public void setComments(String comments) {
-        this.comments = comments;
-    }
-
-    private static String str(Map<String, Object> vars, String key) {
-        if (vars == null) {
-            return null;
-        }
-        Object value = vars.get(key);
-        return value != null ? value.toString() : null;
-    }
+    /**
+     * E-mail address of a single user from FLOWABLE_USERS_VW (used when a task
+     * is claimed by one person, or to notify the initiator of the result).
+     * Returns {@code null} when the user or e-mail is unknown.
+     */
+    String findEmailByUsername(String username);
 }

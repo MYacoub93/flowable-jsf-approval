@@ -100,6 +100,16 @@ logging:
 
 # Global notification configuration (usable by every process)
 # See com.example.approval.notification.*
+#
+# Recipient resolution is DATABASE-FIRST: addresses are pulled live from the
+# Oracle view FLOWABLE_USERS_VW via dedicated queries
+# (FlowableIdentityMapper.findEmailsByGroup / findEmailByUsername):
+#   - group task (not claimed) -> e-mail of EVERY member of the candidate
+#     group (ROLE_CODE_ = group id)
+#   - claimed task (assignee)  -> only the assignee's personal e-mail
+#   - user notification        -> that user's personal e-mail
+# group-mailboxes / user-mailboxes / user-email-domain below are only STATIC
+# FALLBACKS used when the view returns nothing.
 notification:
   enabled: true
   from: noreply@example.edu
@@ -107,8 +117,8 @@ notification:
   always-log: true
   # convention used when a username has no explicit user-mailbox entry
   user-email-domain: students.example.edu
-  # e-mail address per Flowable candidate group / department id (global -
-  # shared by every process that notifies groups)
+  # fallback shared mailbox per candidate group / department id - only used
+  # when FLOWABLE_USERS_VW returns no member addresses for the group
   group-mailboxes:
     DEN: den@example.edu
     HOD: hod@example.edu
@@ -124,7 +134,7 @@ notification:
     Finance Department: finance@example.edu
     Admission and Registration Department: admission.registration@example.edu
     Internal Audit Department: internal.audit@example.edu
-  # explicit mailbox per username (wins over user-email-domain)
+  # fallback mailbox per username (wins over user-email-domain)
   user-mailboxes: {}
   # per-process JSF task page path used in deep links
   task-link-paths:

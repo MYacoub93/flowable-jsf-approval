@@ -9,13 +9,20 @@ package com.example.approval.notification.model;
  * {@code EmailNotificationService} decides <b>how</b> the recipient address is
  * resolved and how the e-mail body is rendered.</p>
  *
- * <p>Recipient resolution order (first match wins):</p>
+ * <p>Recipient resolution is database-first - addresses are pulled from the
+ * SIS view {@code FLOWABLE_USERS_VW}:</p>
  * <ol>
- *   <li>{@link #getRecipientEmail()} - explicit address;</li>
- *   <li>{@code notification.group-mailboxes} keyed by {@link #getDepartment()};</li>
- *   <li>{@code notification.group-mailboxes} keyed by {@link #getCandidateGroup()};</li>
- *   <li>{@code notification.user-mailboxes} keyed by {@link #getRecipientUser()};</li>
- *   <li>convention {@code recipientUser@user-email-domain}.</li>
+ *   <li>{@link #getRecipientEmail()} - explicit address (always wins);</li>
+ *   <li>{@link #getAssigneeUser()} - the task was <i>claimed</i>, so exactly
+ *       that person's address from {@code FLOWABLE_USERS_VW} is used;</li>
+ *   <li>candidate group / department - the addresses of <b>every member</b>
+ *       of the group ({@code ROLE_CODE_} = group id) are used, so all
+ *       approvers receive the mail;</li>
+ *   <li>{@link #getRecipientUser()} - a single named user (typically the
+ *       initiator), address from {@code FLOWABLE_USERS_VW};</li>
+ *   <li>static fallbacks: {@code notification.user-mailboxes},
+ *       {@code notification.user-email-domain} convention,
+ *       {@code notification.group-mailboxes}.</li>
  * </ol>
  *
  * <p>Instances are immutable - create them with {@link #builder()}.</p>
@@ -47,6 +54,7 @@ public final class NotificationMessage {
 
     private final String recipientUser;
     private final String recipientEmail;
+    private final String assigneeUser;
 
     private final String taskId;
     private final String taskLinkPath;
@@ -67,6 +75,7 @@ public final class NotificationMessage {
         this.candidateGroup = builder.candidateGroup;
         this.recipientUser = builder.recipientUser;
         this.recipientEmail = builder.recipientEmail;
+        this.assigneeUser = builder.assigneeUser;
         this.taskId = builder.taskId;
         this.taskLinkPath = builder.taskLinkPath;
         this.initiator = builder.initiator;
@@ -123,6 +132,14 @@ public final class NotificationMessage {
         return recipientEmail;
     }
 
+    /**
+     * Username the task was claimed by (assignee). When set, only this person
+     * is notified - the e-mail address comes from {@code FLOWABLE_USERS_VW}.
+     */
+    public String getAssigneeUser() {
+        return assigneeUser;
+    }
+
     /** Flowable task id for the deep link. May be null. */
     public String getTaskId() {
         return taskId;
@@ -168,6 +185,7 @@ public final class NotificationMessage {
         private String candidateGroup;
         private String recipientUser;
         private String recipientEmail;
+        private String assigneeUser;
         private String taskId;
         private String taskLinkPath;
         private String initiator;
@@ -220,6 +238,11 @@ public final class NotificationMessage {
 
         public Builder recipientEmail(String recipientEmail) {
             this.recipientEmail = recipientEmail;
+            return this;
+        }
+
+        public Builder assigneeUser(String assigneeUser) {
+            this.assigneeUser = assigneeUser;
             return this;
         }
 

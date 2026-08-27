@@ -64,4 +64,27 @@
             ID = #{groupId}
     </select>
 
+    <!-- عناوين البريد الإلكتروني لجميع أعضاء المجموعة، مسحوبة مباشرة من
+         FLOWABLE_USERS_VW عبر استعلام خاص. يُستخدم من نظام الإشعارات
+         العالمي لإرسال رسالة واحدة إلى كل معتمدي المجموعة المرشحة.
+         ROLE_CODE_ هو معرف المجموعة (الرول) داخل العرض. -->
+    <select id="findEmailsByGroup" resultType="java.lang.String">
+        SELECT DISTINCT
+            u.EMAIL_
+        FROM FLOWABLE_USERS_VW u
+        WHERE u.ROLE_CODE_ = #{groupId}
+          AND u.EMAIL_ IS NOT NULL
+        ORDER BY u.EMAIL_
+    </select>
+
+    <!-- البريد الإلكتروني لمستخدم واحد (يُستخدم عندما تكون المهمة محجوزة
+         claimed لشخص معين، أو لإشعار المُبادر بالنتيجة النهائية). -->
+    <select id="findEmailByUsername" resultType="java.lang.String">
+        SELECT
+            MAX(u.EMAIL_)
+        FROM FLOWABLE_USERS_VW u
+        WHERE u.USERNAME_ = LOWER(#{username})
+          AND u.EMAIL_ IS NOT NULL
+    </select>
+
 </mapper>
