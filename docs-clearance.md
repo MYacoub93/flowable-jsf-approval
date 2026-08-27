@@ -63,18 +63,14 @@ End
 ```
 com.example.approval.clearance
 ├── ClearanceConstants            process/group/task/stage/variable names
-├── ClearanceProperties           @ConfigurationProperties("clearance")
+├── ClearanceProperties           @ConfigurationProperties("clearance") - departments only
 ├── ClearanceRequestContract      start-form data + validation
 ├── model/
-│   ├── DepartmentDecision        department, group, decision, user, comment, timestamp, round
-│   └── AuditRecord               one audit row
+│   └── DepartmentDecision        department, group, decision, user, comment, timestamp, round
 ├── service/
 │   ├── DepartmentResolverService     List<String> resolveDepartments(initiator)
-│   ├── NotificationService           sendTaskNotification(...) / sendResultNotification(...)
-│   ├── AuditService                  logTaskAssigned / logTaskCompleted / logProcessAction
 │   ├── ClearanceService              start / claim / complete / amend / acknowledge facade
-│   └── impl/                         ConfigurableDepartmentResolverService,
-│                                      EmailNotificationService, AuditServiceImpl
+│   └── impl/                         ConfigurableDepartmentResolverService
 ├── flowable/
 │   ├── ClearanceProcessHandler   JavaDelegate/ExecutionListener (resolve, reset round,
 │   │                              finalize completion, log amendment)
@@ -82,6 +78,15 @@ com.example.approval.clearance
 └── backing/
     ├── StartClearanceBean        JSF start form
     └── ClearanceTaskBean         JSF approve/reject/amend/FYI form
+
+com.example.approval.notification (global - usable by every process)
+├── NotificationProperties        @ConfigurationProperties("notification")
+├── model/
+│   └── NotificationMessage       process-agnostic message (builder)
+└── service/
+    ├── NotificationService       send(NotificationMessage)
+    └── impl/EmailNotificationService  SMTP implementation (recipient resolution,
+                                       task deep links, failure tolerant)
 ```
 
 ## Process variables
@@ -103,19 +108,29 @@ com.example.approval.clearance
 ## Configuration (`application.yml`)
 
 ```yaml
+notification:                              # global - shared by every process
+  enabled: true
+  from: noreply@example.edu
+  task-link-base: http://localhost:8080
+  always-log: true
+  user-email-domain: students.example.edu  # username -> username@domain
+  group-mailboxes:
+    IT Department: it@example.edu          # one address per candidate group
+  user-mailboxes:                          # explicit mailbox per username
+    student.john: john@example.edu
+  task-link-paths:                         # process key -> JSF task page
+    clearanceLetterProcess: /clearance-task.xhtml
+
 clearance:
-  notification:
-    from: clearance-noreply@example.edu
-    task-link-base: http://localhost:8080
-    group-mailboxes:
-      IT Department: it@example.edu      # one address per group
   departments:
-    mode: ALL                            # ALL | DEFAULT_ONLY
+    mode: ALL                              # ALL | CONFIGURED
     default-departments: [DEN, HOD, ...]
     initiator-overrides:
       some.student: [DEN, HOD, IT Department]   # per-student subsets
 ```
 
+- `notification.*` – global settings, group mailboxes and deep-link paths
+  used by every process (see `com.example.approval.notification`).
 - `mode: ALL` – all 11 departments for every initiator.
 - `initiator-overrides` – comma-separated or list values select a subset
   for a specific initiator (re-evaluated after every amendment).

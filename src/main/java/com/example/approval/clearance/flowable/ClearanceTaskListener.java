@@ -3,7 +3,8 @@ package com.example.approval.clearance.flowable;
 import com.example.approval.clearance.ClearanceConstants;
 import com.example.approval.clearance.model.DepartmentDecision;
 import com.example.approval.audit.service.BpmAuditService;
-import com.example.approval.clearance.service.NotificationService;
+import com.example.approval.notification.model.NotificationMessage;
+import com.example.approval.notification.service.NotificationService;
 import org.flowable.engine.delegate.TaskListener;
 import org.flowable.task.service.delegate.DelegateTask;
 import org.slf4j.Logger;
@@ -85,16 +86,20 @@ public class ClearanceTaskListener implements TaskListener {
         // initiator's own amendment/result tasks)
         boolean notifyApprover = !TASK_AMEND.equals(task.getTaskDefinitionKey());
         if (notifyApprover) {
-            notificationService.sendTaskNotification(
-                    pid,
-                    PROCESS_NAME,
-                    stage,
-                    department,
-                    candidateGroup,
-                    task.getId(),
-                    initiator,
-                    "[" + PROCESS_NAME + "] Approval required by " + safe(department),
-                    "Please review and Approve / Reject the clearance request.");
+            notificationService.send(NotificationMessage.builder()
+                    .type(NotificationMessage.Type.TASK_ASSIGNED)
+                    .processKey(PROCESS_KEY)
+                    .processName(PROCESS_NAME)
+                    .processInstanceId(pid)
+                    .stage(stage)
+                    .department(department)
+                    .candidateGroup(candidateGroup)
+                    .taskId(task.getId())
+                    .initiator(initiator)
+                    .subject("[" + PROCESS_NAME + "] Approval required by " + safe(department))
+                    .intro("A " + PROCESS_NAME + " approval task is waiting for your department.")
+                    .additionalInfo("Please review and Approve / Reject the clearance request.")
+                    .build());
         }
         log.debug("Clearance task {} created for stage {} / department {}",
                 task.getId(), stage, department);

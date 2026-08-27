@@ -4,7 +4,8 @@ import com.example.approval.clearance.ClearanceConstants;
 import com.example.approval.clearance.model.DepartmentDecision;
 import com.example.approval.audit.service.BpmAuditService;
 import com.example.approval.clearance.service.DepartmentResolverService;
-import com.example.approval.clearance.service.NotificationService;
+import com.example.approval.notification.model.NotificationMessage;
+import com.example.approval.notification.service.NotificationService;
 import org.flowable.engine.TaskService;
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.task.api.Task;
@@ -150,7 +151,17 @@ public class ClearanceProcessHandler {
                 null, initiator, initiator, "Clearance Letter: Approved");
 
         // 1) Notify the original initiator by e-mail
-        notificationService.sendResultNotification(pid, initiator, "Clearance Letter: Approved");
+        notificationService.send(NotificationMessage.builder()
+                .type(NotificationMessage.Type.RESULT)
+                .processKey(PROCESS_KEY)
+                .processName(PROCESS_NAME)
+                .processInstanceId(pid)
+                .recipientUser(initiator)
+                .initiator(initiator)
+                .subject("[" + PROCESS_NAME + "] Clearance Letter: Approved")
+                .intro("Clearance Letter: Approved")
+                .additionalInfo("The full audit trail is available in the portal.")
+                .build());
 
         // 2) Result task for the initiator (standalone => does not block the process)
         Task resultTask = taskService.newTask();

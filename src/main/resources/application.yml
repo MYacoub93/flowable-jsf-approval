@@ -98,28 +98,40 @@ logging:
     com.example.approval: DEBUG
     org.mybatis: DEBUG
 
+# Global notification configuration (usable by every process)
+# See com.example.approval.notification.*
+notification:
+  enabled: true
+  from: noreply@example.edu
+  task-link-base: http://localhost:8080
+  always-log: true
+  # convention used when a username has no explicit user-mailbox entry
+  user-email-domain: students.example.edu
+  # e-mail address per Flowable candidate group / department id (global -
+  # shared by every process that notifies groups)
+  group-mailboxes:
+    DEN: den@example.edu
+    HOD: hod@example.edu
+    StudentServices: student-services@example.edu
+    Warehouses: warehouses@example.edu
+    HealthCareDept: health-care@example.edu
+    LegalDepartment: legal@example.edu
+    Student Deanship: student.deanship@example.edu
+    MediaAndTraining Department: media.training@example.edu
+    LibraryDepartment: library@example.edu
+    IT Department: it@example.edu
+    Enginering and Services Department: engineering.services@example.edu
+    Finance Department: finance@example.edu
+    Admission and Registration Department: admission.registration@example.edu
+    Internal Audit Department: internal.audit@example.edu
+  # explicit mailbox per username (wins over user-email-domain)
+  user-mailboxes: {}
+  # per-process JSF task page path used in deep links
+  task-link-paths:
+    clearanceLetterProcess: /clearance-task.xhtml
+
 # Clearance Letter process configuration
 clearance:
-  notification:
-    from: clearance-noreply@example.edu
-    task-link-base: http://localhost:8080
-    always-log: true
-    # e-mail address per Flowable candidate group (department)
-    group-mailboxes:
-      DEN: den@example.edu
-      HOD: hod@example.edu
-      StudentServices: student-services@example.edu
-      Warehouses: warehouses@example.edu
-      HealthCareDept: health-care@example.edu
-      LegalDepartment: legal@example.edu
-      Student Deanship: student.deanship@example.edu
-      MediaAndTraining Department: media.training@example.edu
-      LibraryDepartment: library@example.edu
-      IT Department: it@example.edu
-      Enginering and Services Department: engineering.services@example.edu
-      Finance Department: finance@example.edu
-      Admission and Registration Department: admission.registration@example.edu
-      Internal Audit Department: internal.audit@example.edu
   departments:
     # ALL (default) | DEFAULT_ONLY | or per-initiator lists via initiator-overrides
     mode: ALL
