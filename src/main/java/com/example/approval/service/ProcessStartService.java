@@ -73,7 +73,8 @@ public class ProcessStartService {
 
             // the process is started - write the F_BPM_AUDIT_LOG master row
             // for this instance; CASE_ID == process instance id (no allocation)
-            auditService.openCase(processDefinitionKey, instance.getId(), initiatorUsername);
+            auditService.openCase(processDefinitionKey, instance.getId(), initiatorUsername,
+                    startFormNote(vars));
 
             log.info("Started process instance {} (key {}) for initiator {} - BPM CASE_ID = process instance id",
                     instance.getId(), processDefinitionKey, initiatorUsername);
@@ -81,5 +82,21 @@ public class ProcessStartService {
         } finally {
             identityService.setAuthenticatedUserId(null);
         }
+    }
+
+    /**
+     * Extracts the free text note of the start form from the process
+     * variables. Process agnostic: the well-known note variable names of the
+     * shipped ProcessStartContract implementations are probed in order and
+     * the first non-blank value wins (nullable).
+     */
+    private String startFormNote(Map<String, Object> vars) {
+        for (String key : new String[]{"notes", "note", "description", "comment"}) {
+            Object value = vars.get(key);
+            if (value != null && !value.toString().isBlank()) {
+                return value.toString();
+            }
+        }
+        return null;
     }
 }

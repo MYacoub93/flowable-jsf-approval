@@ -43,16 +43,24 @@ public interface BpmAuditService {
      * Opens a new case <b>after</b> the process instance was started:
      * inserts the master row into {@code F_BPM_AUDIT_LOG} using the
      * process instance id as {@code CASE_ID} (caller-supplied, never
-     * generated) and returns it.
+     * generated), inserts the opening detail row into
+     * {@code F_BPM_AUDIT_LOG_DTL} (action {@code ENTERED}, code 0) carrying
+     * the note supplied by the start form, and returns the case id.
      *
      * @param processDefinitionKey Flowable process definition key (mapped to
      *                             {@code BPM_DOCUMENTS.DOCUMENT_CODE})
      * @param processInstanceId    id of the already started process instance;
      *                             used directly as {@code CASE_ID}
      * @param initiatorUsername    username of the requestor
+     * @param note                 free text note from the start form, stored
+     *                             in {@code F_BPM_AUDIT_LOG_DTL.NOTE}
+     *                             (nullable)
      * @return the business case id (== processInstanceId)
      */
-    String openCase(String processDefinitionKey, String processInstanceId, String initiatorUsername);
+    String openCase(String processDefinitionKey,
+                    String processInstanceId,
+                    String initiatorUsername,
+                    String note);
 
     /**
      * Audit row for a task becoming available to an approver group

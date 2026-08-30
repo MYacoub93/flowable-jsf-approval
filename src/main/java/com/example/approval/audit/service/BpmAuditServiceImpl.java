@@ -67,7 +67,10 @@ public class BpmAuditServiceImpl implements BpmAuditService {
     // ------------------------------------------------------------------
 
     @Override
-    public String openCase(String processDefinitionKey, String processInstanceId, String initiatorUsername) {
+    public String openCase(String processDefinitionKey,
+                           String processInstanceId,
+                           String initiatorUsername,
+                           String note) {
         if (!properties.isEnabled()) {
             log.debug("BPM audit disabled (bpm.audit.enabled=false) - skipping openCase for {}",
                     processInstanceId);
@@ -87,6 +90,12 @@ public class BpmAuditServiceImpl implements BpmAuditService {
         master.setTerminal(truncate(terminal(), BpmAuditConstants.TERMINAL_MAX_LENGTH_DTL));
         master.setOsUser(osUser());
         bpmAuditMapper.insertAuditLog(master);
+
+        // opening action of the case: ENTERED (0) - the first detail row of
+        // F_BPM_AUDIT_LOG_DTL, carrying the note typed on the start form
+        insert(BpmAuditAction.ENTERED, processInstanceId, initiatorUsername,
+                note != null && !note.trim().isEmpty() ? note.trim() : null, 0);
+
         log.info("BPM audit: opened case {} (process instance {}, key {}, requestor {} / {})",
                 caseId, processInstanceId, processDefinitionKey, initiatorUsername, requestorId);
         return caseId;
