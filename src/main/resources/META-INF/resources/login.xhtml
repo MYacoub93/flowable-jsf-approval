@@ -1,41 +1,57 @@
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
+      xmlns:f="jakarta.faces.core"
+      xmlns:p="http://primefaces.org/ui">
 <h:head>
-    <title>Login - Approval Workflow</title>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Sign in - Workflow Station</title>
     <h:outputStylesheet name="css/portal.css"/>
 </h:head>
 <h:body>
-    <div class="login-card">
-        <h1>Approval Workflow Login</h1>
-        <h:messages styleClass="msg" />
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <span class="brand-badge"><i class="pi pi-verified"/></span>
+                <div>
+                    <h1 class="auth-title">Workflow Station</h1>
+                </div>
+            </div>
+            <p class="auth-sub">Sign in with your university account to continue.</p>
 
-        <h:form id="loginForm">
-            <div class="form-group">
-                <h:outputLabel for="username" value="Username"/>
-                <h:inputText id="username" value="#{loginBean.username}" required="true"
-                             requiredMessage="Username is required"/>
-            </div>
-            <div class="form-group">
-                <h:outputLabel for="password" value="Password"/>
-                <h:inputSecret id="password" value="#{loginBean.password}" required="true"
-                               requiredMessage="Password is required" autocomplete="current-password"/>
-            </div>
-            <div class="form-actions">
-                <h:commandButton value="Login" action="#{loginBean.login}" styleClass="btn"/>
-            </div>
-        </h:form>
+            <h:messages styleClass="auth-messages" globalOnly="false"/>
 
-        <div class="hint">
-            <p><strong>Demo users:</strong></p>
-            <ul>
-                <li>alice (INITIATOR - IT)</li>
-                <li>bob (MANAGER - IT)</li>
-                <li>dave (FINANCE)</li>
-                <li>frank (INITIATOR - HR)</li>
-                <li>grace (MANAGER - HR)</li>
-            </ul>
+            <h:form id="loginForm">
+                <div class="form-grid" style="grid-template-columns: 1fr;">
+                    <div class="field">
+                        <p:outputLabel for="username" value="Username"/>
+                        <p:inputText id="username" value="#{loginBean.username}"
+                                     required="true" requiredMessage="Username is required"
+                                     autocomplete="username" placeholder="e.g. alice"/>
+                        <p:message for="username"/>
+                    </div>
+
+                    <div class="field">
+                        <p:outputLabel for="password" value="Password"/>
+                        <p:password id="password" value="#{loginBean.password}"
+                                    required="true" requiredMessage="Password is required"
+                                    autocomplete="current-password" feedback="false"/>
+                        <p:message for="password"/>
+                    </div>
+
+                    <p:commandButton id="loginBtn" value="Sign in" icon="pi pi-sign-in"
+                                     action="#{loginBean.login}"
+                                     styleClass="ui-button-lg w-full"
+                                     onclick="PrimeFaces.widgets.loginBtn?.disable?.()"
+                                     oncomplete="PrimeFaces.widgets.loginBtn?.enable?.()"/>
+                </div>
+            </h:form>
+
+            <div class="field-hint" style="margin-top: 18px;">
+                <strong>Demo users:</strong> alice (Initiator, IT) &#183; bob (Manager, IT) &#183;
+                dave (Finance) &#183; frank (Initiator, HR) &#183; grace (Manager, HR)
+            </div>
         </div>
     </div>
 </h:body>

@@ -1,159 +1,163 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
-      xmlns:ui="jakarta.faces.facelets">
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
 <ui:composition template="/templates/portal.xhtml">
     <ui:param name="activeMenu" value="group-memberships"/>
 
-    <ui:define name="title">Group Memberships - Approval Workflow</ui:define>
+    <ui:define name="title">Group Memberships - Workflow Station</ui:define>
     <ui:define name="pageTitle">Group Memberships</ui:define>
 
     <ui:define name="content">
         <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
-            <div class="anon">
-                <p>You are not logged in.</p>
-                <h:link outcome="/login" value="Go to Login" styleClass="btn"/>
+            <div class="empty-state">
+                <i class="pi pi-lock"/>
+                <div class="empty-title">You are not signed in</div>
+                <p>Please sign in first.</p>
+                <p:button outcome="/login" value="Go to Sign in" icon="pi pi-sign-in"/>
             </div>
         </h:panelGroup>
 
         <h:panelGroup rendered="#{loginBean.loggedIn and !groupMembershipsBean.groupAdmin}" layout="block">
-            <div class="anon">
+            <div class="empty-state">
+                <i class="pi pi-ban"/>
+                <div class="empty-title">Not authorized</div>
                 <p>You are not authorized to manage external groups.</p>
+                <p:button outcome="/dashboard" value="Back to Dashboard" icon="pi pi-home"
+                          styleClass="ui-button-secondary"/>
             </div>
         </h:panelGroup>
 
         <h:panelGroup rendered="#{groupMembershipsBean.groupAdmin}" layout="block">
-            <!-- ================= Group selection ================= -->
-            <h3 class="section-title">External Group / Role</h3>
-            <div class="card form-card">
-                <h:form id="groupForm">
-                    <div class="form-group">
-                        <h:outputLabel for="group" value="Select Group *"/>
-                        <h:selectOneMenu id="group" value="#{groupMembershipsBean.selectedRoleId}" required="true">
-                            <f:selectItem itemValue="" itemLabel="-- select group --"/>
-                            <f:selectItems value="#{groupMembershipsBean.roles}" var="r"
-                                           itemValue="#{r.roleId}"
-                                           itemLabel="#{r.roleCode} / #{r.roleName}"/>
-                            <f:ajax event="valueChange" listener="#{groupMembershipsBean.onGroupChange}"
-                                    render="membersForm"/>
-                        </h:selectOneMenu>
-                    </div>
-                </h:form>
+            <div class="page-head">
+                <div>
+                    <h1>Group Memberships</h1>
+                    <p class="page-sub">Manage external group / role memberships used by Flowable candidate groups.</p>
+                </div>
             </div>
 
-            <!-- ================= Users ================= -->
-            <h3 class="section-title">Users (FLOWABLE_USERS_VW)</h3>
-            <div class="card">
-                <h:form id="usersForm">
-                    <div class="form-group">
-                        <h:outputLabel for="search" value="Search User"/>
-                        <h:panelGroup layout="block" styleClass="search-bar">
-                            <h:inputText id="search" value="#{groupMembershipsBean.searchTerm}"
-                                         placeholder="username, name, email or id"/>
-                            <h:commandButton value="Search" action="#{groupMembershipsBean.search}"
-                                             styleClass="btn"/>
-                        </h:panelGroup>
+            <!-- Group selection -->
+            <h:form id="groupForm">
+                <p:panel header="External Group / Role">
+                    <div class="form-grid">
+                        <div class="field">
+                            <p:outputLabel for="group" value="Select group"/>
+                            <p:selectOneMenu id="group" value="#{groupMembershipsBean.selectedRoleId}" required="true">
+                                <f:selectItem itemValue="" itemLabel="-- select group --" noSelectionOption="true"/>
+                                <f:selectItems value="#{groupMembershipsBean.roles}" var="r"
+                                               itemValue="#{r.roleId}"
+                                               itemLabel="#{r.roleCode} / #{r.roleName}"/>
+                                <p:ajax event="valueChange" listener="#{groupMembershipsBean.onGroupChange}"
+                                        update="membersForm"/>
+                            </p:selectOneMenu>
+                            <p:message for="group"/>
+                        </div>
+                    </div>
+                </p:panel>
+            </h:form>
+
+            <!-- Users search -->
+            <h:form id="usersForm" style="margin-top:16px;">
+                <p:panel header="Users">
+                    <div class="table-toolbar">
+                        <p:inputText id="search" value="#{groupMembershipsBean.searchTerm}"
+                                     placeholder="Username, name, email or ID" style="margin-inline-end:8px;"/>
+                        <p:commandButton value="Search" icon="pi pi-search" action="#{groupMembershipsBean.search}"
+                                         update="usersForm" styleClass="ui-button-outlined"/>
                     </div>
 
-                    <h:dataTable id="usersTable" value="#{groupMembershipsBean.users}" var="u"
-                                 styleClass="data-table" rendered="#{groupMembershipsBean.hasUsers}">
-                        <h:column>
-                            <f:facet name="header">User ID</f:facet>
-                            #{u.id}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Username</f:facet>
+                    <p:dataTable id="usersTable" value="#{groupMembershipsBean.users}" var="u"
+                                 emptyMessage="No users found for the current search."
+                                 rendered="#{groupMembershipsBean.hasUsers}"
+                                 resizableColumns="true" reflow="true" size="small" paginator="false">
+                        <p:column headerText="User ID" sortBy="#{u.id}">
+                            <span class="text-muted">#{u.id}</span>
+                        </p:column>
+                        <p:column headerText="Username" sortBy="#{u.username}" filterBy="#{u.username}"
+                                  filterMatchMode="contains">
+                            <i class="pi pi-user" style="margin-inline-end:6px;color:var(--pf-primary);"/>
                             #{u.username}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Name</f:facet>
+                        </p:column>
+                        <p:column headerText="Name" sortBy="#{u.firstName}">
                             #{u.firstName} #{u.lastName}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Email</f:facet>
+                        </p:column>
+                        <p:column headerText="Email">
                             #{u.email}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Select</f:facet>
-                            <h:selectOneRadio id="userRadio" value="#{groupMembershipsBean.selectedUserId}"
-                                              layout="pageDirection">
+                        </p:column>
+                        <p:column headerText="Select" styleClass="nowrap" style="width:80px;text-align:center;">
+                            <p:selectOneRadio id="userRadio" value="#{groupMembershipsBean.selectedUserId}">
                                 <f:selectItem itemValue="#{u.id}" itemLabel=""/>
-                            </h:selectOneRadio>
-                        </h:column>
-                    </h:dataTable>
+                            </p:selectOneRadio>
+                        </p:column>
+                    </p:dataTable>
 
-                    <h:panelGroup rendered="#{!groupMembershipsBean.hasUsers}" layout="block">
-                        <p class="empty">No users found for the current search.</p>
-                    </h:panelGroup>
-
-                    <!-- Pagination footer -->
-                    <h:panelGroup layout="block" styleClass="pagination" rendered="#{groupMembershipsBean.hasUsers}">
-                        <h:commandButton value="|&#60;" action="#{groupMembershipsBean.firstPage}"
+                    <!-- Pagination -->
+                    <div class="action-bar" style="margin-top:12px;"
+                         rendered="#{groupMembershipsBean.hasUsers}">
+                        <p:commandButton icon="pi pi-angle-double-left" title="First page"
+                                         action="#{groupMembershipsBean.firstPage}"
                                          disabled="#{!groupMembershipsBean.hasPrevious}"
-                                         styleClass="btn btn-secondary btn-sm"/>
-                        <h:commandButton value="&#60;" action="#{groupMembershipsBean.previousPage}"
+                                         styleClass="ui-button-secondary ui-button-sm" update="usersForm"/>
+                        <p:commandButton icon="pi pi-angle-left" title="Previous page"
+                                         action="#{groupMembershipsBean.previousPage}"
                                          disabled="#{!groupMembershipsBean.hasPrevious}"
-                                         styleClass="btn btn-secondary btn-sm"/>
-                        <span class="page-info">#{groupMembershipsBean.rangeLabel}</span>
-                        <h:commandButton value="&#62;" action="#{groupMembershipsBean.nextPage}"
+                                         styleClass="ui-button-secondary ui-button-sm" update="usersForm"/>
+                        <span class="text-muted nowrap">#{groupMembershipsBean.rangeLabel}</span>
+                        <p:commandButton icon="pi pi-angle-right" title="Next page"
+                                         action="#{groupMembershipsBean.nextPage}"
                                          disabled="#{!groupMembershipsBean.hasNext}"
-                                         styleClass="btn btn-secondary btn-sm"/>
-                        <h:commandButton value="&#62;|" action="#{groupMembershipsBean.lastPage}"
+                                         styleClass="ui-button-secondary ui-button-sm" update="usersForm"/>
+                        <p:commandButton icon="pi pi-angle-double-right" title="Last page"
+                                         action="#{groupMembershipsBean.lastPage}"
                                          disabled="#{!groupMembershipsBean.hasNext}"
-                                         styleClass="btn btn-secondary btn-sm"/>
-                    </h:panelGroup>
-                </h:form>
-            </div>
-
-            <!-- ================= Add to group ================= -->
-            <h3 class="section-title">Add membership</h3>
-            <div class="card form-card">
-                <h:form id="addForm">
-                    <div class="form-actions">
-                        <h:commandButton value="Add Selected User to Group"
-                                         action="#{groupMembershipsBean.addUserToGroup}"
-                                         styleClass="btn">
-                            <f:param name="preventDoubleSubmit" value="true"/>
-                        </h:commandButton>
+                                         styleClass="ui-button-secondary ui-button-sm" update="usersForm"/>
                     </div>
-                </h:form>
-            </div>
+                </p:panel>
 
-            <!-- ================= Current members ================= -->
-            <h3 class="section-title">Current members of selected group</h3>
-            <div class="card">
-                <h:form id="membersForm">
-                    <h:dataTable id="membersTable" value="#{groupMembershipsBean.members}" var="m"
-                                 styleClass="data-table" rendered="#{not empty groupMembershipsBean.members}">
-                        <h:column>
-                            <f:facet name="header">User ID</f:facet>
-                            #{m.userId}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Username</f:facet>
+                <!-- Add membership -->
+                <p:panel header="Add membership" style="margin-top:16px;">
+                    <p:messages closable="true"/>
+                    <div class="action-bar">
+                        <p:commandButton value="Add Selected User to Group" icon="pi pi-user-plus"
+                                         action="#{groupMembershipsBean.addUserToGroup}"
+                                         update="usersForm membersForm" styleClass="ui-button-success"/>
+                    </div>
+                </p:panel>
+            </h:form>
+
+            <!-- Current members -->
+            <h:form id="membersForm">
+                <p:panel header="Current members of selected group" style="margin-top:16px;">
+                    <p:dataTable id="membersTable" value="#{groupMembershipsBean.members}" var="m"
+                                 emptyMessage="No members yet - select a user above and add them to the group."
+                                 rendered="#{not empty groupMembershipsBean.members}"
+                                 paginator="true" rows="10" paginatorAlwaysVisible="false"
+                                 resizableColumns="true" reflow="true" size="small">
+                        <p:column headerText="User ID" sortBy="#{m.userId}">
+                            <span class="text-muted">#{m.userId}</span>
+                        </p:column>
+                        <p:column headerText="Username" sortBy="#{m.userWebName}">
+                            <i class="pi pi-user" style="margin-inline-end:6px;color:var(--pf-primary);"/>
                             #{m.userWebName}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Enabled</f:facet>
-                            <h:outputText value="#{m.isEnabled == 1 ? 'Yes' : 'No'}"/>
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Added By</f:facet>
+                        </p:column>
+                        <p:column headerText="Enabled" sortBy="#{m.isEnabled}">
+                            <span class="status #{m.isEnabled == 1 ? 'approved' : 'rejected'}">
+                                <span class="dot"/>#{m.isEnabled == 1 ? 'Yes' : 'No'}
+                            </span>
+                        </p:column>
+                        <p:column headerText="Added By" sortBy="#{m.createdBy}">
                             #{m.createdBy}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Added On</f:facet>
+                        </p:column>
+                        <p:column headerText="Added On" sortBy="#{m.createdDate}">
                             <h:outputText value="#{m.createdDate}">
                                 <f:convertDateTime type="localDateTime" pattern="yyyy-MM-dd HH:mm"/>
                             </h:outputText>
-                        </h:column>
-                    </h:dataTable>
-                    <h:panelGroup rendered="#{empty groupMembershipsBean.members}" layout="block">
-                        <p class="empty">No members yet - select a user above and click "Add Selected User to Group".</p>
-                    </h:panelGroup>
-                </h:form>
-            </div>
+                        </p:column>
+                    </p:dataTable>
+                </p:panel>
+            </h:form>
         </h:panelGroup>
     </ui:define>
 </ui:composition>

@@ -1,64 +1,74 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
-      xmlns:ui="jakarta.faces.facelets">
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
 <f:metadata>
-    <f:viewAction action="#{processListBean.init}" />
+    <f:viewAction action="#{processListBean.init}"/>
 </f:metadata>
 <ui:composition template="/templates/portal.xhtml">
     <ui:param name="activeMenu" value="processes"/>
 
-    <ui:define name="title">Processes - Approval Workflow</ui:define>
+    <ui:define name="title">Processes - Workflow Station</ui:define>
     <ui:define name="pageTitle">Available Processes</ui:define>
 
     <ui:define name="content">
         <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
-            <div class="anon">
-                <p>You are not logged in.</p>
-                <h:link outcome="/login" value="Go to Login" styleClass="btn"/>
+            <div class="empty-state">
+                <i class="pi pi-lock"/>
+                <div class="empty-title">You are not signed in</div>
+                <p>Please sign in to browse available processes.</p>
+                <p:button outcome="/login" value="Go to Sign in" icon="pi pi-sign-in"/>
             </div>
         </h:panelGroup>
 
         <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
-            <span class="badge">#{processListBean.availableProcessCount} process(es) available</span>
-
-            <h3 class="section-title">Processes you can invoke</h3>
-            <div class="card">
-                <h:form>
-                    <h:dataTable value="#{processListBean.availableProcesses}" var="pd"
-                                 rendered="#{not empty processListBean.availableProcesses}"
-                                 style="width:100%">
-                        <h:column>
-                            <f:facet name="header">Name</f:facet>
-                            #{pd.name}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Key</f:facet>
-                            #{pd.key}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Version</f:facet>
-                            #{pd.version}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Deployment ID</f:facet>
-                            #{pd.deploymentId}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Action</f:facet>
-                            <h:commandButton value="Start"
-                                             action="#{processListBean.start(pd.key)}"
-                                             styleClass="btn btn-success"/>
-                        </h:column>
-                    </h:dataTable>
-                    <p class="empty" rendered="#{empty processListBean.availableProcesses}">
-                        There are no processes available for you to start.
-                    </p>
-                </h:form>
+            <div class="page-head">
+                <div>
+                    <h1>Available Processes</h1>
+                    <p class="page-sub">#{processListBean.availableProcessCount} process definition(s) you can start.</p>
+                </div>
+                <div class="spacer"/>
+                <p:button outcome="/dashboard" value="Dashboard" icon="pi pi-home"
+                          styleClass="ui-button-secondary ui-button-sm"/>
             </div>
 
-            <h:link outcome="/dashboard" value="Back to Dashboard" styleClass="btn btn-secondary"/>
+            <h:form id="processesForm">
+                <p:panel header="Processes you can start">
+                    <p:dataTable id="processesTable" value="#{processListBean.availableProcesses}" var="pd"
+                                 emptyMessage="There are no processes available for you to start."
+                                 paginator="true" rows="10" paginatorAlwaysVisible="false"
+                                 paginatorPosition="bottom"
+                                 resizableColumns="true" reflow="true" size="small"
+                                 widgetVar="processesTable">
+                        <f:facet name="header">
+                            <div class="table-toolbar">
+                                <p:inputText id="globalFilter" placeholder="Search processes..."
+                                             onkeyup="PF('processesTable').filter()"/>
+                            </div>
+                        </f:facet>
+
+                        <p:column headerText="Name" sortBy="#{pd.name}" filterBy="#{pd.name}"
+                                  filterMatchMode="contains">
+                            <i class="pi pi-bolt" style="margin-inline-end:6px;color:var(--pf-primary);"/>
+                            #{pd.name}
+                        </p:column>
+                        <p:column headerText="Key" sortBy="#{pd.key}" filterBy="#{pd.key}"
+                                  filterMatchMode="contains">
+                            <span class="text-muted">#{pd.key}</span>
+                        </p:column>
+                        <p:column headerText="Version" sortBy="#{pd.version}">
+                            <span class="status info"><span class="dot"/>v#{pd.version}</span>
+                        </p:column>
+                        <p:column headerText="Action" styleClass="nowrap">
+                            <p:commandButton value="Start" icon="pi pi-play"
+                                             styleClass="ui-button-success ui-button-sm"
+                                             action="#{processListBean.start(pd.key)}"/>
+                        </p:column>
+                    </p:dataTable>
+                </p:panel>
+            </h:form>
         </h:panelGroup>
     </ui:define>
 </ui:composition>

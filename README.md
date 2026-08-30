@@ -1,6 +1,6 @@
-# Flowable + Spring Boot + JSF Approval Workflow Example
+# Workflow Station
 
-A complete, production-quality example demonstrating a multi-level approval process using:
+Workflow Station — a complete, production-quality application demonstrating a multi-level approval process using:
 
 - **Java 17**
 - **Spring Boot 3.3.5**
@@ -133,7 +133,7 @@ JDBC URL: `jdbc:h2:mem:approvaldb`
 
 ```bash
 mvn clean package
-java -jar target/flowable-jsf-approval-1.0.0-SNAPSHOT.jar
+java -jar target/workflow-station-1.0.0-SNAPSHOT.jar
 ```
 
 ## Design Notes & Best Practices Applied

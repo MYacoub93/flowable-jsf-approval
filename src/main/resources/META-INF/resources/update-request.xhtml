@@ -1,50 +1,89 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
-      xmlns:ui="jakarta.faces.facelets">
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
 <ui:composition template="/templates/portal.xhtml">
-    <ui:define name="title">Update Request</ui:define>
+    <ui:define name="title">Update Request - Workflow Station</ui:define>
     <ui:define name="pageTitle">Update Request</ui:define>
 
     <ui:define name="content">
-        <h:panelGroup rendered="#{!loginBean.loggedIn}">
-            <div class="anon">
-                <p>Please <h:link outcome="/login" value="login"/> first.</p>
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <div class="empty-state">
+                <i class="pi pi-lock"/>
+                <div class="empty-title">You are not signed in</div>
+                <p>Please sign in first.</p>
+                <p:button outcome="/login" value="Go to Sign in" icon="pi pi-sign-in"/>
             </div>
         </h:panelGroup>
 
-        <h:panelGroup rendered="#{loginBean.loggedIn}">
-            <div class="info">
-                Your request was rejected by <strong>#{updateRequestBean.rejectedBy}</strong>.
-                Please update the details and resubmit. Previous comments: #{updateRequestBean.previousComments}
+        <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
+            <div class="page-head">
+                <div>
+                    <h1>Update Request</h1>
+                    <p class="page-sub">Your request was rejected. Update the details and resubmit.</p>
+                </div>
             </div>
 
-            <h:form id="updateForm">
-                <div class="form-group">
-                    <h:outputLabel for="title" value="Title *"/>
-                    <h:inputText id="title" value="#{updateRequestBean.contract.title}" required="true"/>
+            <!-- Rejection context -->
+            <p:panel header="Rejection details" styleClass="rejection-panel">
+                <div class="history-item bad">
+                    <span class="h-icon"><i class="pi pi-times-circle"/></span>
+                    <div>
+                        <div class="h-title">Rejected by #{updateRequestBean.rejectedBy}</div>
+                        <div class="h-meta">Previous comments</div>
+                        <p class="h-note">#{updateRequestBean.previousComments}</p>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <h:outputLabel for="description" value="Description"/>
-                    <h:inputTextarea id="description" value="#{updateRequestBean.contract.description}"/>
-                </div>
-                <div class="form-group">
-                    <h:outputLabel for="amount" value="Requested Amount *"/>
-                    <h:inputText id="amount" value="#{updateRequestBean.contract.amount}" required="true"/>
-                </div>
-                <div class="form-group">
-                    <h:outputLabel for="department" value="Department *"/>
-                    <h:selectOneMenu id="department" value="#{updateRequestBean.contract.department}" required="true">
-                        <f:selectItem itemValue="IT" itemLabel="IT"/>
-                        <f:selectItem itemValue="HR" itemLabel="HR"/>
-                        <f:selectItem itemValue="Finance" itemLabel="Finance"/>
-                    </h:selectOneMenu>
-                </div>
-                <div class="form-actions">
-                    <h:commandButton value="Resubmit" action="#{updateRequestBean.resubmit}" styleClass="btn"/>
-                    <h:link outcome="/dashboard" value="Cancel" styleClass="btn btn-secondary"/>
-                </div>
+            </p:panel>
+
+            <h:form id="updateForm" style="margin-top:16px;">
+                <p:panel header="Request details">
+                    <div class="form-grid">
+                        <div class="field">
+                            <p:outputLabel for="title" value="Title"/>
+                            <p:inputText id="title" value="#{updateRequestBean.contract.title}" required="true"
+                                         requiredMessage="Title is required"/>
+                            <p:message for="title"/>
+                        </div>
+
+                        <div class="field">
+                            <p:outputLabel for="author" value="Requested Amount"/>
+                            <p:inputText id="amount" value="#{updateRequestBean.contract.amount}" required="true"
+                                         requiredMessage="Amount is required"
+                                         converterMessage="Please enter a valid number"/>
+                            <p:message for="amount"/>
+                        </div>
+
+                        <div class="field full">
+                            <p:outputLabel for="department" value="Department"/>
+                            <p:selectOneMenu id="department" value="#{updateRequestBean.contract.department}"
+                                             required="true" requiredMessage="Department is required">
+                                <f:selectItem itemValue="IT" itemLabel="IT"/>
+                                <f:selectItem itemValue="HR" itemLabel="HR"/>
+                                <f:selectItem itemValue="Finance" itemLabel="Finance"/>
+                            </p:selectOneMenu>
+                            <p:message for="department"/>
+                        </div>
+
+                        <div class="field full">
+                            <p:outputLabel for="description" value="Description"/>
+                            <p:inputTextarea id="description" value="#{updateRequestBean.contract.description}"
+                                             rows="4" counter="descCounter" counterTemplate="{0} characters"
+                                             maxlength="1000" autoResize="true"/>
+                            <h:panelGroup id="descCounter" styleClass="h-note field-hint"/>
+                        </div>
+                    </div>
+
+                    <div class="action-bar" style="margin-top:18px;">
+                        <p:commandButton value="Resubmit" icon="pi pi-refresh"
+                                         action="#{updateRequestBean.resubmit}"
+                                         styleClass="ui-button-success"/>
+                        <p:banner outcome="/dashboard" value="Cancel" icon="pi pi-times"
+                                  styleClass="ui-button-secondary ui-button-outlined"/>
+                    </div>
+                </p:panel>
             </h:form>
         </h:panelGroup>
     </ui:define>

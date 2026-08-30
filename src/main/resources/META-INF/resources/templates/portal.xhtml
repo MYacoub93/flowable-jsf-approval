@@ -1,37 +1,98 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
-      xmlns:ui="jakarta.faces.facelets">
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
 <h:head>
-    <title><ui:insert name="title">Approval Workflow</ui:insert></title>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title><ui:insert name="title">Workflow Station</ui:insert></title>
     <h:outputStylesheet name="css/portal.css"/>
 </h:head>
 <h:body>
-    <div class="layout">
-        <!-- Side menu -->
+    <div class="app">
+        <!-- Sidebar (drawer on mobile) -->
         <ui:include src="/templates/side-menu.xhtml"/>
 
-        <!-- Main column: topbar + content + footer -->
-        <div class="main-wrapper">
-            <main class="main">
-                <header class="topbar">
-                    <h1><ui:insert name="pageTitle">Approval Workflow</ui:insert></h1>
-                    <ui:fragment rendered="#{loginBean.loggedIn}">
-                        <span class="user-chip">Signed in as
-                            <strong>#{loginBean.currentUser.firstName}</strong>
-                            (#{loginBean.currentUser.email})</span>
-                    </ui:fragment>
-                </header>
+        <div class="app-main">
+            <!-- Top header: burger, title, user chip -->
+            <header class="app-header">
+                <button type="button" class="btn-burger" id="btn-burger" aria-label="Toggle menu">
+                    <i class="pi pi-bars"/>
+                </button>
+                <h1 class="header-title"><ui:insert name="pageTitle">Workflow Station</ui:insert></h1>
 
-                <h:messages infoStyle="color:#15803d;" errorStyle="color:#b91c1c;"/>
+                <ui:fragment rendered="#{loginBean.loggedIn}">
+                    <span class="user-chip">
+                        <span class="user-avatar">
+                            #{empty loginBean.currentUser.firstName ? loginBean.currentUser.id.charAt(0) : loginBean.currentUser.firstName.charAt(0)}
+                        </span>
+                        <span>
+                            #{empty loginBean.currentUser.firstName ? loginBean.currentUser.id : loginBean.currentUser.firstName}
+                        </span>
+                    </span>
+                    <h:form styleClass="logout-form">
+                        <p:commandButton icon="pi pi-sign-out" value="Sign out"
+                                         action="#{loginBean.logout}" styleClass="ui-button-secondary ui-button-sm"/>
+                    </h:form>
+                </ui:fragment>
+            </header>
 
+            <!-- Global messages -->
+            <p:growl id="globalGrowl" showDetail="true" sticky="false" life="6000"/>
+
+            <!-- Breadcrumb + title slot -->
+            <div class="app-content">
                 <ui:insert name="content"/>
-            </main>
+            </div>
 
-            <!-- Footer -->
             <ui:include src="/templates/footer.xhtml"/>
         </div>
     </div>
+
+    <!-- Sidebar toggle + scrim behavior -->
+    <script>
+        (function () {
+            function ready(fn) {
+                if (document.readyState !== 'loading') fn();
+                else document.addEventListener('DOMContentLoaded', fn);
+            }
+
+            ready(function () {
+                var burger = document.getElementById('btn-burger');
+                var sidebar = document.querySelector('.app-sidebar');
+                if (!burger || !sidebar) return;
+
+                var scrim = document.createElement('div');
+                scrim.className = 'nav-scrim';
+                scrim.addEventListener('click', function () {
+                    sidebar.classList.remove('show');
+                    scrim.classList.remove('show');
+                });
+                document.body.appendChild(scrim);
+
+                burger.addEventListener('click', function () {
+                    // Mobile: toggle drawer; Desktop: collapse/expand rail
+                    if (window.matchMedia('(max-width: 991px)').matches) {
+                        var show = sidebar.classList.toggle('show');
+                        scrim.classList.toggle('show', show);
+                    } else {
+                        document.body.classList.toggle('sb-collapsed');
+                    }
+                });
+            });
+        })();
+    </script>
+    <h:outputStylesheet>
+        .nav-scrim {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(10, 18, 34, .45);
+            z-index: 95;
+        }
+        .nav-scrim.show { display: block; }
+    </h:outputStylesheet>
 </h:body>
 </html>

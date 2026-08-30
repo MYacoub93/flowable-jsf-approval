@@ -1,35 +1,45 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
-      xmlns:ui="jakarta.faces.facelets">
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
 <ui:composition template="/templates/portal.xhtml">
     <ui:param name="activeMenu" value="dashboard"/>
 
-    <ui:define name="title">Clearance Task - Clearance Workflow</ui:define>
-    <ui:define name="pageTitle">#{clearanceTaskBean.task.name}</ui:define>
+    <ui:define name="title">Clearance Task - Workflow Station</ui:define>
+    <ui:define name="pageTitle">#{empty clearanceTaskBean.task.name ? 'Clearance Task' : clearanceTaskBean.task.name}</ui:define>
 
     <ui:define name="content">
         <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
-            <div class="anon">
-                <p>You are not logged in.</p>
-                <h:link outcome="/login" value="Go to Login" styleClass="btn"/>
+            <div class="empty-state">
+                <i class="pi pi-lock"/>
+                <div class="empty-title">You are not signed in</div>
+                <p>Please sign in to work on this task.</p>
+                <p:button outcome="/login" value="Go to Sign in" icon="pi pi-sign-in"/>
             </div>
         </h:panelGroup>
 
         <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
 
             <h:panelGroup rendered="#{clearanceTaskBean.task == null}" layout="block">
-                <div class="card">
-                    <p>Task not found. It may have been completed or cancelled.</p>
-                    <h:link outcome="/dashboard" value="Back to Dashboard" styleClass="btn btn-secondary"/>
+                <div class="empty-state">
+                    <i class="pi pi-exclamation-triangle"/>
+                    <div class="empty-title">Task not found</div>
+                    <p>It may have been completed or cancelled by another user.</p>
+                    <p:button outcome="/dashboard" value="Back to Dashboard" icon="pi pi-home"
+                              styleClass="ui-button-secondary"/>
                 </div>
             </h:panelGroup>
 
             <h:panelGroup rendered="#{clearanceTaskBean.task != null}" layout="block">
-                <div class="card">
-                    <h3 class="section-title">#{clearanceTaskBean.task.name}</h3>
 
+                <!-- Request information -->
+                <p:panel header="Request information">
+                    <div class="action-bar" style="margin-bottom:14px;">
+                        <span class="status inprogress"><span class="dot"/>#{clearanceTaskBean.task.name}</span>
+                        <span class="status info"><span class="dot"/>Round #{clearanceTaskBean.approvalRound}</span>
+                    </div>
                     <dl class="detail-list">
                         <dt>Task ID</dt><dd>#{clearanceTaskBean.taskId}</dd>
                         <dt>Initiator</dt><dd>#{clearanceTaskBean.initiator}</dd>
@@ -38,106 +48,166 @@
                         <dt>Approval Round</dt><dd>#{clearanceTaskBean.approvalRound}</dd>
                     </dl>
 
-                    <h:panelGroup rendered="#{not empty clearanceTaskBean.lastRejectedStage}" layout="block">
-                        <h4>Rejection info</h4>
-                        <dl class="detail-list">
-                            <dt>Rejected at</dt><dd>#{clearanceTaskBean.lastRejectedStage}</dd>
-                            <dt>Department</dt><dd>#{clearanceTaskBean.lastRejectedDepartment}</dd>
-                            <dt>Comment</dt><dd>#{clearanceTaskBean.lastRejectionComment}</dd>
-                        </dl>
+                    <h:panelGroup rendered="#{not empty clearanceTaskBean.lastRejectedStage}" layout="block"
+                                  style="margin-top:14px;">
+                        <div class="history-item bad">
+                            <span class="h-icon"><i class="pi pi-times-circle"/></span>
+                            <div>
+                                <div class="h-title">Rejected at #{clearanceTaskBean.lastRejectedStage}
+                                    &#183; #{clearanceTaskBean.lastRejectedDepartment}</div>
+                                <div class="h-meta">Previous round rejection</div>
+                                <p class="h-note">#{clearanceTaskBean.lastRejectionComment}</p>
+                            </div>
+                        </div>
                     </h:panelGroup>
-                </div>
+                </p:panel>
 
+                <!-- Department approval decision -->
                 <h:panelGroup rendered="#{clearanceTaskBean.approvalTask}" layout="block">
-                    <div class="card form-card">
-                        <h3 class="section-title">Decision</h3>
-                        <h:form id="approvalForm">
-                            <div class="form-group">
-                                <h:outputLabel for="comments" value="Comment"/>
-                                <h:inputTextarea id="comments" value="#{clearanceTaskBean.comments}"/>
+                    <h:form id="approvalForm" style="margin-top:16px;">
+                        <p:panel header="Decision">
+                            <p:messages closable="true"/>
+                            <div class="field">
+                                <p:outputLabel for="comments" value="Comment"/>
+                                <p:inputTextarea id="comments" value="#{clearanceTaskBean.comments}" rows="3"
+                                                 maxlength="500" counter="approvalCounter"
+                                                 counterTemplate="{0} characters" autoResize="true"/>
+                                <h:panelGroup id="approvalCounter" styleClass="field-hint"/>
                             </div>
-                            <div class="form-actions">
-                                <h:commandButton value="Approve" action="#{clearanceTaskBean.approve}" styleClass="btn"/>
-                                <h:commandButton value="Reject" action="#{clearanceTaskBean.reject}" styleClass="btn btn-secondary"/>
+
+                            <div class="action-bar" style="margin-top:16px;">
+                                <p:commandButton value="Approve" icon="pi pi-check"
+                                                 styleClass="ui-button-success"
+                                                 onclick="PF('confirmApproveDlg').show()"/>
+                                <p:commandButton value="Reject" icon="pi pi-times"
+                                                 styleClass="ui-button-danger ui-button-outlined"
+                                                 onclick="PF('rejectDlg').show()"/>
                             </div>
-                        </h:form>
-                    </div>
+                        </p:panel>
+
+                        <!-- Approve confirmation -->
+                        <p:confirmDialog global="false" widgetVar="confirmApproveDlg" header="Approve request"
+                                         message="Are you sure you want to approve this request?"
+                                         icon="pi pi-exclamation-triangle" severity="info">
+                            <p:commandButton value="Yes, approve" icon="pi pi-check"
+                                             action="#{clearanceTaskBean.approve}"
+                                             styleClass="ui-button-success"
+                                             oncomplete="PF('confirmApproveDlg').hide()"/>
+                            <p:commandButton value="Cancel" icon="pi pi-times" styleClass="ui-button-secondary"
+                                             onclick="PF('confirmApproveDlg').hide();return false;" type="button"/>
+                        </p:confirmDialog>
+
+                        <!-- Reject with mandatory reason -->
+                        <p:dialog widgetVar="rejectDlg" header="Reject request" modal="true" resizable="false"
+                                  closable="true" closeOnEscape="true">
+                            <p>Are you sure you want to reject this request?</p>
+                            <div class="field" style="margin-top:10px;">
+                                <p:outputLabel for="rejectReason" value="Rejection reason (required)"/>
+                                <p:inputTextarea id="rejectReason" value="#{clearanceTaskBean.comments}" rows="3"
+                                                 required="true" requiredMessage="A rejection reason is required."
+                                                 maxlength="500"/>
+                                <p:message for="rejectReason"/>
+                            </div>
+                            <div class="action-bar" style="margin-top:12px;">
+                                <span class="spacer"/>
+                                <p:commandButton value="Cancel" icon="pi pi-times"
+                                                 styleClass="ui-button-secondary"
+                                                 onclick="PF('rejectDlg').hide();return false;" type="button"/>
+                                <p:commandButton value="Confirm rejection" icon="pi pi-times"
+                                                 styleClass="ui-button-danger"
+                                                 action="#{clearanceTaskBean.reject}"
+                                                 update="rejectReason"
+                                                 oncomplete="if (!args.validationFailed) PF('rejectDlg').hide()"/>
+                            </div>
+                        </p:dialog>
+                    </h:form>
                 </h:panelGroup>
 
+                <!-- Initiator amendment -->
                 <h:panelGroup rendered="#{clearanceTaskBean.amendmentTask}" layout="block">
-                    <div class="card form-card">
-                        <h3 class="section-title">Amend Clearance Request</h3>
-                        <h:form id="amendmentForm">
-                            <div class="form-group">
-                                <h:outputLabel for="studentFullName" value="Student Full Name *"/>
-                                <h:inputText id="studentFullName" value="#{clearanceTaskBean.studentFullName}" required="true"/>
+                    <h:form id="amendmentForm" style="margin-top:16px;">
+                        <p:panel header="Amend clearance request">
+                            <p:messages closable="true"/>
+                            <div class="form-grid">
+                                <div class="field">
+                                    <p:outputLabel for="studentFullName" value="Student Full Name"/>
+                                    <p:inputText id="studentFullName" value="#{clearanceTaskBean.studentFullName}"
+                                                 required="true" requiredMessage="Student full name is required"/>
+                                    <p:message for="studentFullName"/>
+                                </div>
+                                <div class="field">
+                                    <p:outputLabel for="studentId" value="Student ID"/>
+                                    <p:inputText id="studentId" value="#{clearanceTaskBean.studentId}"
+                                                 required="true" requiredMessage="Student ID is required"/>
+                                    <p:message for="studentId"/>
+                                </div>
+                                <div class="field full">
+                                    <p:outputLabel for="program" value="Program"/>
+                                    <p:inputText id="program" value="#{clearanceTaskBean.program}"/>
+                                </div>
+                                <div class="field">
+                                    <p:outputLabel for="notes" value="Notes"/>
+                                    <p:inputTextarea id="notes" value="#{clearanceTaskBean.notes}" rows="3"/>
+                                </div>
+                                <div class="field">
+                                    <p:outputLabel for="amendmentNotes" value="Amendment Comment"/>
+                                    <p:inputTextarea id="amendmentNotes" value="#{clearanceTaskBean.comments}" rows="3"/>
+                                </div>
                             </div>
-                            <div class="form-group">
-                                <h:outputLabel for="studentId" value="Student ID *"/>
-                                <h:inputText id="studentId" value="#{clearanceTaskBean.studentId}" required="true"/>
+                            <div class="action-bar" style="margin-top:16px;">
+                                <p:commandButton value="Submit Amendment" icon="pi pi-send"
+                                                 action="#{clearanceTaskBean.submitAmendment}"
+                                                 styleClass="ui-button-success"/>
+                                <p:button outcome="/dashboard" value="Cancel" icon="pi pi-times"
+                                          styleClass="ui-button-secondary ui-button-outlined"/>
                             </div>
-                            <div class="form-group">
-                                <h:outputLabel for="program" value="Program"/>
-                                <h:inputText id="program" value="#{clearanceTaskBean.program}"/>
-                            </div>
-                            <div class="form-group">
-                                <h:outputLabel for="notes" value="Notes"/>
-                                <h:inputTextarea id="notes" value="#{clearanceTaskBean.notes}"/>
-                            </div>
-                            <div class="form-group">
-                                <h:outputLabel for="amendmentNotes" value="Amendment Comment"/>
-                                <h:inputTextarea id="amendmentNotes" value="#{clearanceTaskBean.comments}"/>
-                            </div>
-                            <div class="form-actions">
-                                <h:commandButton value="Submit Amendment"
-                                                 action="#{clearanceTaskBean.submitAmendment}" styleClass="btn"/>
-                                <h:link outcome="/dashboard" value="Cancel" styleClass="btn btn-secondary"/>
-                            </div>
-                        </h:form>
-                    </div>
+                        </p:panel>
+                    </h:form>
                 </h:panelGroup>
 
+                <!-- FYI acknowledgement -->
                 <h:panelGroup rendered="#{clearanceTaskBean.notificationTask}" layout="block">
-                    <div class="card form-card">
-                        <h:form id="ackForm">
-                            <div class="form-actions">
-                                <h:commandButton value="Acknowledge"
-                                                 action="#{clearanceTaskBean.acknowledge}" styleClass="btn"/>
+                    <h:form id="ackForm" style="margin-top:16px;">
+                        <p:panel header="Notification">
+                            <p>This is an informational notification for your awareness.</p>
+                            <div class="action-bar" style="margin-top:12px;">
+                                <p:commandButton value="Acknowledge" icon="pi pi-check"
+                                                 action="#{clearanceTaskBean.acknowledge}"
+                                                 styleClass="ui-button-success"/>
                             </div>
-                        </h:form>
-                    </div>
+                        </p:panel>
+                    </h:form>
                 </h:panelGroup>
 
+                <!-- Decision history -->
                 <h:panelGroup rendered="#{not empty clearanceTaskBean.decisionHistory}" layout="block">
-                    <div class="card">
-                        <h3 class="section-title">Department decisions (current round)</h3>
-                        <table class="data-table">
-                            <thead>
-                            <tr>
-                                <th>Department</th>
-                                <th>Decision</th>
-                                <th>By</th>
-                                <th>Comment</th>
-                                <th>Date</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <ui:repeat var="d" value="#{clearanceTaskBean.decisionHistory}">
-                                <tr>
-                                    <td>#{d.department}</td>
-                                    <td>#{d.decision}</td>
-                                    <td>#{d.completedBy}</td>
-                                    <td>#{d.comment}</td>
-                                    <td>
-                                        <h:outputText value="#{d.decisionDate}">
-                                            <f:convertDateTime type="localDateTime" dateStyle="medium" timeStyle="short"/>
-                                        </h:outputText>
-                                    </td>
-                                </tr>
-                            </ui:repeat>
-                            </tbody>
-                        </table>
-                    </div>
+                    <p:panel header="Department decisions (current round)" style="margin-top:16px;">
+                        <p:dataTable id="decisionsTable" value="#{clearanceTaskBean.decisionHistory}" var="d"
+                                     emptyMessage="No decisions recorded yet in this round."
+                                     paginator="false" resizableColumns="true" reflow="true" size="small">
+                            <p:column headerText="Department" sortBy="#{d.department}"
+                                      filterBy="#{d.department}" filterMatchMode="contains">
+                                <i class="pi pi-building" style="margin-inline-end:6px;color:var(--pf-primary);"/>
+                                #{d.department}
+                            </p:column>
+                            <p:column headerText="Decision" sortBy="#{d.decision}">
+                                <span class="status #{d.decision == 'APPROVED' or d.decision == 'Approved' ? 'approved' : (d.decision == 'REJECTED' or d.decision == 'Rejected' ? 'rejected' : 'info')}">
+                                    <span class="dot"/>#{d.decision}
+                                </span>
+                            </p:column>
+                            <p:column headerText="By" sortBy="#{d.completedBy}">
+                                #{d.completedBy}
+                            </p:column>
+                            <p:column headerText="Comment">
+                                #{d.comment}
+                            </p:column>
+                            <p:column headerText="Date" sortBy="#{d.decisionDate}">
+                                <h:outputText value="#{d.decisionDate}">
+                                    <f:convertDateTime type="localDateTime" dateStyle="medium" timeStyle="short"/>
+                                </h:outputText>
+                            </p:column>
+                        </p:dataTable>
+                    </p:panel>
                 </h:panelGroup>
             </h:panelGroup>
         </h:panelGroup>

@@ -1,55 +1,49 @@
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
                       xmlns:h="jakarta.faces.html"
                       xmlns:ui="jakarta.faces.facelets">
-    <!-- Side menu: brand, navigation, logout. Included from templates/portal.xhtml.
-         Pages pass ui:param activeMenu = dashboard | processes | start-process
+    <!-- Side menu: brand, role-aware navigation, sign-out lives in the header.
+         Included from templates/portal.xhtml. Pages pass ui:param
+         activeMenu = dashboard | processes | start-process | start-clearance
          | external-groups | group-memberships to highlight the current entry.
          Hidden when not logged in. -->
     <ui:fragment rendered="#{loginBean.loggedIn}">
-        <aside class="sidebar">
-            <div class="brand">Approval Workflow</div>
-            <ul class="menu">
-                <li><h:link outcome="/dashboard" value="Dashboard"
-                            styleClass="#{activeMenu == 'dashboard' ? 'active' : ''}"/></li>
-                <li><h:link outcome="/processes" value="Processes"
-                            styleClass="#{activeMenu == 'processes' ? 'active' : ''}"/></li>
-                <li><h:link outcome="/start-process" value="Start Request"
-                            styleClass="#{activeMenu == 'start-process' ? 'active' : ''}"/></li>
-            </ul>
-            <ui:fragment rendered="#{externalGroupService.isGroupAdmin(loginBean.currentUser.id)}">
-                <div class="brand" style="font-size:0.75rem;margin-top:10px;">Administration</div>
-                <ul class="menu">
-                    <li class="menu-group">
-                        <!-- Expandable "Membership Management" section. Rendered twice so it
-                             is pre-opened (details open) when one of its pages is active. -->
-                        <ui:fragment rendered="#{activeMenu == 'external-groups' or activeMenu == 'group-memberships'}">
-                            <details class="menu-details" open="open">
-                                <summary class="menu-summary">Membership Management</summary>
-                                <ul class="submenu">
-                                    <li><h:link outcome="/external-group-create" value="External Groups"
-                                                styleClass="#{activeMenu == 'external-groups' ? 'active' : ''}"/></li>
-                                    <li><h:link outcome="/group-memberships" value="Group Memberships"
-                                                styleClass="#{activeMenu == 'group-memberships' ? 'active' : ''}"/></li>
-                                </ul>
-                            </details>
-                        </ui:fragment>
-                        <ui:fragment rendered="#{not (activeMenu == 'external-groups' or activeMenu == 'group-memberships')}">
-                            <details class="menu-details">
-                                <summary class="menu-summary">Membership Management</summary>
-                                <ul class="submenu">
-                                    <li><h:link outcome="/external-group-create" value="External Groups"
-                                                styleClass="#{activeMenu == 'external-groups' ? 'active' : ''}"/></li>
-                                    <li><h:link outcome="/group-memberships" value="Group Memberships"
-                                                styleClass="#{activeMenu == 'group-memberships' ? 'active' : ''}"/></li>
-                                </ul>
-                            </details>
-                        </ui:fragment>
-                    </li>
-                </ul>
-            </ui:fragment>
-            <h:form styleClass="logout-form">
-                <h:commandLink value="Logout" action="#{loginBean.logout}" styleClass="btn btn-danger"/>
-            </h:form>
+        <aside class="app-sidebar" id="app-sidebar">
+            <h:link outcome="/dashboard" styleClass="brand">
+                <span class="brand-badge"><i class="pi pi-verified"/></span>
+                <span class="brand-text">Workflow Station</span>
+            </h:link>
+
+            <nav class="nav">
+                <div class="nav-label">Workflow</div>
+                <h:link outcome="/dashboard" styleClass="nav-item #{activeMenu == 'dashboard' ? 'active' : ''}">
+                    <i class="pi pi-home"/><span>Dashboard</span>
+                </h:link>
+                <h:link outcome="/processes" styleClass="nav-item #{activeMenu == 'processes' ? 'active' : ''}">
+                    <i class="pi pi-list"/><span>Processes</span>
+                </h:link>
+                <h:link outcome="/start-process" styleClass="nav-item #{activeMenu == 'start-process' ? 'active' : ''}">
+                    <i class="pi pi-plus-circle"/><span>Start Request</span>
+                </h:link>
+
+                <div class="nav-label">Requests</div>
+                <h:link outcome="/start-clearance" styleClass="nav-item #{activeMenu == 'start-clearance' ? 'active' : ''}">
+                    <i class="pi pi-file"/><span>Clearance Letter</span>
+                </h:link>
+
+                <ui:fragment rendered="#{externalGroupService.isGroupAdmin(loginBean.currentUser.id)}">
+                    <div class="nav-label">Administration</div>
+                    <h:link outcome="/external-group-create" styleClass="nav-item #{activeMenu == 'external-groups' ? 'active' : ''}">
+                        <i class="pi pi-sitemap"/><span>External Groups</span>
+                    </h:link>
+                    <h:link outcome="/group-memberships" styleClass="nav-item #{activeMenu == 'group-memberships' ? 'active' : ''}">
+                        <i class="pi pi-users"/><span>Group Memberships</span>
+                    </h:link>
+                </ui:fragment>
+            </nav>
+
+            <div class="nav-footer">
+                Flowable BPM &#183; Jakarta Faces
+            </div>
         </aside>
     </ui:fragment>
 </ui:composition>

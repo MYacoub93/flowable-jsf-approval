@@ -3,7 +3,7 @@ spring:
     host: localhost
     port: 25
   application:
-    name: flowable-jsf-approval
+    name: workflow-station
   datasource:
     # =========================================================
     # 2. قاعدة بيانات Flowable المنفصلة

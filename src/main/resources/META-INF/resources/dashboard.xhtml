@@ -1,103 +1,160 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
-      xmlns:ui="jakarta.faces.facelets">
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
 <f:metadata>
-    <f:viewAction action="#{dashboardBean.init}" />
+    <f:viewAction action="#{dashboardBean.init}"/>
 </f:metadata>
 <ui:composition template="/templates/portal.xhtml">
     <ui:param name="activeMenu" value="dashboard"/>
 
-    <ui:define name="title">Dashboard - Approval Workflow</ui:define>
+    <ui:define name="title">Dashboard - Workflow Station</ui:define>
     <ui:define name="pageTitle">Dashboard</ui:define>
 
     <ui:define name="content">
         <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
-            <div class="anon">
-                <p>You are not logged in.</p>
-                <h:link outcome="/login" value="Go to Login" styleClass="btn"/>
+            <div class="empty-state">
+                <i class="pi pi-lock"/>
+                <div class="empty-title">You are not signed in</div>
+                <p>Please sign in to view your dashboard.</p>
+                <p:button outcome="/login" value="Go to Sign in" icon="pi pi-sign-in"/>
             </div>
         </h:panelGroup>
 
         <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
-            <!-- Welcome banner -->
-            <section class="welcome">
-                <h2>#{dashboardBean.welcomeMessage}</h2>
-                <p>Here is a summary of your workflow activity.</p>
-            </section>
 
-            <!-- Stat cards -->
-            <section class="stats">
-                <div class="stat-card">
-                    <div class="label">My Tasks</div>
-                    <div class="value">#{dashboardBean.taskCount}</div>
-                    <div class="sub">Assigned to you</div>
+            <!-- Page head -->
+            <div class="page-head">
+                <div>
+                    <h1>#{dashboardBean.welcomeMessage}</h1>
+                    <p class="page-sub">Here is a summary of your workflow activity.</p>
                 </div>
-                <div class="stat-card">
-                    <div class="label">Available Processes</div>
-                    <div class="value">#{dashboardBean.availableProcessCount}</div>
-                    <div class="sub">You can invoke</div>
-                </div>
-                <div class="stat-card">
-                    <div class="label">My Started Processes</div>
-                    <div class="value">#{dashboardBean.startedProcessCount}</div>
-                    <div class="sub">Initiated by you</div>
-                </div>
-            </section>
+                <div class="spacer"/>
+                <p:button outcome="/start-process" value="New Request" icon="pi pi-plus"
+                          styleClass="ui-button-success"/>
+            </div>
+
+            <!-- Stat tiles -->
+            <div class="grid cols-3">
+                <a class="stat-tile" href="#myTasksPanel">
+                    <span class="stat-icon primary"><i class="pi pi-inbox"/></span>
+                    <span>
+                        <span class="stat-value">#{dashboardBean.taskCount}</span>
+                        <span class="stat-label">My tasks</span>
+                    </span>
+                </a>
+                <a class="stat-tile" href="#myProcessesPanel">
+                    <span class="stat-icon success"><i class="pi pi-play-circle"/></span>
+                    <span>
+                        <span class="stat-value">#{dashboardBean.startedProcessCount}</span>
+                        <span class="stat-label">Requests started by me</span>
+                    </span>
+                </a>
+                <a class="stat-tile" href="#availableProcessesPanel">
+                    <span class="stat-icon warning"><i class="pi pi-list"/></span>
+                    <span>
+                        <span class="stat-value">#{dashboardBean.availableProcessCount}</span>
+                        <span class="stat-label">Processes I can start</span>
+                    </span>
+                </a>
+            </div>
 
             <!-- My Tasks -->
-            <h:form>
-                <h3 class="section-title">My Tasks</h3>
-                <div class="card">
-                    <h:dataTable value="#{dashboardBean.myTasks}" var="t"
-                                 rendered="#{not empty dashboardBean.myTasks}"
-                                 style="width:100%">
-                        <h:column>
-                            <f:facet name="header">Task</f:facet>
+            <h:form id="myTasksForm" style="margin-top:20px;">
+                <p:panel id="myTasksPanel" header="My Tasks">
+                    <p:dataTable id="myTasksTable" value="#{dashboardBean.myTasks}" var="t"
+                                 widgetVar="tasksTable"
+                                 emptyMessage="No tasks assigned to you."
+                                 paginator="true" rows="10" paginatorAlwaysVisible="false"
+                                 paginatorPosition="bottom"
+                                 rowsPerPageTemplate="5,10,25"
+                                 allowUnsorting="true"
+                                 resizableColumns="true" liveResize="true"
+                                 reflow="true"
+                                 size="small">
+                        <f:facet name="header">
+                            <div class="table-toolbar">
+                                <span class="text-muted">Tasks assigned to you or your groups</span>
+                                <span class="spacer"/>
+                                <p:inputText id="globalFilter" placeholder="Search tasks..."
+                                             onkeyup="PF('tasksTable').filter()"/>
+                            </div>
+                        </f:facet>
+
+                        <p:column headerText="Task" sortBy="#{t.name}" filterBy="#{t.name}"
+                                  filterMatchMode="contains">
+                            <i class="pi pi-check-circle" style="margin-inline-end:6px;color:var(--pf-primary);"/>
                             #{t.name}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Created</f:facet>
-                            #{t.createTime}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Process Instance</f:facet>
-                            #{t.processInstanceId}
-                        </h:column>
-                        <h:column>
-                            <f:facet name="header">Action</f:facet>
-                            <h:commandButton value="Open" action="#{dashboardBean.openTask(t.id)}" styleClass="btn"/>
-                        </h:column>
-                    </h:dataTable>
-                    <p class="empty" rendered="#{empty dashboardBean.myTasks}">No tasks assigned to you.</p>
-                </div>
+                        </p:column>
+                        <p:column headerText="Created" sortBy="#{t.createTime}">
+                            <h:outputText value="#{t.createTime}">
+                                <f:convertDateTime type="both" dateStyle="medium" timeStyle="short"/>
+                            </h:outputText>
+                        </p:column>
+                        <p:column headerText="Process Instance">
+                            <span class="text-muted nowrap">#{t.processInstanceId}</span>
+                        </p:column>
+                        <p:column headerText="Action" styleClass="nowrap">
+                            <p:commandButton value="Open" icon="pi pi-external-link" styleClass="ui-button-sm"
+                                             action="#{dashboardBean.openTask(t.id)}"/>
+                        </p:column>
+                    </p:dataTable>
+                </p:panel>
             </h:form>
 
             <!-- My Started Processes -->
-            <h3 class="section-title">My Started Processes</h3>
-            <div class="card">
-                <h:dataTable value="#{dashboardBean.myProcesses}" var="p"
-                             rendered="#{not empty dashboardBean.myProcesses}"
-                             style="width:100%">
-                    <h:column>
-                        <f:facet name="header">Business Key</f:facet>
-                        #{p.businessKey}
-                    </h:column>
-                    <h:column>
-                        <f:facet name="header">Instance ID</f:facet>
-                        #{p.id}
-                    </h:column>
-                    <h:column>
-                        <f:facet name="header">Started</f:facet>
-                        #{p.startTime}
-                    </h:column>
-                    <h:column>
-                        <f:facet name="header">Ended?</f:facet>
-                        #{p.ended}
-                    </h:column>
-                </h:dataTable>
-                <p class="empty" rendered="#{empty dashboardBean.myProcesses}">You have not started any processes yet.</p>
+            <p:panel id="myProcessesPanel" header="Requests I Started" style="margin-top:20px;">
+                <p:dataTable id="myProcessesTable" value="#{dashboardBean.myProcesses}" var="p"
+                             emptyMessage="You have not started any requests yet."
+                             paginator="true" rows="10" paginatorAlwaysVisible="false"
+                             paginatorPosition="bottom"
+                             resizableColumns="true" reflow="true" size="small">
+                    <p:column headerText="Started" sortBy="#{p.startTime}">
+                        <h:outputText value="#{p.startTime}">
+                            <f:convertDateTime type="both" dateStyle="medium" timeStyle="short"/>
+                        </h:outputText>
+                    </p:column>
+                    <p:column headerText="Process" sortBy="#{p.processDefinitionId}">
+                        <span class="text-muted">#{p.processDefinitionId}</span>
+                    </p:column>
+                    <p:column headerText="Status">
+                        <span class="status #{p.ended ? 'completed' : 'inprogress'}">
+                            <span class="dot"/>
+                            #{p.ended ? 'Completed' : 'In progress'}
+                        </span>
+                    </p:column>
+                </p:dataTable>
+            </p:panel>
+
+            <!-- Quick links -->
+            <div class="grid cols-3" style="margin-top:20px;">
+                <p:panel header="Start something new">
+                    <div class="action-bar">
+                        <p:button outcome="/processes" value="Browse processes" icon="pi pi-list"/>
+                    </div>
+                </p:panel>
+                <p:panel header="Clearance Letter">
+                    <div class="action-bar">
+                        <p:button outcome="/start-clearance" value="New clearance request" icon="pi pi-file"/>
+                    </div>
+                </p:panel>
+                <p:panel id="availableProcessesPanel" header="Processes you can start">
+                    <ui:repeat value="#{dashboardBean.availableProcesses}" var="d">
+                        <div class="history-item info">
+                            <span class="h-icon"><i class="pi pi-bolt"/></span>
+                            <div>
+                                <div class="h-title">#{d.name}</div>
+                                <div class="h-meta">#{d.key} &#183; v#{d.version}</div>
+                            </div>
+                        </div>
+                    </ui:repeat>
+                    <h:panelGroup rendered="#{empty dashboardBean.availableProcesses}" layout="block"
+                                  styleClass="text-muted">
+                        No process definitions are available to your account.
+                    </h:panelGroup>
+                </p:panel>
             </div>
         </h:panelGroup>
     </ui:define>

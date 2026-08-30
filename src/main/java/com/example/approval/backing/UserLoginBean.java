@@ -1,27 +1,44 @@
 package com.example.approval.backing;
 
+import com.example.approval.config.SpringCdiBridge;
 import com.example.approval.service.FlowableIdentityService;
-import org.flowable.idm.api.User;
+import jakarta.enterprise.context.SessionScoped;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.web.context.annotation.SessionScope;
+import jakarta.inject.Named;
+import org.flowable.idm.api.User;
 
 import java.io.Serializable;
 
-@Component("loginBean")
-@SessionScope
+/**
+ * Session-scoped login bean managed by CDI (Weld, provided by JoinFaces).
+ *
+ * Why CDI instead of Spring @SessionScope: a Spring session-scoped bean is a
+ * CGLIB proxy owned by the Spring container, which does not align with the
+ * JSF/CDI session lifecycle used by EL. A normal CDI @SessionScoped bean lives
+ * directly in the standard CDI session context, so JSF state saving and EL
+ * resolution share the same per-session instance without proxies.
+ *
+ * The Flowable identity lookup stays in a Spring singleton service. This bean
+ * obtains it through {@link SpringCdiBridge}, because Spring beans are not
+ * natively injectable into CDI beans in this setup. The other (Spring-managed)
+ * backing beans keep injecting UserLoginBean by type: WebConfig registers a
+ * session-scoped Spring facade that delegates to this CDI bean, so Spring and
+ * CDI share the same per-session state.
+ */
+@Named("loginBean")
+@SessionScoped
 public class UserLoginBean implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @Autowired
-    private FlowableIdentityService identityService;
-
     private String username;
     private String password;
     private User currentUser;
+
+    private FlowableIdentityService identityService() {
+        return SpringCdiBridge.getBean(FlowableIdentityService.class);
+    }
 
     public String login() {
         if (username == null || username.isBlank() || password == null || password.isBlank()) {
@@ -29,14 +46,14 @@ public class UserLoginBean implements Serializable {
             return null;
         }
 
-        // جلب المستخدم مع كلمة المرور مفكوكة التشفير مباشرة من قاعدة البيانات عبر الـ SELECT
-        User dbUser = identityService.findUserByUsernameForAuth(username.trim());
+        // Load the user (with password) straight from the database via the mapper SELECT
+        User dbUser = identityService().findUserByUsernameForAuth(username.trim());
         if (dbUser == null) {
             addMessage(FacesMessage.SEVERITY_ERROR, "Invalid username or password");
             return null;
         }
 
-        // مقارنة كلمة المرور المدخلة مع القيمة القادمة من الاستعلام
+        // Compare the submitted password with the value returned by the query
         if (!password.equals(dbUser.getPassword())) {
             addMessage(FacesMessage.SEVERITY_ERROR, "Invalid username or password");
             return null;

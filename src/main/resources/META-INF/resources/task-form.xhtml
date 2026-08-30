@@ -1,41 +1,110 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
-      xmlns:ui="jakarta.faces.facelets">
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
 <ui:composition template="/templates/portal.xhtml">
-    <ui:define name="title">Approval Task</ui:define>
+    <ui:param name="activeMenu" value="dashboard"/>
+
+    <ui:define name="title">Approval Task - Workflow Station</ui:define>
     <ui:define name="pageTitle">#{empty taskBean.taskName ? 'Approval Task' : taskBean.taskName}</ui:define>
 
     <ui:define name="content">
-        <h:panelGroup rendered="#{!loginBean.loggedIn or empty taskBean.task}">
-            <div class="anon">
-                <p>Invalid task or not logged in.</p>
-                <h:link outcome="/dashboard" value="Back to Dashboard" styleClass="btn btn-secondary"/>
+        <h:panelGroup rendered="#{!loginBean.loggedIn or empty taskBean.task}" layout="block">
+            <div class="empty-state">
+                <i class="pi pi-exclamation-triangle"/>
+                <div class="empty-title">Invalid task or not signed in</div>
+                <p>The task may have been completed by another user, or your session has expired.</p>
+                <p:button outcome="/dashboard" value="Back to Dashboard" icon="pi pi-home"
+                          styleClass="ui-button-secondary"/>
             </div>
         </h:panelGroup>
 
-        <h:panelGroup rendered="#{loginBean.loggedIn and not empty taskBean.task}">
-            <div class="card">
-                <h3>Request Information</h3>
-                <div class="row"><span class="label">Title:</span> #{taskBean.title}</div>
-                <div class="row"><span class="label">Description:</span> #{taskBean.description}</div>
-                <div class="row"><span class="label">Amount:</span> #{taskBean.amount}</div>
-                <div class="row"><span class="label">Department:</span> #{taskBean.department}</div>
-                <div class="row"><span class="label">Initiator:</span> #{taskBean.initiator}</div>
-                <div class="row"><span class="label">Previous comments:</span> #{taskBean.previousComments}</div>
-            </div>
+        <h:panelGroup rendered="#{loginBean.loggedIn and not empty taskBean.task}" layout="block">
 
-            <h:form id="approvalForm">
-                <div class="form-group">
-                    <h:outputLabel for="comments" value="Your Comments"/>
-                    <h:inputTextarea id="comments" value="#{taskBean.comments}"/>
+            <!-- Request information -->
+            <p:panel header="Request information">
+                <div class="action-bar" style="margin-bottom:14px;">
+                    <span class="status inprogress"><span class="dot"/>#{taskBean.taskName}</span>
                 </div>
-                <div class="form-actions">
-                    <h:commandButton value="Approve" action="#{taskBean.approve}" styleClass="btn btn-approve"/>
-                    <h:commandButton value="Reject" action="#{taskBean.reject}" styleClass="btn btn-reject"/>
-                    <h:link outcome="/dashboard" value="Cancel" styleClass="btn btn-secondary"/>
-                </div>
+                <dl class="detail-list">
+                    <dt>Title</dt><dd>#{taskBean.title}</dd>
+                    <dt>Description</dt><dd>#{taskBean.description}</dd>
+                    <dt>Amount</dt><dd>#{taskBean.amount}</dd>
+                    <dt>Department</dt><dd>#{taskBean.department}</dd>
+                    <dt>Initiator</dt><dd>#{taskBean.initiator}</dd>
+                </dl>
+
+                <h:panelGroup rendered="#{not empty taskBean.previousComments}" layout="block"
+                              style="margin-top:14px;">
+                    <div class="history-item info">
+                        <span class="h-icon"><i class="pi pi-comments"/></span>
+                        <div>
+                            <div class="h-title">Previous comments</div>
+                            <p class="h-note">#{taskBean.previousComments}</p>
+                        </div>
+                    </div>
+                </h:panelGroup>
+            </p:panel>
+
+            <!-- Decision -->
+            <h:form id="approvalForm" style="margin-top:16px;">
+                <p:panel header="Your decision">
+                    <p:messages closable="true"/>
+                    <div class="field">
+                        <p:outputLabel for="comments" value="Your comments"/>
+                        <p:inputTextarea id="comments" value="#{taskBean.comments}" rows="3" maxlength="500"
+                                         counter="commentCounter" counterTemplate="{0} characters"
+                                         autoResize="true"/>
+                        <h:panelGroup id="commentCounter" styleClass="field-hint"/>
+                    </div>
+
+                    <div class="action-bar" style="margin-top:16px;">
+                        <p:commandButton value="Approve" icon="pi pi-check" styleClass="ui-button-success"
+                                         onclick="PF('confirmApproveDlg').show()"/>
+                        <p:commandButton value="Reject" icon="pi pi-times"
+                                         styleClass="ui-button-danger ui-button-outlined"
+                                         onclick="PF('rejectDlg').show()"/>
+                        <p:button outcome="/dashboard" value="Cancel" icon="pi pi-arrow-left"
+                                  styleClass="ui-button-secondary ui-button-outlined"/>
+                    </div>
+                </p:panel>
+
+                <!-- Approve confirmation -->
+                <p:confirmDialog global="false" widgetVar="confirmApproveDlg" header="Approve request"
+                                 message="Are you sure you want to approve this request?"
+                                 icon="pi pi-exclamation-triangle" severity="info">
+                    <p:commandButton value="Yes, approve" icon="pi pi-check"
+                                     action="#{taskBean.approve}"
+                                     styleClass="ui-button-success"
+                                     oncomplete="PF('confirmApproveDlg').hide()"/>
+                    <p:commandButton value="Cancel" icon="pi pi-times" styleClass="ui-button-secondary"
+                                     onclick="PF('confirmApproveDlg').hide();return false;" type="button"/>
+                </p:confirmDialog>
+
+                <!-- Reject with mandatory reason -->
+                <p:dialog widgetVar="rejectDlg" header="Reject request" modal="true" resizable="false"
+                          closable="true" closeOnEscape="true">
+                    <p>Are you sure you want to reject this request?</p>
+                    <div class="field" style="margin-top:10px;">
+                        <p:outputLabel for="rejectReason" value="Rejection reason (required)"/>
+                        <p:inputTextarea id="rejectReason" value="#{taskBean.comments}" rows="3"
+                                         required="true" requiredMessage="A rejection reason is required."
+                                         maxlength="500"/>
+                        <p:message for="rejectReason"/>
+                    </div>
+                    <div class="action-bar" style="margin-top:12px;">
+                        <span class="spacer"/>
+                        <p:commandButton value="Cancel" icon="pi pi-times" styleClass="ui-button-secondary"
+                                         onclick="PF('rejectDlg').hide();return false;" type="button"/>
+                        <p:commandButton value="Confirm rejection" icon="pi pi-times"
+                                         styleClass="ui-button-danger"
+                                         action="#{taskBean.reject}"
+                                         update="rejectReason"
+                                         oncomplete="if (!args.validationFailed) PF('rejectDlg').hide()"/>
+                    </div>
+                </p:dialog>
             </h:form>
         </h:panelGroup>
     </ui:define>
