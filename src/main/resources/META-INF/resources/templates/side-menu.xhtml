@@ -4,8 +4,8 @@
     <!-- Side menu: brand, role-aware navigation, sign-out lives in the header.
          Included from templates/portal.xhtml. Pages pass ui:param
          activeMenu = dashboard | processes | start-process | start-clearance
-         | external-groups | group-memberships to highlight the current entry.
-         Hidden when not logged in. -->
+         | external-groups | group-memberships | users-managment to highlight
+         the current entry. Hidden when not logged in. -->
     <ui:fragment rendered="#{loginBean.loggedIn}">
         <aside class="app-sidebar" id="app-sidebar">
             <h:link outcome="/dashboard" styleClass="brand">
@@ -37,6 +37,9 @@
                     </h:link>
                     <h:link outcome="/group-memberships" styleClass="nav-item #{activeMenu == 'group-memberships' ? 'active' : ''}">
                         <i class="pi pi-users"/><span>Group Memberships</span>
+                    </h:link>
+                    <h:link outcome="/users_managment" styleClass="nav-item #{activeMenu == 'users-managment' ? 'active' : ''}">
+                        <i class="pi pi-user-edit"/><span>Users Management</span>
                     </h:link>
                 </ui:fragment>
             </nav>
