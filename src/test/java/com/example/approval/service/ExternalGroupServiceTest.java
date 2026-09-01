@@ -174,11 +174,11 @@ class ExternalGroupServiceTest {
         role.setRoleId(5L);
         role.setRoleCode("GRP");
         when(mapper.findRoleById(5L)).thenReturn(role);
-        when(mapper.findUserById(123L)).thenReturn(user(123, "john.doe"));
+        when(mapper.findUserByIdAndUserName(123L,"rradwan")).thenReturn(user(123, "john.doe"));
         when(mapper.countMembership(5L, 123L)).thenReturn(0);
         when(mapper.findNumericUserId("admin")).thenReturn(7L);
 
-        GroupMembership saved = service.addMembership(5L, 123L, null, "admin");
+        GroupMembership saved = service.addMembership(5L, 123L, null, "admin","rradwam");
 
         assertThat(saved.getRoleId()).isEqualTo(5L);
         assertThat(saved.getUserId()).isEqualTo(123L);
@@ -192,10 +192,10 @@ class ExternalGroupServiceTest {
     void addMembership_rejectsDuplicate() {
         asAdmin("admin");
         when(mapper.findRoleById(5L)).thenReturn(new WebRole());
-        when(mapper.findUserById(123L)).thenReturn(user(123, "john.doe"));
+        when(mapper.findUserByIdAndUserName(123L,"rradwan")).thenReturn(user(123, "john.doe"));
         when(mapper.countMembership(5L, 123L)).thenReturn(1);
 
-        assertThatThrownBy(() -> service.addMembership(5L, 123L, null, "admin"))
+        assertThatThrownBy(() -> service.addMembership(5L, 123L, null, "admin","rradwam"))
                 .isInstanceOf(ExternalGroupService.MembershipExistsException.class)
                 .hasMessageContaining("already a member");
         verify(mapper, never()).insertMembership(any());
@@ -205,12 +205,12 @@ class ExternalGroupServiceTest {
     void addMembership_rejectsMissingGroupOrUser() {
         asAdmin("admin");
         when(mapper.findRoleById(5L)).thenReturn(null);
-        assertThatThrownBy(() -> service.addMembership(5L, 123L, null, "admin"))
+        assertThatThrownBy(() -> service.addMembership(5L, 123L, null, "admin","rradwam"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("group");
         when(mapper.findRoleById(5L)).thenReturn(new WebRole());
-        when(mapper.findUserById(123L)).thenReturn(null);
-        assertThatThrownBy(() -> service.addMembership(5L, 123L, null, "admin"))
+        when(mapper.findUserByIdAndUserName(123L,"rradwan")).thenReturn(null);
+        assertThatThrownBy(() -> service.addMembership(5L, 123L, null, "admin","rradwam"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("user");
     }
@@ -218,7 +218,7 @@ class ExternalGroupServiceTest {
     @Test
     void addMembership_rejectsNonAdmin() {
         when(identityService.createGroupQuery()).thenReturn(groupQuery); when(groupQuery.groupMember("attacker")).thenReturn(groupQuery); when(groupQuery.groupId(ExternalGroupService.ADMIN_ROLE_CODE)).thenReturn(groupQuery); when(groupQuery.count()).thenReturn(0L);
-        assertThatThrownBy(() -> service.addMembership(5L, 123L, null, "attacker"))
+        assertThatThrownBy(() -> service.addMembership(5L, 123L, null, "attacker","rradwam"))
                 .isInstanceOf(SecurityException.class);
         verify(mapper, never()).insertMembership(any());
     }

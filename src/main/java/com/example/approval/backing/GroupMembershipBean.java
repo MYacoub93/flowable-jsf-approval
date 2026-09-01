@@ -7,7 +7,9 @@ import com.example.approval.entity.WebRole;
 import com.example.approval.service.ExternalGroupService;
 import jakarta.annotation.PostConstruct;
 import jakarta.faces.application.FacesMessage;
+import jakarta.faces.component.UIComponent;
 import jakarta.faces.context.FacesContext;
+import jakarta.faces.convert.Converter;
 import jakarta.faces.event.AjaxBehaviorEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
@@ -52,8 +54,8 @@ public class GroupMembershipBean implements Serializable {
     private int totalPages;
     private List<ExternalUser> users;
 
-    /** View ID_ is a numeric string (VARCHAR2) - kept as String for EL. */
-    private String selectedUserId;
+    /** The user picked with the row radio - the full row object, not just the id. */
+    private ExternalUser selectedUser;
 
     // members of the selected group
     private List<GroupMembership> members;
@@ -152,13 +154,15 @@ public class GroupMembershipBean implements Serializable {
     // ------------------------------------------------------------------
 
     /**
-     * Row "Select" button action. The value itself is set by the
-     * {@code f:setPropertyActionListener} on the button; this method just
-     * confirms the selection to the user.
+     * Row "Select" radio action. The value itself is bound to
+     * {@code selectedUser} via the {@link ExternalUserConverter}; this
+     * method just confirms the selection to the user.
      */
     public void selectUser() {
-        if (selectedUserId != null) {
-            addMessage(FacesMessage.SEVERITY_INFO, "User " + selectedUserId + " selected");
+        if (selectedUser != null) {
+            String label = selectedUser.getUsername() != null
+                    ? selectedUser.getUsername() : selectedUser.getId();
+            addMessage(FacesMessage.SEVERITY_INFO, "User " + label + " selected");
         }
     }
 
@@ -181,15 +185,17 @@ public class GroupMembershipBean implements Serializable {
                 addMessage(FacesMessage.SEVERITY_WARN, "Please select a group first");
                 return null;
             }
-            Long userId = parseUserId(selectedUserId);
+            Long userId = selectedUser == null ? null : parseUserId(selectedUser.getId());
             if (userId == null) {
                 addMessage(FacesMessage.SEVERITY_WARN, "Please select a user first");
                 return null;
             }
-            groupService.addMembership(selectedRoleId, userId, actorUserId(), currentFlowableUserId());
+
+            groupService.addMembership(selectedRoleId, userId, actorUserId(), currentFlowableUserId(),
+                    selectedUser.getUsername());
             addMessage(FacesMessage.SEVERITY_INFO, "User added to the group successfully");
-            selectedUserId = null; // clear selection
-            loadMembers();        // show the new member immediately
+            selectedUser = null; // clear selection
+            loadMembers();       // show the new member immediately
         } catch (ExternalGroupService.MembershipExistsException e) {
             addMessage(FacesMessage.SEVERITY_WARN, e.getMessage());
         } catch (IllegalArgumentException e) {
@@ -264,12 +270,17 @@ public class GroupMembershipBean implements Serializable {
         return users;
     }
 
-    public String getSelectedUserId() {
-        return selectedUserId;
+    public ExternalUser getSelectedUser() {
+        return selectedUser;
     }
 
-    public void setSelectedUserId(String selectedUserId) {
-        this.selectedUserId = selectedUserId;
+    public void setSelectedUser(ExternalUser selectedUser) {
+        this.selectedUser = selectedUser;
+    }
+
+    /** Stateless converter exposed for the XHTML {@code converter} binding. */
+    public ExternalUserConverter getUserConverter() {
+        return new ExternalUserConverter();
     }
 
     public List<GroupMembership> getMembers() {
@@ -282,5 +293,48 @@ public class GroupMembershipBean implements Serializable {
 
     public int getPageSize() {
         return pageSize;
+    }
+
+    // ------------------------------------------------------------------
+    // Converter for the per-row user radios
+    // ------------------------------------------------------------------
+
+    /**
+     * Converts an {@link ExternalUser} to/from its {@code "id|username"}
+     * wire representation so the row radios can bind the full POJO (and the
+     * username travels with the selection). The (userId, username) pair is
+     * re-validated by {@link ExternalGroupService#addMembership} against
+     * {@code FLOWABLE_USERS_VW} before anything is written.
+     */
+    public static class ExternalUserConverter implements Converter<ExternalUser>, Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        private static final String SEPARATOR = "|";
+
+        @Override
+        public String getAsString(FacesContext context, UIComponent component, ExternalUser user) {
+            if (user == null) {
+                return "";
+            }
+            String username = user.getUsername() == null ? "" : user.getUsername();
+            return user.getId() + SEPARATOR + username;
+        }
+
+        @Override
+        public ExternalUser getAsObject(FacesContext context, UIComponent component, String value) {
+            if (value == null || value.isBlank()) {
+                return null;
+            }
+            int separator = value.indexOf(SEPARATOR);
+            ExternalUser user = new ExternalUser();
+            if (separator < 0) {
+                user.setId(value);
+            } else {
+                user.setId(value.substring(0, separator));
+                user.setUsername(value.substring(separator + SEPARATOR.length()));
+            }
+            return user;
+        }
     }
 }

@@ -78,9 +78,12 @@ public class ClearanceTaskListener implements TaskListener {
         String initiator = str(task.getVariable(VAR_INITIATOR));
         String pid = task.getProcessInstanceId();
 
-        // audit first: TASK_ASSIGNED for every task handed to an approver
+        // audit first: TASK_ASSIGNED for every task handed to an approver.
+        // The note is optional: if one was persisted on the task (task local
+        // variable note/notes or the task description) it is written to
+        // F_BPM_AUDIT_LOG_DTL, otherwise the generated default note is kept.
         auditService.logTaskAssigned(pid, stage, department, candidateGroup,
-                task.getId(), initiator);
+                task.getId(), taskNoteOf(task), initiator);
 
         // then the notification e-mail (only for approval tasks, not for the
         // initiator's own amendment/result tasks)
@@ -240,4 +243,21 @@ public class ClearanceTaskListener implements TaskListener {
     private String safe(String value) {
         return value == null ? "" : value;
     }
+
+    /**
+     * Optional free text note persisted on the task. Probes the task local
+     * variables note / notes first, then the task description; returns null
+     * when nothing was persisted (the audit row then falls back to its
+     * generated default note).
+     */
+    private String taskNoteOf(DelegateTask task) {
+        for (String name : new String[]{"note", "notes"}) {
+            String value = str(task.getVariableLocal(name));
+            if (value != null && value.isBlank() == false) {
+                return value;
+            }
+        }
+        return str(task.getDescription());
+    }
+
 }

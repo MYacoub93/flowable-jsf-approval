@@ -71,6 +71,10 @@ public interface BpmAuditService {
      * @param department        department / approver group name
      * @param candidateGroup    Flowable candidate group id
      * @param taskId            task id
+     * @param note              optional note persisted on the task; when
+     *                          non-blank it is stored in the note field of
+     *                          F_BPM_AUDIT_LOG_DTL instead of the generated
+     *                          default text (nullable)
      * @param initiator         process initiator username
      * @return the persisted detail record
      */
@@ -79,6 +83,7 @@ public interface BpmAuditService {
                                    String department,
                                    String candidateGroup,
                                    String taskId,
+                                   String note,
                                    String initiator);
 
     /**

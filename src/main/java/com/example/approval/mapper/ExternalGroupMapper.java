@@ -52,7 +52,7 @@ public interface ExternalGroupMapper {
     long countUsers(@Param("searchTerm") String searchTerm);
 
     /** One user of the view by numeric id (validation before insert). */
-    ExternalUser findUserById(@Param("userId") long userId);
+    ExternalUser findUserByIdAndUserName(@Param("userId") long userId,@Param("userName") String userName);
 
     /**
      * Numeric business user id (DIC_USERS.USER_ID / view ID_) behind a

@@ -107,7 +107,8 @@ public class ExternalGroupService {
         role.setRoleId(mapper.nextRoleId());
         role.setIsFixed(0);
         role.setKeyType(WebRole.KEY_TYPE_GENERIC);
-        Long createdBy = resolveActorUserId(actorUserId, actorFlowableUserId);
+        Long createdBy = resolveActorUserId(actorUserId, actorFlowableUserId);
+
         role.setCreatedBy(createdBy != null ? createdBy : UNKNOWN_USER_ID);
         role.setCreatedDate(LocalDateTime.now());
         try {
@@ -232,7 +233,7 @@ public class ExternalGroupService {
      */
     @Transactional(transactionManager = "externalTransactionManager")
     public GroupMembership addMembership(Long roleId, Long userId, Long actorUserId,
-                                         String actorFlowableUserId) {
+                                         String actorFlowableUserId,String userName) {
         assertGroupAdmin(actorFlowableUserId);
         if (roleId == null) {
             throw new IllegalArgumentException("A group must be selected");
@@ -246,7 +247,7 @@ public class ExternalGroupService {
             throw new IllegalArgumentException("Selected group does not exist (id " + roleId + ")");
         }
 
-        ExternalUser user = mapper.findUserById(userId);
+        ExternalUser user = mapper.findUserByIdAndUserName(userId,userName);
         if (user == null) {
             throw new IllegalArgumentException("Selected user does not exist (id " + userId + ")");
         }
@@ -266,7 +267,8 @@ public class ExternalGroupService {
         membership.setUserId(userId);
         membership.setUserWebName(webName);
         membership.setIsEnabled(1);
-        Long createdBy = resolveActorUserId(actorUserId, actorFlowableUserId);
+        Long createdBy = resolveActorUserId(actorUserId, actorFlowableUserId);
+
         membership.setCreatedBy(createdBy != null ? createdBy : UNKNOWN_USER_ID);
         membership.setCreatedDate(LocalDateTime.now());
         try {
@@ -297,27 +299,48 @@ public class ExternalGroupService {
         }
     }
 
-    /**
-     * Numeric DIC_USERS id behind the acting user, for the NOT NULL
-     * CREATED_BY columns: supplied id first, then a username lookup in the
-     * external view (same convention as
-     * {@code BpmAuditMapper.findNumericUserId}), else null (= 0 fallback).
-     */
-    private Long resolveActorUserId(Long actorUserId, String flowableUserId) {
-        if (actorUserId != null) {
-            return actorUserId;
-        }
-        if (flowableUserId == null || flowableUserId.isBlank()) {
-            return null;
-        }
-        try {
-            return mapper.findNumericUserId(flowableUserId);
-        } catch (Exception e) {
-            log.warn("Could not resolve numeric user id of '{}'", flowableUserId, e);
-            return null;
-        }
-    }
-
+    /**
+
+     * Numeric DIC_USERS id behind the acting user, for the NOT NULL
+
+     * CREATED_BY columns: supplied id first, then a username lookup in the
+
+     * external view (same convention as
+
+     * {@code BpmAuditMapper.findNumericUserId}), else null (= 0 fallback).
+
+     */
+
+    private Long resolveActorUserId(Long actorUserId, String flowableUserId) {
+
+        if (actorUserId != null) {
+
+            return actorUserId;
+
+        }
+
+        if (flowableUserId == null || flowableUserId.isBlank()) {
+
+            return null;
+
+        }
+
+        try {
+
+            return mapper.findNumericUserId(flowableUserId);
+
+        } catch (Exception e) {
+
+            log.warn("Could not resolve numeric user id of '{}'", flowableUserId, e);
+
+            return null;
+
+        }
+
+    }
+
+
+
     private static boolean isBlank(String s) {
         return s == null || s.isBlank();
     }

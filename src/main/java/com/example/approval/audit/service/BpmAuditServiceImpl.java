@@ -111,11 +111,14 @@ public class BpmAuditServiceImpl implements BpmAuditService {
                                           String department,
                                           String candidateGroup,
                                           String taskId,
+                                          String taskNote,
                                           String initiator) {
-        String note = "Task " + nvl(taskId) + " assigned"
+        String defaultNote = "Task " + nvl(taskId) + " assigned"
                 + " | Stage: " + nvl(stage)
                 + " | Department: " + nvl(department)
                 + " | CandidateGroup: " + nvl(candidateGroup);
+        // optional note persisted on the task wins over the generated default
+        String note = taskNote != null && !taskNote.trim().isEmpty() ? taskNote.trim() : defaultNote;
         // "task assigned" maps onto the department's Task Received row
         // (استلام مهمة) of the BPM_ACTIONS lookup
         return insert(BpmAuditAction.of(department, BpmAuditAction.ActionType.TASK_RECEIVED),

@@ -144,10 +144,11 @@
         <include refid="userSearchCondition"/>
     </select>
 
-    <select id="findUserById" resultMap="externalUserMap">
+    <select id="findUserByIdAndUserName" resultMap="externalUserMap">
         SELECT ID_, USERNAME_, FIRST_NAME_, LAST_NAME_, EMAIL_, KEY_TYPE_, ROLE_CODE_
         FROM FLOWABLE_USERS_VW
         WHERE ID_ = TO_CHAR(#{userId})
+        And USERNAME_ = #{userName}
     </select>
 
     <!-- Numeric business user id behind a Flowable username (CREATED_BY
@@ -190,6 +191,7 @@
             NVL(#{isEnabled, jdbcType=DECIMAL}, 1),
             #{createdBy, jdbcType=DECIMAL},
             #{createdDate, jdbcType=TIMESTAMP}
+        )
         )
     </insert>
 

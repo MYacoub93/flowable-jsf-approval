@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
@@ -30,6 +30,11 @@
             </div>
         </h:panelGroup>
 
+        <!--
+            NOTE: group selector, user search/selection and the "Add" action MUST
+            live in one form. With separate forms the Add postback never submits
+            the p:selectOneMenu, so selectedRoleId was always null.
+        -->
         <h:panelGroup rendered="#{groupMembershipsBean.groupAdmin}" layout="block">
             <div class="page-head">
                 <div>
@@ -38,34 +43,32 @@
                 </div>
             </div>
 
-            <!-- Group selection -->
-            <h:form id="groupForm">
+            <h:form id="mainForm">
+                <!-- Group selection -->
                 <p:panel header="External Group / Role">
                     <div class="form-grid">
                         <div class="field">
                             <p:outputLabel for="group" value="Select group"/>
-                            <p:selectOneMenu id="group" value="#{groupMembershipsBean.selectedRoleId}" required="true">
+                            <p:selectOneMenu id="group" value="#{groupMembershipsBean.selectedRoleId}">
                                 <f:selectItem itemValue="" itemLabel="-- select group --" noSelectionOption="true"/>
                                 <f:selectItems value="#{groupMembershipsBean.roles}" var="r"
                                                itemValue="#{r.roleId}"
                                                itemLabel="#{r.roleCode} / #{r.roleName}"/>
-                                <p:ajax event="valueChange" listener="#{groupMembershipsBean.onGroupChange}"
-                                        update="membersForm"/>
+                                <p:ajax event="change" listener="#{groupMembershipsBean.onGroupChange}"
+                                        update="membersPanel"/>
                             </p:selectOneMenu>
                             <p:message for="group"/>
                         </div>
                     </div>
                 </p:panel>
-            </h:form>
 
-            <!-- Users search -->
-            <h:form id="usersForm" style="margin-top:16px;">
-                <p:panel header="Users">
+                <!-- Users search -->
+                <p:panel id="usersPanel" header="Users" style="margin-top:16px;">
                     <div class="table-toolbar">
                         <p:inputText id="search" value="#{groupMembershipsBean.searchTerm}"
                                      placeholder="Username, name, email or ID" style="margin-inline-end:8px;"/>
                         <p:commandButton value="Search" icon="pi pi-search" action="#{groupMembershipsBean.search}"
-                                         update="usersForm" styleClass="ui-button-outlined"/>
+                                         process="@form" update="usersPanel" styleClass="ui-button-outlined"/>
                     </div>
 
                     <p:dataTable id="usersTable" value="#{groupMembershipsBean.users}" var="u"
@@ -87,8 +90,11 @@
                             #{u.email}
                         </p:column>
                         <p:column headerText="Select" styleClass="nowrap" style="width:80px;text-align:center;">
-                            <p:selectOneRadio id="userRadio" value="#{groupMembershipsBean.selectedUserId}">
-                                <f:selectItem itemValue="#{u.id}" itemLabel=""/>
+                            <!-- binds the whole row object (id + username travel together) -->
+                            <p:selectOneRadio id="userRadio" value="#{groupMembershipsBean.selectedUser}"
+                                              converter="#{groupMembershipsBean.userConverter}">
+                                <f:selectItem itemValue="#{u}" itemLabel="" converter="#{groupMembershipsBean.userConverter}"/>
+                                <p:ajax update="@this" />
                             </p:selectOneRadio>
                         </p:column>
                     </p:dataTable>
@@ -98,38 +104,42 @@
                          rendered="#{groupMembershipsBean.hasUsers}">
                         <p:commandButton icon="pi pi-angle-double-left" title="First page"
                                          action="#{groupMembershipsBean.firstPage}"
+                                         process="@form" update="usersPanel"
                                          disabled="#{!groupMembershipsBean.hasPrevious}"
-                                         styleClass="ui-button-secondary ui-button-sm" update="usersForm"/>
+                                         styleClass="ui-button-secondary ui-button-sm"/>
                         <p:commandButton icon="pi pi-angle-left" title="Previous page"
                                          action="#{groupMembershipsBean.previousPage}"
+                                         process="@form" update="usersPanel"
                                          disabled="#{!groupMembershipsBean.hasPrevious}"
-                                         styleClass="ui-button-secondary ui-button-sm" update="usersForm"/>
+                                         styleClass="ui-button-secondary ui-button-sm"/>
                         <span class="text-muted nowrap">#{groupMembershipsBean.rangeLabel}</span>
                         <p:commandButton icon="pi pi-angle-right" title="Next page"
                                          action="#{groupMembershipsBean.nextPage}"
+                                         process="@form" update="usersPanel"
                                          disabled="#{!groupMembershipsBean.hasNext}"
-                                         styleClass="ui-button-secondary ui-button-sm" update="usersForm"/>
+                                         styleClass="ui-button-secondary ui-button-sm"/>
                         <p:commandButton icon="pi pi-angle-double-right" title="Last page"
                                          action="#{groupMembershipsBean.lastPage}"
+                                         process="@form" update="usersPanel"
                                          disabled="#{!groupMembershipsBean.hasNext}"
-                                         styleClass="ui-button-secondary ui-button-sm" update="usersForm"/>
+                                         styleClass="ui-button-secondary ui-button-sm"/>
                     </div>
                 </p:panel>
 
                 <!-- Add membership -->
                 <p:panel header="Add membership" style="margin-top:16px;">
-                    <p:messages closable="true"/>
+                    <p:messages closable="true" autoUpdate="true"/>
                     <div class="action-bar">
+                        <!-- process="@form" submits the group menu + user radio together -->
                         <p:commandButton value="Add Selected User to Group" icon="pi pi-user-plus"
                                          action="#{groupMembershipsBean.addUserToGroup}"
-                                         update="usersForm membersForm" styleClass="ui-button-success"/>
+                                         process="@form" update="usersPanel membersPanel"
+                                         styleClass="ui-button-success"/>
                     </div>
                 </p:panel>
-            </h:form>
 
-            <!-- Current members -->
-            <h:form id="membersForm">
-                <p:panel header="Current members of selected group" style="margin-top:16px;">
+                <!-- Current members -->
+                <p:panel id="membersPanel" header="Current members of selected group" style="margin-top:16px;">
                     <p:dataTable id="membersTable" value="#{groupMembershipsBean.members}" var="m"
                                  emptyMessage="No members yet - select a user above and add them to the group."
                                  rendered="#{not empty groupMembershipsBean.members}"
