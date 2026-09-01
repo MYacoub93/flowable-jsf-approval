@@ -92,8 +92,8 @@
                         <p:column headerText="Select" styleClass="nowrap" style="width:80px;text-align:center;">
                             <!-- binds the whole row object (id + username travel together) -->
                             <p:selectOneRadio id="userRadio" value="#{groupMembershipsBean.selectedUser}"
-                                              converter="#{groupMembershipsBean.userConverter}">
-                                <f:selectItem itemValue="#{u}" itemLabel="" converter="#{groupMembershipsBean.userConverter}"/>
+                                              converter="externalUserConverter">
+                                <f:selectItem itemValue="#{u}" itemLabel="" converter="externalUserConverter"/>
                                 <p:ajax update="@this" />
                             </p:selectOneRadio>
                         </p:column>

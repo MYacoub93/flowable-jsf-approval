@@ -74,6 +74,15 @@
             <artifactId>faces-spring-boot-starter</artifactId>
             <version>${joinfaces.version}</version>
         </dependency>
+        <!-- OmniFaces 4.x (Jakarta Faces 4.0) - JSF utility library (view actions,
+             cache, exception handling, Faces/Servlets/Beans utilities, etc.).
+             The JoinFaces starter wires OmniFaces 4.4.1 together with Weld/CDI
+             so OmniFaces' CDI-based features work under Spring Boot. -->
+        <dependency>
+            <groupId>org.joinfaces</groupId>
+            <artifactId>omnifaces-spring-boot-starter</artifactId>
+            <version>${joinfaces.version}</version>
+        </dependency>
 
         <!-- PrimeFaces 14 (jakarta classifier) - modern UI component suite for JSF.
              Compatible with JoinFaces 5.x / Mojarra 4 / Spring Boot 3.

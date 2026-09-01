@@ -7,9 +7,7 @@ import com.example.approval.entity.WebRole;
 import com.example.approval.service.ExternalGroupService;
 import jakarta.annotation.PostConstruct;
 import jakarta.faces.application.FacesMessage;
-import jakarta.faces.component.UIComponent;
 import jakarta.faces.context.FacesContext;
-import jakarta.faces.convert.Converter;
 import jakarta.faces.event.AjaxBehaviorEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
@@ -155,7 +153,7 @@ public class GroupMembershipBean implements Serializable {
 
     /**
      * Row "Select" radio action. The value itself is bound to
-     * {@code selectedUser} via the {@link ExternalUserConverter}; this
+     * {@code selectedUser} via the OmniFaces-based {@code externalUserConverter}; this
      * method just confirms the selection to the user.
      */
     public void selectUser() {
@@ -278,12 +276,7 @@ public class GroupMembershipBean implements Serializable {
         this.selectedUser = selectedUser;
     }
 
-    /** Stateless converter exposed for the XHTML {@code converter} binding. */
-    public ExternalUserConverter getUserConverter() {
-        return new ExternalUserConverter();
-    }
-
-    public List<GroupMembership> getMembers() {
+public List<GroupMembership> getMembers() {
         return members;
     }
 
@@ -293,48 +286,5 @@ public class GroupMembershipBean implements Serializable {
 
     public int getPageSize() {
         return pageSize;
-    }
-
-    // ------------------------------------------------------------------
-    // Converter for the per-row user radios
-    // ------------------------------------------------------------------
-
-    /**
-     * Converts an {@link ExternalUser} to/from its {@code "id|username"}
-     * wire representation so the row radios can bind the full POJO (and the
-     * username travels with the selection). The (userId, username) pair is
-     * re-validated by {@link ExternalGroupService#addMembership} against
-     * {@code FLOWABLE_USERS_VW} before anything is written.
-     */
-    public static class ExternalUserConverter implements Converter<ExternalUser>, Serializable {
-
-        private static final long serialVersionUID = 1L;
-
-        private static final String SEPARATOR = "|";
-
-        @Override
-        public String getAsString(FacesContext context, UIComponent component, ExternalUser user) {
-            if (user == null) {
-                return "";
-            }
-            String username = user.getUsername() == null ? "" : user.getUsername();
-            return user.getId() + SEPARATOR + username;
-        }
-
-        @Override
-        public ExternalUser getAsObject(FacesContext context, UIComponent component, String value) {
-            if (value == null || value.isBlank()) {
-                return null;
-            }
-            int separator = value.indexOf(SEPARATOR);
-            ExternalUser user = new ExternalUser();
-            if (separator < 0) {
-                user.setId(value);
-            } else {
-                user.setId(value.substring(0, separator));
-                user.setUsername(value.substring(separator + SEPARATOR.length()));
-            }
-            return user;
-        }
     }
 }
