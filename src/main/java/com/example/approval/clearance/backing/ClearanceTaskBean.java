@@ -8,8 +8,8 @@ import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import org.flowable.task.api.Task;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import org.springframework.web.context.annotation.RequestScope;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -43,7 +43,7 @@ import static com.example.approval.clearance.ClearanceConstants.*;
  * skip Spring injection, leaving @Autowired fields null.
  */
 @Component("clearanceTaskBean")
-@RequestScope
+@Scope("view")
 public class ClearanceTaskBean implements Serializable {
 
     private static final long serialVersionUID = 1L;

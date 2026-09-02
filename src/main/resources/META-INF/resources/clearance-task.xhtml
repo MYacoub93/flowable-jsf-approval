@@ -66,7 +66,7 @@
                 <h:panelGroup rendered="#{clearanceTaskBean.approvalTask}" layout="block">
                     <h:form id="approvalForm" style="margin-top:16px;">
                         <p:panel header="Decision">
-                            <p:messages closable="true"/>
+                            <p:messages id="decisionMsgs" closable="true"/>
                             <div class="field">
                                 <p:outputLabel for="comments" value="Comment"/>
                                 <p:inputTextarea id="comments" value="#{clearanceTaskBean.comments}" rows="3"
@@ -76,11 +76,12 @@
                             </div>
 
                             <div class="action-bar" style="margin-top:16px;">
+                                <!-- type="button": pure client-side dialog openers, no form submit -->
                                 <p:commandButton value="Approve" icon="pi pi-check"
-                                                 styleClass="ui-button-success"
+                                                 styleClass="ui-button-success" type="button"
                                                  onclick="PF('confirmApproveDlg').show()"/>
                                 <p:commandButton value="Reject" icon="pi pi-times"
-                                                 styleClass="ui-button-danger ui-button-outlined"
+                                                 styleClass="ui-button-danger ui-button-outlined" type="button"
                                                  onclick="PF('rejectDlg').show()"/>
                             </div>
                         </p:panel>
@@ -89,9 +90,14 @@
                         <p:confirmDialog global="false" widgetVar="confirmApproveDlg" header="Approve request"
                                          message="Are you sure you want to approve this request?"
                                          icon="pi pi-exclamation-triangle" severity="info">
+                            <!-- process="@this comments": submit only the button and the optional
+                                 comment, NOT the whole form - the required rejectReason field of
+                                 the (closed) reject dialog shares this form and would otherwise
+                                 fail validation and silently skip the approve() action method -->
                             <p:commandButton value="Yes, approve" icon="pi pi-check"
-                                             action="#{clearanceTaskBean.approve}"
+                                             action="#{clearanceTaskBean.approve()}"
                                              styleClass="ui-button-success"
+                                             process="@this comments" update="decisionMsgs"
                                              oncomplete="PF('confirmApproveDlg').hide()"/>
                             <p:commandButton value="Cancel" icon="pi pi-times" styleClass="ui-button-secondary"
                                              onclick="PF('confirmApproveDlg').hide();return false;" type="button"/>
@@ -101,13 +107,14 @@
                         <p:dialog widgetVar="rejectDlg" header="Reject request" modal="true" resizable="false"
                                   closable="true" closeOnEscape="true">
                             <p>Are you sure you want to reject this request?</p>
-                            <div class="field" style="margin-top:10px;">
+                            <h:panelGroup id="rejectReasonField" layout="block" styleClass="field"
+                                          style="margin-top:10px;">
                                 <p:outputLabel for="rejectReason" value="Rejection reason (required)"/>
                                 <p:inputTextarea id="rejectReason" value="#{clearanceTaskBean.comments}" rows="3"
                                                  required="true" requiredMessage="A rejection reason is required."
                                                  maxlength="500"/>
                                 <p:message for="rejectReason"/>
-                            </div>
+                            </h:panelGroup>
                             <div class="action-bar" style="margin-top:12px;">
                                 <span class="spacer"/>
                                 <p:commandButton value="Cancel" icon="pi pi-times"
@@ -116,7 +123,7 @@
                                 <p:commandButton value="Confirm rejection" icon="pi pi-times"
                                                  styleClass="ui-button-danger"
                                                  action="#{clearanceTaskBean.reject}"
-                                                 update="rejectReason"
+                                                 update="rejectReasonField decisionMsgs"
                                                  oncomplete="if (!args.validationFailed) PF('rejectDlg').hide()"/>
                             </div>
                         </p:dialog>
