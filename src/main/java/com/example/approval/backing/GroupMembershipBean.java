@@ -30,7 +30,7 @@ import java.util.List;
  */
 @Component("groupMembershipsBean")
 @Scope("view")
-public class GroupMembershipBean implements Serializable {
+public class GroupMembershipBean extends BaseBackingBean {
 
     private static final long serialVersionUID = 1L;
 

@@ -25,10 +25,16 @@ import java.io.Serializable;
  * backing beans keep injecting UserLoginBean by type: WebConfig registers a
  * session-scoped Spring facade that delegates to this CDI bean, so Spring and
  * CDI share the same per-session state.
+ *
+ * After a successful authentication the bean snapshots the logged-in user's
+ * information into the {@link SessionInfoBean} (obtained through
+ * {@link BaseBackingBean} inheritance), which every other backing bean reads
+ * through the same inheritance instead of a per-bean injection. On logout the
+ * session info is cleared before the HTTP session is invalidated.
  */
 @Named("loginBean")
 @SessionScoped
-public class UserLoginBean implements Serializable {
+public class UserLoginBean extends BaseBackingBean implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -46,8 +52,10 @@ public class UserLoginBean implements Serializable {
             return null;
         }
 
+        String loginName = username.trim();
+
         // Load the user (with password) straight from the database via the mapper SELECT
-        User dbUser = identityService().findUserByUsernameForAuth(username.trim());
+        User dbUser = identityService().findUserByUsernameForAuth(loginName);
         if (dbUser == null) {
             addMessage(FacesMessage.SEVERITY_ERROR, "Invalid username or password");
             return null;
@@ -59,13 +67,23 @@ public class UserLoginBean implements Serializable {
             return null;
         }
 
+        // The password was only needed for the comparison above - do not keep
+        // it in the session-backed user object.
+        dbUser.setPassword(null);
+
         this.currentUser = dbUser;
         this.username = currentUser.getFirstName();
+
+        // Snapshot the authenticated user's information for every backing bean
+        getSessionInfo().populate(dbUser, loginName);
+
         addMessage(FacesMessage.SEVERITY_INFO, "Welcome " + currentUser.getFirstName());
         return "/dashboard?faces-redirect=true";
     }
 
+    @Override
     public String logout() {
+        getSessionInfo().clear(); // drop the session information first
         this.currentUser = null;
         this.username = null;
         this.password = null;

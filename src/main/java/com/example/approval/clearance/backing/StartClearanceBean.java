@@ -1,5 +1,6 @@
 package com.example.approval.clearance.backing;
 
+import com.example.approval.backing.BaseBackingBean;
 import com.example.approval.backing.UserLoginBean;
 import com.example.approval.clearance.ClearanceRequestContract;
 import com.example.approval.clearance.service.ClearanceService;
@@ -22,7 +23,7 @@ import java.io.Serializable;
  */
 @Component("startClearanceBean")
 @RequestScope
-public class StartClearanceBean implements Serializable {
+public class StartClearanceBean extends BaseBackingBean {
 
     private static final long serialVersionUID = 1L;
 

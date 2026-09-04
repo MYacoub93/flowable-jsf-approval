@@ -1,5 +1,6 @@
 package com.example.approval.clearance.backing;
 
+import com.example.approval.backing.BaseBackingBean;
 import com.example.approval.backing.UserLoginBean;
 import com.example.approval.clearance.model.DepartmentDecision;
 import com.example.approval.clearance.service.ClearanceService;
@@ -44,7 +45,7 @@ import static com.example.approval.clearance.ClearanceConstants.*;
  */
 @Component("clearanceTaskBean")
 @Scope("view")
-public class ClearanceTaskBean implements Serializable {
+public class ClearanceTaskBean extends BaseBackingBean {
 
     private static final long serialVersionUID = 1L;
 

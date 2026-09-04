@@ -29,7 +29,7 @@ import java.util.Map;
  */
 @Component("updateRequestBean")
 @RequestScope
-public class UpdateRequestBean implements Serializable {
+public class UpdateRequestBean extends BaseBackingBean {
 
     private static final long serialVersionUID = 1L;
 

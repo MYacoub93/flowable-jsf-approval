@@ -20,7 +20,7 @@ import java.util.List;
  */
 @Component("dashboardBean")
 @RequestScope
-public class DashboardBean implements Serializable {
+public class DashboardBean extends BaseBackingBean {
 
     private static final long serialVersionUID = 1L;
 
@@ -129,6 +129,6 @@ public class DashboardBean implements Serializable {
     }
 
     public String logout() {
-        return loginBean.logout();
+        return super.logout();
     }
 }

@@ -27,7 +27,7 @@ import java.util.List;
  */
 @Component("processListBean")
 @RequestScope
-public class ProcessListBean implements Serializable {
+public class ProcessListBean extends BaseBackingBean {
 
     private static final long serialVersionUID = 1L;
 
@@ -99,7 +99,7 @@ public class ProcessListBean implements Serializable {
     }
 
     public String logout() {
-        return loginBean.logout();
+        return super.logout();
     }
 
     private void addError(String msg) {

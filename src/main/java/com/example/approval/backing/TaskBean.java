@@ -23,7 +23,7 @@ import java.util.Map;
  */
 @Component("taskBean")
 @RequestScope
-public class TaskBean implements Serializable {
+public class TaskBean extends BaseBackingBean {
 
     private static final long serialVersionUID = 1L;
 

@@ -20,7 +20,7 @@ import java.io.Serializable;
  */
 @Component("externalGroupCreateBean")
 @RequestScope
-public class ExternalGroupCreateBean implements Serializable {
+public class ExternalGroupCreateBean extends BaseBackingBean {
 
     private static final long serialVersionUID = 1L;
 

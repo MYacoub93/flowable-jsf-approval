@@ -26,7 +26,7 @@ import java.io.Serializable;
  */
 @Component("startProcessBean")
 @RequestScope
-public class StartProcessBean implements Serializable {
+public class StartProcessBean extends BaseBackingBean {
 
     private static final long serialVersionUID = 1L;
 

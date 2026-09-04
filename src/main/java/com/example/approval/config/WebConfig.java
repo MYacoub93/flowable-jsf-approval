@@ -1,5 +1,6 @@
 package com.example.approval.config;
 
+import com.example.approval.backing.SessionInfoBean;
 import com.example.approval.backing.UserLoginBean;
 import jakarta.enterprise.context.ContextNotActiveException;
 import jakarta.enterprise.inject.UnsatisfiedResolutionException;
@@ -66,6 +67,32 @@ public class WebConfig implements WebMvcConfigurer {
             // at all - fall back to a plain instance managed by Spring's
             // session scope.
             return new UserLoginBean();
+        }
+    }
+
+    /**
+     * Spring bean named {@code sessionInfoBean} that exposes the CDI-managed
+     * {@link SessionInfoBean} (the centralized holder of the logged-in user's
+     * information) to the Spring context.
+     *
+     * Same bridge pattern as {@link #loginBean()}: the session info bean is a
+     * CDI {@code @Named @SessionScoped} bean populated by {@code UserLoginBean}
+     * at login; this factory returns the CDI contextual instance of the current
+     * HTTP session so the Spring {@code @Component} backing beans (and
+     * {@code BaseBackingBean}'s inherited {@code @Autowired} field) share the
+     * exact same per-session state as the CDI side. Spring only stores the
+     * instance as its session-scoped target.
+     *
+     * Fallback (packaged-jar Weld discovery limitation): when CDI cannot
+     * provide the bean, a plain Spring session-scoped instance is used.
+     */
+    @Bean("sessionInfoBean")
+    @SessionScope
+    public SessionInfoBean sessionInfoBean() {
+        try {
+            return CDI.current().select(SessionInfoBean.class).get();
+        } catch (UnsatisfiedResolutionException | ContextNotActiveException | IllegalStateException e) {
+            return new SessionInfoBean();
         }
     }
 }

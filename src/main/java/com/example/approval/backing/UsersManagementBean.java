@@ -39,7 +39,7 @@ import java.util.List;
  */
 @Component("usersManagementBean")
 @Scope("view")
-public class UsersManagementBean implements Serializable {
+public class UsersManagementBean extends BaseBackingBean {
 
     private static final long serialVersionUID = 1L;
 
