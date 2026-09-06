@@ -88,6 +88,10 @@
                             <i class="pi pi-check-circle" style="margin-inline-end:6px;color:var(--pf-primary);"/>
                             #{t.name}
                         </p:column>
+                        <p:column headerText="Process" sortBy="#{dashboardBean.processNameOf(t)}"
+                                  filterBy="#{dashboardBean.processNameOf(t)}" filterMatchMode="contains">
+                            <span class="text-muted">#{dashboardBean.processNameOf(t)}</span>
+                        </p:column>
                         <p:column headerText="Created" sortBy="#{t.createTime}">
                             <h:outputText value="#{t.createTime}">
                                 <f:convertDateTime type="both" dateStyle="medium" timeStyle="short"/>

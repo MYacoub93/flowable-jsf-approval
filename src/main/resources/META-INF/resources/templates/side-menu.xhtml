@@ -2,17 +2,14 @@
                       xmlns:h="jakarta.faces.html"
                       xmlns:ui="jakarta.faces.facelets">
     <!-- Side menu: brand, role-aware navigation, sign-out lives in the header.
-         Included from templates/portal.xhtml. Pages pass ui:param
-         activeMenu = dashboard | processes | start-process | start-clearance
-         | external-groups | group-memberships | users-managment to highlight
-         the current entry. Hidden when not logged in. -->
+         Included from templates/portal.xhtml. Pages pass ui:param activeMenu to
+         highlight the current entry. Hidden when not logged in. -->
     <ui:fragment rendered="#{loginBean.loggedIn}">
         <aside class="app-sidebar" id="app-sidebar">
             <h:link outcome="/dashboard" styleClass="brand">
                 <span class="brand-badge"><i class="pi pi-verified"/></span>
                 <span class="brand-text">Workflow Station</span>
             </h:link>
-
             <nav class="nav">
                 <div class="nav-label">Workflow</div>
                 <h:link outcome="/dashboard" styleClass="nav-item #{activeMenu == 'dashboard' ? 'active' : ''}">
@@ -28,6 +25,10 @@
                 <div class="nav-label">Requests</div>
                 <h:link outcome="/start-clearance" styleClass="nav-item #{activeMenu == 'start-clearance' ? 'active' : ''}">
                     <i class="pi pi-file"/><span>Clearance Letter</span>
+                </h:link>
+
+                <h:link outcome="/start-student-proof" styleClass="nav-item #{activeMenu == 'start-student-proof' ? 'active' : ''}">
+                    <i class="pi pi-verified"/><span>Student Proof Certificate</span>
                 </h:link>
 
                 <ui:fragment rendered="#{externalGroupService.isGroupAdmin(loginBean.currentUser.id)}">

@@ -61,6 +61,10 @@ public class StudentInfoBean extends BaseBean {
     private String graduationSemesterDesc;
     private String graduationSemesterDescS;
     private String totalBalance;
+    /** Academic year description of the current semester (selected by getStudentInfo as academicYear). */
+    private String academicYear;
+    /** Academic year description of the current semester, Arabic (academicYearS). */
+    private String academicYearS;
     private String permAddress;
     private String permCountryDescS;
     private String permCountryDesc;
@@ -516,6 +520,22 @@ public class StudentInfoBean extends BaseBean {
 
     public void setUserName(String userName) {
         this.userName = userName;
+    }
+
+    public String getAcademicYear() {
+        return academicYear;
+    }
+
+    public void setAcademicYear(String academicYear) {
+        this.academicYear = academicYear;
+    }
+
+    public String getAcademicYearS() {
+        return academicYearS;
+    }
+
+    public void setAcademicYearS(String academicYearS) {
+        this.academicYearS = academicYearS;
     }
     
 

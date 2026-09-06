@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
+
+<ui:composition template="/templates/portal.xhtml">
+
+    <ui:define name="title">Student Proof Certificate Letter</ui:define>
+
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <p class="no-data">Please log in to work on this task.</p>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
+            <h:form id="studentProofTaskForm" enctype="multipart/form-data">
+                <p:growl id="growl" showDetail="true"/>
+
+                <h:panelGroup rendered="#{studentProofTaskBean.task == null}">
+                    <p class="no-data">
+                        Task not found. It may have been completed by another user.
+                        <h:link outcome="dashboard" value="Back to dashboard"/>
+                    </p>
+                </h:panelGroup>
+
+                <!-- ============================================= -->
+                <!-- Admission and Registration processing task     -->
+                <!-- ============================================= -->
+                <p:panel header="Admission and Registration Processing"
+                         rendered="#{studentProofTaskBean.admissionTask}">
+                    <p:messages autoUpdate="true" closable="true"/>
+
+                    <h3>Student Information</h3>
+                    <dl class="info-list">
+                        <dt>Student ID:</dt>
+                        <dd>#{studentProofTaskBean.studentId}</dd>
+                        <dt>Student Name:</dt>
+                        <dd>#{studentProofTaskBean.studentName}</dd>
+                        <dt>Email:</dt>
+                        <dd>#{studentProofTaskBean.studentEmail}</dd>
+                        <dt>GPA:</dt>
+                        <dd>#{studentProofTaskBean.studentGpa}</dd>
+                        <dt>Mobile Phone:</dt>
+                        <dd>#{studentProofTaskBean.studentMobile}</dd>
+                        <dt>Current Semester:</dt>
+                        <dd>#{studentProofTaskBean.currentSemester}</dd>
+                    </dl>
+
+                    <h3>Student Request Note</h3>
+                    <p:outputPanel styleClass="note-box">
+                        <h:outputText value="#{studentProofTaskBean.initiatorNote}"/>
+                    </p:outputPanel>
+
+                    <h3>Employee Note</h3>
+                    <p:inputTextarea id="employeeNote"
+                                     value="#{studentProofTaskBean.employeeNote}"
+                                     rows="4" cols="60" required="true"
+                                     requiredMessage="A note is required."
+                                     maxlength="2000"/>
+                    <h:message for="employeeNote" styleClass="error"/>
+
+                    <h3>Document Upload</h3>
+                    <p:fileUpload id="certificateFile"
+                                  mode="advanced"
+                                  listener="#{studentProofTaskBean.handleFileUpload}"
+                                  uploadLabel="Attach File"
+                                  cancelLabel="Clear"
+                                  label="Choose File"
+                                  allowTypes="/(\.|\/)(pdf|doc|docx|jpg|jpeg|png)$/"
+                                  invalidFileMessage="Only PDF, Word or image files are allowed."
+                                  sizeLimit="10485760"
+                                  uploadIcon="pi pi-paperclip"
+                                  update="growl"/>
+                    <p class="field-hint">
+                        The uploaded file will be archived to Alfresco/UCM and a download
+                        link will be provided to the student.
+                    </p>
+
+                    <div class="form-actions">
+                        <p:commandButton value="Submit and Complete"
+                                         action="#{studentProofTaskBean.submitAdmission}"
+                                         ajax="false"
+                                         icon="pi pi-check"/>
+                    </div>
+                </p:panel>
+
+                <!-- ============================================= -->
+                <!-- Final student document task                    -->
+                <!-- ============================================= -->
+                <p:panel header="Student Proof Certificate Letter - Your Document"
+                         rendered="#{studentProofTaskBean.studentDocumentTask}">
+                    <p:messages autoUpdate="true" closable="true"/>
+
+                    <p class="success-box">
+                        Your document is ready.
+                    </p>
+
+                    <dl class="info-list">
+                        <dt>Document:</dt>
+                        <dd>#{studentProofTaskBean.documentName}</dd>
+                    </dl>
+
+                    <div class="form-actions">
+                        <p:button value="View / Download Document"
+                                  href="#{studentProofTaskBean.documentUrl}"
+                                  rendered="#{!empty studentProofTaskBean.documentUrl}"
+                                  icon="pi pi-download"
+                                  target="_blank"/>
+                        <p:commandButton value="Acknowledge"
+                                         action="#{studentProofTaskBean.acknowledgeDocument}"
+                                         ajax="false"
+                                         icon="pi pi-check"/>
+                    </div>
+                </p:panel>
+
+                <!-- unknown task definition key -->
+                <h:panelGroup rendered="#{!studentProofTaskBean.admissionTask and !studentProofTaskBean.studentDocumentTask and studentProofTaskBean.task != null}">
+                    <p class="no-data">
+                        This task (#{studentProofTaskBean.task.name}) belongs to a different
+                        process step.
+                        <h:link outcome="dashboard" value="Back to dashboard"/>
+                    </p>
+                </h:panelGroup>
+            </h:form>
+        </h:panelGroup>
+    </ui:define>
+
+</ui:composition>
+</html>

@@ -1,7 +1,23 @@
 spring:
+  # SMTP via Gmail (STARTTLS on port 587).
+  # NOTE: Google requires an App Password for SMTP login (2-Step Verification
+  # must be enabled on the account) - a plain account password is rejected.
+  # Override credentials via env vars MAIL_USERNAME / MAIL_PASSWORD.
   mail:
-    host: localhost
-    port: 25
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:hr_services@ats-ware.com}
+    password: ${MAIL_PASSWORD:emp@13123}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
   application:
     name: workflow-station
   datasource:
@@ -112,7 +128,9 @@ logging:
 # FALLBACKS used when the view returns nothing.
 notification:
   enabled: true
-  from: noreply@example.edu
+  # Must match the authenticated Gmail account (spring.mail.username) -
+  # Gmail rewrites/rejects From addresses that differ from the logged-in user.
+  from: ${MAIL_USERNAME:hr_services@ats-ware.com}
   task-link-base: http://localhost:8080
   always-log: true
   # convention used when a username has no explicit user-mailbox entry
@@ -120,6 +138,7 @@ notification:
   # fallback shared mailbox per candidate group / department id - only used
   # when FLOWABLE_USERS_VW returns no member addresses for the group
   group-mailboxes:
+    ADR: admission.registration@example.edu
     DEN: den@example.edu
     HOD: hod@example.edu
     StudentServices: student-services@example.edu
@@ -139,6 +158,7 @@ notification:
   # per-process JSF task page path used in deep links
   task-link-paths:
     clearanceLetterProcess: /clearance-task.xhtml
+    studentProofCertificateProcess: /student-proof-task.xhtml
 
 # Clearance Letter process configuration
 clearance:
@@ -176,6 +196,9 @@ bpm:
     # Flowable process definition key -> BPM_DOCUMENTS.DOCUMENT_CODE
     document-codes:
       clearanceLetterProcess: 1
+      # Student Proof Certificate Letter - reuse code 1 until the DBA
+      # registers a dedicated BPM_DOCUMENTS row for this document type
+      studentProofCertificateProcess: 1
     default-document-code: 1
     # SERIAL-column generation: MAX_PLUS_ONE works on the shipped schema
     # (no Oracle sequences required); switch to SEQUENCE once the DBA has
@@ -186,3 +209,20 @@ bpm:
     attachment-serial-sequence: F_BPM_CASE_ATTACH_SEQ
     # directory the uploaded attachment binaries are written to
     upload-dir: ${java.io.tmpdir}/bpm-attachments
+# Alfresco / UCM integration (Alfresco 5.2 GA - CMIS 1.1 Browser Binding).
+# Reusable by any process - see com.example.approval.ucm.service.AlfrescoUcmService.
+# Credentials: supply via environment variables, never commit real values.
+alfresco:
+  # server base URL (no trailing slash), e.g. http://ucm.example.com:8080/alfresco
+  base-url: ${ALFRESCO_BASE_URL:http://192.168.1.6:8484/alfresco}
+  # CMIS 1.1 browser binding endpoint (default for 5.2 GA)
+  cmis-path: /api/-default-/public/cmis/versions/1.1/browser
+  # service account for the CMIS session
+  username: ${ALFRESCO_USERNAME:admin}
+  password: ${ALFRESCO_PASSWORD:admin}
+  # optional Share site whose document library is used (blank = repository root)
+  site: ${ALFRESCO_SITE:}
+  # folder path inside the site document library
+  folder-path: ${ALFRESCO_FOLDER_PATH:/}
+  connect-timeout: 10000
+  read-timeout: 30000

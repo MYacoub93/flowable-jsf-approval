@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
+<ui:composition template="/templates/portal.xhtml">
+    <ui:param name="activeMenu" value="start-student-proof"/>
+
+    <ui:define name="title">Student Proof Certificate Letter - Workflow Station</ui:define>
+    <ui:define name="pageTitle">Student Proof Certificate Letter</ui:define>
+
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <div class="-empty-state empty-state">
+                <i class="pi pi-lock"/>
+                <div class="empty-title">You are not signed in</div>
+                <p>Please sign in with your student account to request a proof certificate letter.</p>
+                <p:button outcome="/login" value="Go to Sign in" icon="pi pi-sign-in"/>
+            </div>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
+            <div class="page-head">
+                <div>
+                    <h1>Student Proof Certificate Letter</h1>
+                    <p class="page-sub">Submit your request - the Admission and Registration department will issue
+                        and archive the certificate, then notify you when it is ready.</p>
+                </div>
+            </div>
+
+            <!-- Student information (read-only, loaded from the Oracle SIS for the logged-in student) -->
+            <p:panel header="Student Information">
+                <h:panelGroup rendered="#{startStudentProofBean.studentInfoMissing}" layout="block">
+                    <div class="-empty-state empty-state">
+                        <i class="pi pi-exclamation-triangle"/>
+                        <div class="empty-title">No student information found</div>
+                        <p>Your student record could not be loaded from the student information system.</p>
+                    </div>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{!startStudentProofBean.studentInfoMissing}" layout="block">
+                    <dl class="detail-list">
+                        <dt>Student ID</dt>
+                        <dd>#{startStudentProofBean.studentId}</dd>
+                        <dt>Student Name</dt>
+                        <dd>#{startStudentProofBean.studentName}</dd>
+                        <dt>Email</dt>
+                        <dd>#{empty startStudentProofBean.studentEmail ? '-' : startStudentProofBean.studentEmail}</dd>
+                        <dt>GPA</dt>
+                        <dd>#{empty startStudentProofBean.studentGpa ? '-' : startStudentProofBean.studentGpa}</dd>
+                        <dt>Mobile Phone</dt>
+                        <dd>#{empty startStudentProofBean.studentMobile ? '-' : startStudentProofBean.studentMobile}</dd>
+                        <dt>Current Semester</dt>
+                        <dd>#{empty startStudentProofBean.currentSemester ? '-' : startStudentProofBean.currentSemester}</dd>
+                    </dl>
+                </h:panelGroup>
+            </p:panel>
+
+            <h:form id="startStudentProofForm" style="margin-top:16px;"
+                    rendered="#{startStudentProofBean.canStart}">
+                <p:panel header="Request Note">
+                    <div class="form-grid">
+                        <div class="field full">
+                            <p:outputLabel for="initiatorNote" value="Note"/>
+                            <p:inputTextarea id="initiatorNote" rows="4"
+                                             value="#{startStudentProofBean.note}"
+                                             required="true"
+                                             requiredMessage="A note is required - please describe your request"
+                                             counter="noteCounter" counterTemplate="{0} characters"
+                                             maxlength="1000" autoResize="true"/>
+                            <p:message for="initiatorNote"/>
+                            <h:panelGroup id="noteCounter" styleClass="field-hint"/>
+                        </div>
+                    </div>
+
+                    <div class="action-bar" style="margin-top:18px;">
+                        <p:commandButton value="Submit Request" icon="pi pi-send"
+                                         action="#{startStudentProofBean.submit}"
+                                         styleClass="ui-button-success"/>
+                        <p:button outcome="/dashboard" value="Cancel" icon="pi pi-times"
+                                  styleClass="ui-button-secondary ui-button-outlined"/>
+                    </div>
+                </p:panel>
+            </h:form>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>
+</html>

@@ -496,7 +496,7 @@ public enum BpmAuditAction {
                 DEAN_OF_COLLEGE_APPROVAL, DEAN_OF_COLLEGE_REJECTION, DEAN_OF_COLLEGE_REVIEW,
                 TASK_RECEIVED_DEAN_OF_COLLEGE);
         register(new String[]{"registrationdept", "registration", "admissionandregistrationdepartment",
-                "admissionandregistration", "admission"},
+                "admissionandregistration", "admission", "adr"},
                 REGISTRATION_DEPT_APPROVAL, REGISTRATION_DEPT_REJECTION, REGISTRATION_DEPT_REVIEW,
                 TASK_RECEIVED_ADMISSION_AND_REGISTRATION);
         register(new String[]{"financialdepartment", "financedepartment", "finance", "financial"},

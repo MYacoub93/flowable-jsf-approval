@@ -12,7 +12,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Request-scoped bean that loads the current user's tasks, started processes and
@@ -36,6 +38,9 @@ public class DashboardBean extends BaseBackingBean {
     private List<Task> myTasks = Collections.emptyList();
     private List<ProcessInstance> myProcesses = Collections.emptyList();
     private List<ProcessDefinition> availableProcesses = Collections.emptyList();
+
+    /** processDefinitionId -> human-readable process name (cached per request). */
+    private final Map<String, String> processNames = new HashMap<>();
 
     @PostConstruct
     public void init() {
@@ -67,6 +72,12 @@ public class DashboardBean extends BaseBackingBean {
             // Clearance Letter tasks (approvals + initiator amendment)
             return "/clearance-task?faces-redirect=true&taskId=" + taskId;
         }
+        if ("admissionProcessingTask".equals(defKey)
+                || "studentDocumentTask".equals(defKey)) {
+            // Student Proof Certificate Letter tasks
+            // (department processing + final student document task)
+            return "/student-proof-task?faces-redirect=true&taskId=" + taskId;
+        }
         if (defKey == null
                 && ("CLEARANCE_FYI".equals(task.getCategory())
                     || "CLEARANCE_RESULT".equals(task.getCategory()))) {
@@ -89,6 +100,18 @@ public class DashboardBean extends BaseBackingBean {
 
     public List<ProcessDefinition> getAvailableProcesses() {
         return availableProcesses;
+    }
+
+    /**
+     * Human-readable name of the process definition a task belongs to
+     * (cached per request so the data table resolves each definition once).
+     */
+    public String processNameOf(Task task) {
+        if (task == null || task.getProcessDefinitionId() == null) {
+            return "";
+        }
+        return processNames.computeIfAbsent(task.getProcessDefinitionId(),
+                workflowManager::getProcessDefinitionName);
     }
 
     /** Number of tasks currently assigned to the logged-in user. */

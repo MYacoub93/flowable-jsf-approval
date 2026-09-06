@@ -130,6 +130,14 @@
             <artifactId>mysql-connector-j</artifactId>
             <version>8.4.0</version>
         </dependency>
+        <!-- Apache Chemistry OpenCMIS client - used by the reusable
+             AlfrescoUcmService (Alfresco/UCM 5.2 GA speaks CMIS 1.1;
+             OpenCMIS 1.1.0 is the version shipped with that release). -->
+        <dependency>
+            <groupId>org.apache.chemistry.opencmis</groupId>
+            <artifactId>chemistry-opencmis-client-impl</artifactId>
+            <version>1.1.0</version>
+        </dependency>
 
         <!-- Lombok (optional but useful) -->
         <dependency>

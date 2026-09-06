@@ -1,5 +1,6 @@
 package com.example.approval.flowable;
 
+
 import org.flowable.engine.IdentityService;
 import org.flowable.engine.RepositoryService;
 import org.flowable.engine.repository.ProcessDefinition;
@@ -39,5 +40,23 @@ public class WorkflowManager {
                 .orderByProcessDefinitionName()
                 .asc()
                 .list();
+    }
+
+    /**
+     * Resolves the human-readable name of a deployed process definition
+     * (falls back to the definition key, then to the raw id) - used by the
+     * dashboard to show the process name of a task.
+     */
+    public String getProcessDefinitionName(String processDefinitionId) {
+        if (processDefinitionId == null || processDefinitionId.isBlank()) {
+            return "";
+        }
+        ProcessDefinition definition = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionId(processDefinitionId)
+                .singleResult();
+        if (definition == null) {
+            return processDefinitionId;
+        }
+        return definition.getName() != null ? definition.getName() : definition.getKey();
     }
 }

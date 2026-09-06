@@ -82,7 +82,8 @@ public class MyBatisConfig {
         // SIS/HRS views; BpmAuditMapper.xml writes the BPM_* business audit
         // tables (BPM_AUDIT_LOG, BPM_AUDIT_LOG_DTL, BPM_CASE_ATTACHMENTS);
         // ExternalGroupMapper.xml manages the WEB_ROLES / WEB_USER_ROLES
-        // external group-manager tables.
+        // student information of the Student Proof Certificate process.
+
         return buildSqlSessionFactory(externalDataSource, mybatisProperties,
                 "classpath:mapper/CommonMapper.xml",
                 "classpath:mapper/FlowableIdentityMapper.xml",
@@ -127,6 +128,7 @@ public class MyBatisConfig {
         mapperFactoryBean.setSqlSessionFactory(sqlSessionFactory);
         return mapperFactoryBean;
     }
+
 
     // ------------------------------------------------------------------
     // Shared factory-building logic

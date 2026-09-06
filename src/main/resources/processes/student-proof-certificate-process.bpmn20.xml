@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI"
+             targetNamespace="http://flowable.org/samples"
+             typeLanguage="http://www.w3.org/2001/XMLSchema"
+             expressionLanguage="http://www.w3.org/1999/XPath">
+
+  <!-- ===================================================================
+       Student Proof Certificate Letter
+       - Started by candidate group STD only (process-level
+         candidateStarterGroups + runtime check in StudentProofService).
+       - The Admission and Registration employee processes the request:
+         mandatory note + document upload archived to Alfresco/UCM (the
+         upload itself runs in StudentProofService BEFORE task completion,
+         so a failed Alfresco call never completes the task).
+       - Pre-task: task create listener writes the TASK_ASSIGNED audit row
+         and sends the department e-mail notification.
+       - Post-task: task complete listener writes the APPROVED audit row
+         (employee + note + document info).
+       - Final user task returns the archived document link to the student.
+       =================================================================== -->
+  <process id="studentProofCertificateProcess" name="Student Proof Certificate Letter"
+           isExecutable="true" flowable:candidateStarterGroups="STD">
+
+    <documentation>Student requests a proof certificate letter; Admission and Registration archives the generated document to Alfresco/UCM and returns the link.</documentation>
+
+    <!-- ===================== Start ===================== -->
+    <startEvent id="startStudentProof" name="Student starts request (STD)"
+                flowable:formKey="start-student-proof">
+      <extensionElements>
+        <flowable:executionListener event="start"
+              expression="${studentProofProcessHandler.processStarted(execution)}"/>
+      </extensionElements>
+    </startEvent>
+
+    <!-- ============ Admission and Registration user task ============ -->
+    <userTask id="admissionProcessingTask"
+              name="Process Student Proof Certificate (Admission and Registration)"
+              flowable:candidateGroups="REG"
+              flowable:formKey="student-proof-task">
+      <documentation>
+        The employee enters a mandatory note, uploads the generated certificate
+        document (archived to Alfresco/UCM by StudentProofService before the
+        task is completed) and submits. The create listener audits
+        TASK_ASSIGNED + sends the department notification; the complete
+        listener audits APPROVED with employee, note and document info.
+      </documentation>
+      <extensionElements>
+        <flowable:taskListener event="create" delegateExpression="${studentProofTaskListener}"/>
+        <flowable:taskListener event="complete" delegateExpression="${studentProofTaskListener}"/>
+      </extensionElements>
+    </userTask>
+
+    <!-- ============ Final student document task ============ -->
+    <userTask id="studentDocumentTask" name="Your certificate is ready"
+              flowable:assignee="${initiator}"
+              flowable:formKey="student-proof-task">
+      <documentation>
+        Returned to the original student. Shows the archived document
+        (application-level link, authorization-checked) for viewing /
+        downloading. The create listener notifies the student.
+      </documentation>
+      <extensionElements>
+        <flowable:taskListener event="create" delegateExpression="${studentProofTaskListener}"/>
+        <flowable:taskListener event="complete" delegateExpression="${studentProofTaskListener}"/>
+      </extensionElements>
+    </userTask>
+
+    <endEvent id="endStudentProof" name="Certificate delivered"/>
+
+    <!-- ===================== Flows ===================== -->
+    <sequenceFlow id="flowStart" sourceRef="startStudentProof"
+                  targetRef="admissionProcessingTask"/>
+    <sequenceFlow id="flowAdmissionToStudentDocument" sourceRef="admissionProcessingTask"
+                  targetRef="studentDocumentTask"/>
+    <sequenceFlow id="flowDocumentToEnd" sourceRef="studentDocumentTask"
+                  targetRef="endStudentProof"/>
+
+  </process>
+
+  <!-- ===================== Diagram (layout only, engine-irrelevant) ===================== -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_studentProofCertificateProcess">
+    <bpmndi:BPMNPlane bpmnElement="studentProofCertificateProcess"
+                      id="BPMNPlane_studentProofCertificateProcess">
+      <bpmndi:BPMNShape bpmnElement="startStudentProof" id="BPMNShape_start">
+        <omgdc:Bounds height="30.0" width="30.0" x="60.0" y="195.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="admissionProcessingTask" id="BPMNShape_admission">
+        <omgdc:Bounds height="80.0" width="180.0" x="150.0" y="170.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="studentDocumentTask" id="BPMNShape_studentDoc">
+        <omgdc:Bounds height="80.0" width="180.0" x="390.0" y="170.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="endStudentProof" id="BPMNShape_end">
+        <omgdc:Bounds height="28.0" width="28.0" x="630.0" y="196.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="flowStart" id="BPMNEdge_flowStart">
+        <omgdi:waypoint x="90.0" y="210.0"/>
+        <omgdi:waypoint x="150.0" y="210.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowAdmissionToStudentDocument" id="BPMNEdge_arToStudent">
+        <omgdi:waypoint x="330.0" y="210.0"/>
+        <omgdi:waypoint x="390.0" y="210.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="flowDocumentToEnd" id="BPMNEdge_docToEnd">
+        <omgdi:waypoint x="570.0" y="210.0"/>
+        <omgdi:waypoint x="630.0" y="210.0"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>
