@@ -209,20 +209,25 @@ bpm:
     attachment-serial-sequence: F_BPM_CASE_ATTACH_SEQ
     # directory the uploaded attachment binaries are written to
     upload-dir: ${java.io.tmpdir}/bpm-attachments
-# Alfresco / UCM integration (Alfresco 5.2 GA - CMIS 1.1 Browser Binding).
+# Alfresco / UCM integration (Alfresco 5.2 GA - CMIS via Apache Chemistry).
 # Reusable by any process - see com.example.approval.ucm.service.AlfrescoUcmService.
 # Credentials: supply via environment variables, never commit real values.
 alfresco:
   # server base URL (no trailing slash), e.g. http://ucm.example.com:8080/alfresco
-  base-url: ${ALFRESCO_BASE_URL:http://192.168.1.6:8484/alfresco}
-  # CMIS 1.1 browser binding endpoint (default for 5.2 GA)
-  cmis-path: /api/-default-/public/cmis/versions/1.1/browser
+  base-url: ${ALFRESCO_BASE_URL:http://192.168.1.6:8484}
+  # CMIS binding: atompub (default; /cmisatom service document) or browser
+  binding: ${ALFRESCO_CMIS_BINDING:atompub}
+  # CMIS endpoint path appended to base-url
+  cmis-path: ${ALFRESCO_CMIS_PATH:/alfresco/cmisatom}
+  # repository id ("-default-" = main repository; the concrete id is resolved
+  # from the CMIS service document on connect)
+  repository-id: ${ALFRESCO_REPOSITORY_ID:-default-}
   # service account for the CMIS session
   username: ${ALFRESCO_USERNAME:admin}
   password: ${ALFRESCO_PASSWORD:admin}
   # optional Share site whose document library is used (blank = repository root)
   site: ${ALFRESCO_SITE:}
   # folder path inside the site document library
-  folder-path: ${ALFRESCO_FOLDER_PATH:/}
+  folder-path: ${ALFRESCO_FOLDER_PATH:/BPM_PROCESSES}
   connect-timeout: 10000
   read-timeout: 30000

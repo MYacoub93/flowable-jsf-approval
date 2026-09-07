@@ -174,7 +174,7 @@ class ExternalGroupServiceTest {
         role.setRoleId(5L);
         role.setRoleCode("GRP");
         when(mapper.findRoleById(5L)).thenReturn(role);
-        when(mapper.findUserByIdAndUserName(123L,"rradwan")).thenReturn(user(123, "john.doe"));
+        when(mapper.findUserByIdAndUserName(123L,"rradwam")).thenReturn(user(123, "john.doe"));
         when(mapper.countMembership(5L, 123L)).thenReturn(0);
         when(mapper.findNumericUserId("admin")).thenReturn(7L);
 
@@ -192,7 +192,7 @@ class ExternalGroupServiceTest {
     void addMembership_rejectsDuplicate() {
         asAdmin("admin");
         when(mapper.findRoleById(5L)).thenReturn(new WebRole());
-        when(mapper.findUserByIdAndUserName(123L,"rradwan")).thenReturn(user(123, "john.doe"));
+        when(mapper.findUserByIdAndUserName(123L,"rradwam")).thenReturn(user(123, "john.doe"));
         when(mapper.countMembership(5L, 123L)).thenReturn(1);
 
         assertThatThrownBy(() -> service.addMembership(5L, 123L, null, "admin","rradwam"))
@@ -209,7 +209,7 @@ class ExternalGroupServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("group");
         when(mapper.findRoleById(5L)).thenReturn(new WebRole());
-        when(mapper.findUserByIdAndUserName(123L,"rradwan")).thenReturn(null);
+        when(mapper.findUserByIdAndUserName(123L,"rradwam")).thenReturn(null);
         assertThatThrownBy(() -> service.addMembership(5L, 123L, null, "admin","rradwam"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("user");

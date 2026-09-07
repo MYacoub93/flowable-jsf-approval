@@ -34,7 +34,7 @@ public final class StudentProofConstants {
      * Flowable candidate group (role code) of the Admission and Registration
      * department task, resolved from the external identity (FLOWABLE_USERS_VW).
      */
-    public static final String GROUP_ADMISSION_AND_REGISTRATION = "ADR";
+    public static final String GROUP_ADMISSION_AND_REGISTRATION = "REG";
 
     // ------------------------------------------------------------------
     // Stages (audit free-text codes)

@@ -22,8 +22,21 @@ public class AlfrescoProperties {
     /** Alfresco/UCM server base URL, e.g. {@code http://ucm.example.com:8080/alfresco}. */
     private String baseUrl = "http://localhost:8080/alfresco";
 
-    /** CMIS browser-binding endpoint path appended to {@link #baseUrl}. */
-    private String cmisPath = "/api/-default-/public/cmis/versions/1.1/browser";
+    /** CMIS AtomPub service-document path appended to {@link #baseUrl}. */
+    private String cmisPath = "/cmisatom";
+
+    /**
+     * CMIS binding to use: {@code atompub} (default; {@code /cmisatom}
+     * service document) or {@code browser} (CMIS 1.1 browser binding).
+     */
+    private String binding = "atompub";
+
+    /**
+     * Repository id (or alias) the CMIS session binds to. Alfresco 5.2 GA
+     * exposes its single main repository under the reserved alias
+     * {@code Repository}; override only for multi-repository setups.
+     */
+    private String repositoryId = "Repository";
 
     /** Alfresco admin/service account used for the CMIS session. */
     private String username = "admin";
@@ -57,6 +70,22 @@ public class AlfrescoProperties {
 
     public void setCmisPath(String cmisPath) {
         this.cmisPath = cmisPath;
+    }
+
+    public String getBinding() {
+        return binding;
+    }
+
+    public void setBinding(String binding) {
+        this.binding = binding;
+    }
+
+    public String getRepositoryId() {
+        return repositoryId;
+    }
+
+    public void setRepositoryId(String repositoryId) {
+        this.repositoryId = repositoryId;
     }
 
     /** Full CMIS endpoint URL: {@code baseUrl + cmisPath}. */

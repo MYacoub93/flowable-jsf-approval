@@ -8,8 +8,6 @@ import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import org.flowable.task.api.Task;
 import org.primefaces.event.FileUploadEvent;
-import org.primefaces.model.DefaultStreamedContent;
-import org.primefaces.model.StreamedContent;
 import org.primefaces.model.file.UploadedFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import java.io.ByteArrayInputStream;
 import java.io.Serializable;
 import java.util.Map;
 
@@ -192,26 +189,6 @@ public class StudentProofTaskBean extends BaseBackingBean {
         }
     }
 
-    /**
-     * Streams the archived document through this application (server-side
-     * authorization happens in {@code UcmDocumentController}; this variant is
-     * only used for the inline "Download" button of the task form).
-     */
-    public StreamedContent getDocumentFile() {
-        String documentId = str(variables != null ? variables.get(VAR_DOCUMENT_ID) : null);
-        String name = str(variables != null ? variables.get(VAR_DOCUMENT_NAME) : null);
-        String mime = str(variables != null ? variables.get(VAR_DOCUMENT_MIME_TYPE) : null);
-        if (documentId == null) {
-            return null;
-        }
-        // reuse the authorization-checked controller path via the app URL
-        return DefaultStreamedContent.builder()
-                .stream(() -> new ByteArrayInputStream(new byte[0]))
-                .name(name)
-                .contentType(mime)
-                .build();
-    }
-
     // ------------------------------------------------------------------
     // Read helpers for the form (process variables)
     // ------------------------------------------------------------------
@@ -244,10 +221,18 @@ public class StudentProofTaskBean extends BaseBackingBean {
         return variables != null ? str(variables.get(VAR_INITIATOR_NOTE)) : null;
     }
 
-    /** Application-level document URL (authorization-checked controller). */
+    /**
+     * Application-level document URL served (and authorization-checked) by
+     * {@code UcmDocumentController}. Rebuilt from the stored {@code documentId}
+     * so links stay valid even when the stored URL predates the current link
+     * scheme; the stored variable is kept as a fallback.
+     */
     public String getDocumentUrl() {
-        String url = variables != null ? str(variables.get(VAR_DOCUMENT_URL)) : null;
-        return url;
+        String documentId = variables != null ? str(variables.get(VAR_DOCUMENT_ID)) : null;
+        if (documentId != null) {
+            return studentProofService.getDocumentLink(documentId);
+        }
+        return variables != null ? str(variables.get(VAR_DOCUMENT_URL)) : null;
     }
 
     public String getDocumentName() {

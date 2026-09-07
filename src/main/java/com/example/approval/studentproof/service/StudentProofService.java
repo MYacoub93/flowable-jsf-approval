@@ -252,6 +252,15 @@ public class StudentProofService {
         return runtimeService.getVariables(processInstanceId);
     }
 
+    /**
+     * Application-level (authorization-checked) download link for a document
+     * archived in Alfresco/UCM - delegates to the reusable
+     * {@link AlfrescoUcmService#getDocumentLink(String)}.
+     */
+    public String getDocumentLink(String documentId) {
+        return alfrescoUcmService.getDocumentLink(documentId);
+    }
+
     public Map<String, Object> getTaskVariables(String taskId) {
         Task task = getTaskById(taskId);
         if (task == null) {
