@@ -172,8 +172,11 @@ public class ClearanceProcessHandler {
         resultTask.setAssignee(initiator);
         taskService.saveTask(resultTask);
         // standalone tasks have no process instance - store the pid as a task
-        // variable so acknowledgement can still audit against the process
+        // variable so acknowledgement can still audit against the process,
+        // and copy the read-only student snapshot so the form can display it
+        // from the task variables (never re-queried from the SIS)
         taskService.setVariable(resultTask.getId(), "processInstanceId", pid);
+        copyStudentInfoVariables(resultTask.getId(), execution);
         auditService.logProcessAction(pid, ACTION_TASK_ASSIGNED, STAGE_AMENDMENT,
                 null, initiator, initiator,
                 "Result task " + resultTask.getId() + " created for initiator (category "
@@ -189,6 +192,7 @@ public class ClearanceProcessHandler {
         taskService.saveTask(fyiTask);
         taskService.addCandidateGroup(fyiTask.getId(), GROUP_INTERNAL_AUDIT);
         taskService.setVariable(fyiTask.getId(), "processInstanceId", pid);
+        copyStudentInfoVariables(fyiTask.getId(), execution);
         auditService.logProcessAction(pid, ACTION_FYI_CREATED, STAGE_INTERNAL_AUDIT,
                 GROUP_INTERNAL_AUDIT, null, initiator,
                 "FYI task " + fyiTask.getId() + " created for Internal Audit");
@@ -199,6 +203,24 @@ public class ClearanceProcessHandler {
     // ------------------------------------------------------------------
     // helpers
     // ------------------------------------------------------------------
+
+    /**
+     * Copies the read-only student information snapshot from the (about to
+     * end) process instance onto a standalone task as local variables, so
+     * the result / FYI forms can display the same information as every
+     * other Clearance task. {@code taskService.setVariableLocal} semantics
+     * are not needed - standalone tasks have no process instance, so plain
+     * task variables are already local.
+     */
+    private void copyStudentInfoVariables(String taskId, DelegateExecution execution) {
+        taskService.setVariable(taskId, VAR_STUDENT_ID, execution.getVariable(VAR_STUDENT_ID));
+        taskService.setVariable(taskId, VAR_STUDENT_FULL_NAME, execution.getVariable(VAR_STUDENT_FULL_NAME));
+        taskService.setVariable(taskId, VAR_STUDENT_NAME, execution.getVariable(VAR_STUDENT_NAME));
+        taskService.setVariable(taskId, VAR_STUDENT_EMAIL, execution.getVariable(VAR_STUDENT_EMAIL));
+        taskService.setVariable(taskId, VAR_STUDENT_GPA, execution.getVariable(VAR_STUDENT_GPA));
+        taskService.setVariable(taskId, VAR_STUDENT_MOBILE, execution.getVariable(VAR_STUDENT_MOBILE));
+        taskService.setVariable(taskId, VAR_ACADEMIC_YEAR, execution.getVariable(VAR_ACADEMIC_YEAR));
+    }
 
     private String var(DelegateExecution execution, String name) {
         Object value = execution.getVariable(name);

@@ -40,25 +40,36 @@
                 </dl>
             </p:panel>
 
+            <!-- Student Information (read-only, auto-loaded from the SIS) -->
+            <p:panel header="Student Information" style="margin-top:16px;">
+                <h:panelGroup rendered="#{startClearanceBean.studentInfoLoaded}" layout="block">
+                    <dl class="detail-list">
+                        <dt>Student ID</dt>
+                        <dd>#{startClearanceBean.contract.studentId}</dd>
+                        <dt>Student Name</dt>
+                        <dd>#{startClearanceBean.contract.studentName}</dd>
+                        <dt>Email</dt>
+                        <dd>#{empty startClearanceBean.contract.studentEmail ? '-' : startClearanceBean.contract.studentEmail}</dd>
+                        <dt>Cumulative GPA</dt>
+                        <dd>#{empty startClearanceBean.contract.studentGpa ? '-' : startClearanceBean.contract.studentGpa}</dd>
+                        <dt>Mobile</dt>
+                        <dd>#{empty startClearanceBean.contract.studentMobile ? '-' : startClearanceBean.contract.studentMobile}</dd>
+                        <dt>Academic Year</dt>
+                        <dd>#{empty startClearanceBean.contract.academicYear ? '-' : startClearanceBean.contract.academicYear}</dd>
+                    </dl>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{!startClearanceBean.studentInfoLoaded}" layout="block">
+                    <div class="empty-state">
+                        <i class="pi pi-exclamation-triangle"/>
+                        <div class="empty-title">No student information found</div>
+                        <p>Your account is not linked to a student record, so a clearance request cannot be started.</p>
+                    </div>
+                </h:panelGroup>
+            </p:panel>
+
             <h:form id="startClearanceForm" style="margin-top:16px;">
                 <p:panel header="Request details">
                     <div class="form-grid">
-                        <div class="field">
-                            <p:outputLabel for="studentFullName" value="Student Full Name"/>
-                            <p:inputText id="studentFullName"
-                                         value="#{startClearanceBean.contract.studentFullName}" required="true"
-                                         requiredMessage="Student full name is required"/>
-                            <p:message for="studentFullName"/>
-                        </div>
-
-                        <div class="field">
-                            <p:outputLabel for="studentId" value="Student ID"/>
-                            <p:inputText id="studentId"
-                                         value="#{startClearanceBean.contract.studentId}" required="true"
-                                         requiredMessage="Student ID is required"/>
-                            <p:message for="studentId"/>
-                        </div>
-
                         <div class="field">
                             <p:outputLabel for="program" value="Program"/>
                             <p:inputText id="program" value="#{startClearanceBean.contract.program}"/>

@@ -17,8 +17,13 @@
          DepartmentResolverService.getRequiredDepartments(initiator) and
          stores the result in requiredDepartments.
        - One multi-instance PARALLEL user task creates an approval task per
-         department; candidateGroups=${department}; completionCondition
-         ${anyDepartmentRejected} cancels remaining tasks on first reject.
+         department; candidateGroups=${department}. The stage is a
+         SYNCHRONIZATION BARRIER: completionCondition
+         ${nrOfCompletedInstances == nrOfInstances} guarantees the process
+         only leaves the stage after EVERY required department submitted
+         (approve or reject). A rejection never cancels sibling tasks, so
+         the Amendment Task can never exist while any department task is
+         still pending.
        - Rejection at any stage loops back to the initiator amendment task
          and then re-resolves departments (the loop may repeat endlessly).
        - After ALL departments + Finance + Admission approved:
@@ -61,8 +66,12 @@
         One instance per dynamically resolved department (parallel).
         Approve / Reject. The shared ${clearanceTaskListener} sends the
         TASK_ASSIGNED e-mail + audit on create and records the decision on
-        complete. completionCondition cancels open sibling tasks as soon as
-        anyDepartmentRejected becomes true.
+        complete. SYNCHRONIZATION BARRIER: the completion condition requires
+        nrOfCompletedInstances == nrOfInstances, so every department must
+        submit its task before the stage can be left. A rejection is merely
+        recorded (anyDepartmentRejected=true, consumed by the
+        gatewayAllApproved gateway AFTER the barrier) and never cancels
+        still-open sibling tasks.
       </documentation>
       <extensionElements>
         <flowable:taskListener event="create" delegateExpression="${clearanceTaskListener}"/>
@@ -72,11 +81,16 @@
       <multiInstanceLoopCharacteristics isSequential="false"
                                         flowable:collection="${requiredDepartments}"
                                         flowable:elementVariable="department">
-        <!-- Leave the stage as soon as ONE department rejects; Flowable then
-             destroys the remaining parallel instances (DELETE listeners fire,
-             audited as TASK_CANCELLED). All instances done + no rejection
-             means the stage is approved. -->
-        <completionCondition>${anyDepartmentRejected}</completionCondition>
+        <!-- SYNCHRONIZATION BARRIER: the stage may only be left when EVERY
+             department instance has completed/submitted its task
+             (nrOfCompletedInstances == nrOfInstances). A single rejection
+             must NOT short-circuit the stage: the remaining department tasks
+             stay active until each department has submitted, so the
+             Amendment Task can never be created while any required
+             department task is still pending. Whether an amendment is
+             needed is decided afterwards by gatewayAllApproved using
+             ${anyDepartmentRejected}. -->
+        <completionCondition>${nrOfCompletedInstances == nrOfInstances}</completionCondition>
       </multiInstanceLoopCharacteristics>
     </userTask>
 
@@ -84,8 +98,10 @@
     <serviceTask id="evaluateDepartments" name="Evaluate Department Stage Result"
                  flowable:expression="${clearanceProcessHandler.evaluateDepartmentStage(execution)}">
       <documentation>
-        Copies the first rejection of the round (department + comment) into
-        lastRejected* variables for the initiator's amendment form.
+        Runs only after the multi-instance barrier released the flow (ALL
+        departments submitted). Copies the first rejection of the round
+        (department + comment) into lastRejected* variables for the
+        initiator's amendment form.
       </documentation>
     </serviceTask>
 
@@ -132,6 +148,10 @@
         Admission rejects. Shows lastRejectedStage / lastRejectedDepartment /
         lastRejectionComment. Completing it loops back to Resolve Required
         Departments - a fresh approval round starts (dynamic again).
+        GUARANTEE: reachable only through gatewayAllApproved /
+        gatewayFinanceDecision / gatewayAdmissionDecision - i.e. only after
+        the multi-instance synchronization barrier released (ALL required
+        department tasks submitted).
       </documentation>
       <extensionElements>
         <flowable:taskListener event="create" delegateExpression="${clearanceTaskListener}"/>

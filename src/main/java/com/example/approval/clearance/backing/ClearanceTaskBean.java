@@ -66,6 +66,17 @@ public class ClearanceTaskBean extends BaseBackingBean {
     private String studentId;
     private String program;
 
+    /**
+     * Read-only student information snapshot, always taken from the process
+     * variables (set once at initiation from the SIS) - never re-queried
+     * with the current task assignee's username.
+     */
+    private String studentName;
+    private String studentEmail;
+    private String studentGpa;
+    private String studentMobile;
+    private String academicYear;
+
     private List<DecisionView> decisionHistory;
 
     @PostConstruct
@@ -100,6 +111,13 @@ public class ClearanceTaskBean extends BaseBackingBean {
         studentId = str(variables.get(VAR_STUDENT_ID));
         program = str(variables.get(VAR_PROGRAM));
         notes = str(variables.get(VAR_NOTES));
+
+        // read-only student information snapshot from the process variables
+        studentName = str(variables.get(VAR_STUDENT_NAME));
+        studentEmail = str(variables.get(VAR_STUDENT_EMAIL));
+        studentGpa = str(variables.get(VAR_STUDENT_GPA));
+        studentMobile = str(variables.get(VAR_STUDENT_MOBILE));
+        academicYear = str(variables.get(VAR_ACADEMIC_YEAR));
 
         decisionHistory = buildDecisionHistory(variables.get(VAR_DEPARTMENT_DECISIONS));
     }
@@ -321,6 +339,34 @@ public class ClearanceTaskBean extends BaseBackingBean {
 
     public void setProgram(String program) {
         this.program = program;
+    }
+
+    // Read-only student information (no setters on purpose - the snapshot
+    // in the process variables must never be editable from a task form)
+
+    /** Read-only student information (Student Name) from the process variables. */
+    public String getStudentName() {
+        return studentName;
+    }
+
+    /** Read-only student information (Email) from the process variables. */
+    public String getStudentEmail() {
+        return studentEmail;
+    }
+
+    /** Read-only student information (Cumulative GPA) from the process variables. */
+    public String getStudentGpa() {
+        return studentGpa;
+    }
+
+    /** Read-only student information (Mobile) from the process variables. */
+    public String getStudentMobile() {
+        return studentMobile;
+    }
+
+    /** Read-only student information (Academic Year) from the process variables. */
+    public String getAcademicYear() {
+        return academicYear;
     }
 
     // ------------------------------------------------------------------

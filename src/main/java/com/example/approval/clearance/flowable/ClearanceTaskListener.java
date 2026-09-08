@@ -29,10 +29,14 @@ import static com.example.approval.clearance.ClearanceConstants.*;
  *       row, stores the {@link DepartmentDecision} in the
  *       {@code departmentDecisions} map and raises
  *       {@code anyDepartmentRejected} as soon as one department rejects
- *       (this is what the multi-instance completion condition reacts to);</li>
- *   <li><b>delete</b> - writes a {@code TASK_CANCELLED} audit row when the
- *       multi-instance completion condition removes not-yet-completed
- *       sibling tasks.</li>
+ *       (the flag is consumed by the {@code gatewayAllApproved} gateway
+ *       <b>after</b> the multi-instance synchronization barrier released -
+ *       it does NOT cancel sibling tasks: every department must submit
+ *       before the stage is left);</li>
+ *   <li><b>delete</b> - writes a {@code TASK_CANCELLED} audit row if a
+ *       department task is ever removed while still open (e.g. process
+ *       termination - no longer triggered by the completion condition,
+ *       which now waits for all instances).</li>
  * </ul>
  *
  * <p>Attached once per task in the BPMN via
@@ -148,11 +152,16 @@ public class ClearanceTaskListener implements TaskListener {
 
             boolean rejected = ClearanceConstants.DECISION_REJECT.equalsIgnoreCase(decision);
             if (rejected) {
-                // visible to the multi-instance completion condition
-                // -> remaining sibling tasks are cancelled.
+                // Flag the rejection for the gatewayAllApproved gateway.
                 // DelegateTask.setVariable propagates up to the process
-                // instance scope, which is where the completion condition
-                // reads it.
+                // instance scope. The multi-instance stage itself is a
+                // SYNCHRONIZATION BARRIER (completion condition
+                // nrOfCompletedInstances == nrOfInstances): a rejection
+                // does NOT cancel sibling tasks - every department task
+                // stays active until it is submitted, and only then does
+                // the gateway route to the Amendment Task. This guarantees
+                // the Amendment Task can never exist while a department
+                // task is still pending.
                 task.setVariable(VAR_ANY_DEPARTMENT_REJECTED, true);
             }
             task.setVariable(VAR_DEPARTMENT_DECISIONS, decisions);
@@ -162,12 +171,13 @@ public class ClearanceTaskListener implements TaskListener {
     }
 
     // ------------------------------------------------------------------
-    // delete: audit cancellation of still-open sibling tasks
+    // delete: audit cancellation of still-open department tasks
     // ------------------------------------------------------------------
 
     private void onDeleted(DelegateTask task) {
         // Completed tasks also fire DELETE - only audit the ones removed
-        // while still open (multi-instance completion condition).
+        // while still open (e.g. process instance termination; the
+        // multi-instance completion condition no longer cancels siblings).
         if (task.getVariable(VAR_DECISION) != null) {
             return;
         }
@@ -179,7 +189,7 @@ public class ClearanceTaskListener implements TaskListener {
         auditService.logProcessAction(task.getProcessInstanceId(),
                 ACTION_TASK_CANCELLED, stage, department, null,
                 str(task.getVariable(VAR_INITIATOR)),
-                "Task " + task.getId() + " cancelled - another department already rejected");
+                "Task " + task.getId() + " cancelled before completion");
     }
 
     // ------------------------------------------------------------------
@@ -253,7 +263,7 @@ public class ClearanceTaskListener implements TaskListener {
     private String taskNoteOf(DelegateTask task) {
         for (String name : new String[]{"note", "notes"}) {
             String value = str(task.getVariableLocal(name));
-            if (value != null && value.isBlank() == false) {
+            if (value != null && !value.isBlank()) {
                 return value;
             }
         }

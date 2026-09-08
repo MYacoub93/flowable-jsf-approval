@@ -42,6 +42,14 @@
                     <h:link outcome="/users_managment" styleClass="nav-item #{activeMenu == 'users-managment' ? 'active' : ''}">
                         <i class="pi pi-user-edit"/><span>Users Management</span>
                     </h:link>
+
+                    <!-- Dev-only destructive tool: additionally guarded by
+                         app.dev-mode.enabled (server-side check in
+                         ClearDataService on every action). -->
+                    <h:link outcome="/clear-data" styleClass="nav-item #{activeMenu == 'clear-data' ? 'active' : ''}"
+                            rendered="#{clearDataService.isDevMode()}">
+                        <i class="pi pi-trash"/><span>Clear Data</span>
+                    </h:link>
                 </ui:fragment>
             </nav>
 

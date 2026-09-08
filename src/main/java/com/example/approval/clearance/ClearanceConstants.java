@@ -120,6 +120,18 @@ public final class ClearanceConstants {
     // Business fields
     public static final String VAR_STUDENT_FULL_NAME = "studentFullName";
     public static final String VAR_STUDENT_ID = "studentId";
+
+    /**
+     * Read-only student information snapshot loaded from the SIS
+     * ({@code CommonService.getStudentInfo}) at process start and carried
+     * through every Clearance task as process variables.
+     */
+    public static final String VAR_STUDENT_NAME = "studentName";
+    public static final String VAR_STUDENT_EMAIL = "studentEmail";
+    public static final String VAR_STUDENT_GPA = "studentGPA";
+    public static final String VAR_STUDENT_MOBILE = "studentMobile";
+    public static final String VAR_ACADEMIC_YEAR = "academicYear";
+
     public static final String VAR_PROGRAM = "program";
     public static final String VAR_NOTES = "notes";
 

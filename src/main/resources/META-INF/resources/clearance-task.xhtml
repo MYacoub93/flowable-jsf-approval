@@ -54,12 +54,24 @@
                             <span class="h-icon"><i class="pi pi-times-circle"/></span>
                             <div>
                                 <div class="h-title">Rejected at #{clearanceTaskBean.lastRejectedStage}
-                                    &#183; #{clearanceTaskBean.lastRejectedDepartment}</div>
+                                    &#183;#{clearanceTaskBean.lastRejectedDepartment}</div>
                                 <div class="h-meta">Previous round rejection</div>
                                 <p class="h-note">#{clearanceTaskBean.lastRejectionComment}</p>
                             </div>
                         </div>
                     </h:panelGroup>
+                </p:panel>
+
+                <!-- Student Information (read-only snapshot from the process variables) -->
+                <p:panel header="Student Information" style="margin-top:16px;">
+                    <dl class="detail-list">
+                        <dt>Student ID</dt><dd>#{clearanceTaskBean.studentId}</dd>
+                        <dt>Student Name</dt><dd>#{clearanceTaskBean.studentName}</dd>
+                        <dt>Email</dt><dd>#{empty clearanceTaskBean.studentEmail ? '-' : clearanceTaskBean.studentEmail}</dd>
+                        <dt>Cumulative GPA</dt><dd>#{empty clearanceTaskBean.studentGpa ? '-' : clearanceTaskBean.studentGpa}</dd>
+                        <dt>Mobile</dt><dd>#{empty clearanceTaskBean.studentMobile ? '-' : clearanceTaskBean.studentMobile}</dd>
+                        <dt>Academic Year</dt><dd>#{empty clearanceTaskBean.academicYear ? '-' : clearanceTaskBean.academicYear}</dd>
+                    </dl>
                 </p:panel>
 
                 <!-- Department approval decision -->

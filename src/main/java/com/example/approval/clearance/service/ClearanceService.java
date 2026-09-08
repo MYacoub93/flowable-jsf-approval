@@ -1,6 +1,8 @@
 package com.example.approval.clearance.service;
 
 import com.example.approval.audit.service.BpmAuditService;
+import com.example.approval.origin.beans.StudentInfoBean;
+import com.example.approval.service.CommonService;
 import com.example.approval.service.ProcessStartService;
 import org.flowable.engine.IdentityService;
 import org.flowable.engine.RuntimeService;
@@ -39,17 +41,20 @@ public class ClearanceService {
     private final TaskService taskService;
     private final RuntimeService runtimeService;
     private final BpmAuditService auditService;
+    private final CommonService commonService;
 
     public ClearanceService(ProcessStartService processStartService,
                             IdentityService identityService,
                             TaskService taskService,
                             RuntimeService runtimeService,
-                            BpmAuditService auditService) {
+                            BpmAuditService auditService,
+                            CommonService commonService) {
         this.processStartService = processStartService;
         this.identityService = identityService;
         this.taskService = taskService;
         this.runtimeService = runtimeService;
         this.auditService = auditService;
+        this.commonService = commonService;
     }
 
     // ------------------------------------------------------------------
@@ -60,6 +65,13 @@ public class ClearanceService {
      * Start a Clearance Letter instance. Only members of the {@code STD}
      * candidate group may do so; this is checked here in addition to the
      * BPMN-level {@code candidateStarterGroups} authorization.
+     *
+     * <p>The read-only student information variables are (re-)loaded here
+     * from the SIS for the initiating student so they always originate from
+     * {@link CommonService#getStudentInfo(String)} - never from a client
+     * request - and every later task can display them from the process
+     * variables without re-querying the SIS with a department employee's
+     * username.</p>
      */
     public ProcessInstance startClearance(String username, Map<String, Object> variables) {
         if (!isMemberOfGroup(username, INITIATOR_CANDIDATE_GROUP)) {
@@ -67,8 +79,20 @@ public class ClearanceService {
                     + " is not allowed to start the Clearance Letter process "
                     + "(requires group " + INITIATOR_CANDIDATE_GROUP + ")");
         }
+        StudentInfoBean sis = commonService.getStudentInfo(username);
+        if (sis == null) {
+            throw new IllegalStateException("No student information found for " + username
+                    + " - cannot start the Clearance Letter process");
+        }
         Map<String, Object> vars = new HashMap<>(variables);
         vars.put(VAR_INITIATOR, username);
+        vars.put(VAR_STUDENT_FULL_NAME, sis.getStudentName());
+        vars.put(VAR_STUDENT_ID, sis.getStudentId());
+        vars.put(VAR_STUDENT_NAME, sis.getStudentName());
+        vars.put(VAR_STUDENT_EMAIL, sis.getEmail());
+        vars.put(VAR_STUDENT_GPA, sis.getCumStudentGPA());
+        vars.put(VAR_STUDENT_MOBILE, sis.getMobile());
+        vars.put(VAR_ACADEMIC_YEAR, sis.getAcademicYear());
         return processStartService.startProcess(PROCESS_KEY, username, vars);
     }
 
@@ -162,6 +186,10 @@ public class ClearanceService {
     /**
      * Complete the initiator's "Amend Clearance Request" task. The process
      * then loops back to dynamic department resolution automatically.
+     *
+     * <p>The read-only student information is taken from the process
+     * variables (unchanged); only the editable fields (program, notes,
+     * amendment comment) are updated.</p>
      */
     public void completeAmendment(String taskId,
                                   String studentFullName,

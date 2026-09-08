@@ -49,6 +49,12 @@ app:
     sis:
       enabled:false
       run-on-startup:false
+  # Development-only tooling switch. When true the "Clear Data" entry
+  # appears under Administration (ADM users only) and ClearDataService
+  # permits deleting the Flowable data (runtime + history) of process
+  # instances. MUST stay false outside a local dev machine.
+  dev-mode:
+    enabled: ${DEV_MODE_ENABLED:true}
 #      jdbc-url: jdbc:mysql://localhost:3307/approvaldb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
 #      username: root
 #      password: root
@@ -77,7 +83,7 @@ app:
 
 # Flowable configuration
 flowable:
-  database-schema-update: true
+  database-schema-update: false
   check-process-definitions: true
   process-definition-location-prefix: classpath*:/processes/
   async-executor-activate: true

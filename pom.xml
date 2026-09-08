@@ -163,6 +163,14 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- H2 in-memory database for Flowable engine-level process tests
+             (ClearanceProcessSynchronizationTest boots a real engine on H2;
+             runtime still uses MySQL/Oracle). -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
