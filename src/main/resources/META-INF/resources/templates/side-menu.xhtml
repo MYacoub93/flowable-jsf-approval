@@ -29,6 +29,11 @@
 
                 <ui:fragment rendered="#{externalGroupService.isGroupAdmin(loginBean.currentUser.id)}">
                     <div class="nav-label">Administration</div>
+                    <!-- Deploy/undeploy BPMN process definitions; every action
+                         is re-checked server-side in ProcessDeploymentService. -->
+                    <h:link outcome="/process-management" styleClass="nav-item #{activeMenu == 'process-management' ? 'active' : ''}">
+                        <i class="pi pi-bolt"/><span>Process Management</span>
+                    </h:link>
                     <h:link outcome="/external-group-create" styleClass="nav-item #{activeMenu == 'external-groups' ? 'active' : ''}">
                         <i class="pi pi-sitemap"/><span>External Groups</span>
                     </h:link>
