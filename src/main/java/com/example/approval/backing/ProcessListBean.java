@@ -56,8 +56,8 @@ public class ProcessListBean extends BaseBackingBean {
     /**
      * Start a process definition chosen from the table.
      * Looks up the latest version of the definition and routes to the JSF view
-     * named by its {@code flowable:formKey} (e.g. form key {@code start-process}
-     * redirects to {@code /start-process.xhtml}). Definitions without a form key
+     * named by its {@code flowable:formKey} (e.g. form key {@code start-clearance}
+     * redirects to {@code /start-clearance.xhtml}). Definitions without a form key
      * get the generic fallback message.
      */
     public String start(String processDefinitionKey) {

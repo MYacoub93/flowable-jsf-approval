@@ -62,9 +62,6 @@ public class DashboardBean extends BaseBackingBean {
                 .getFlash().put("taskId", taskId);
 
         String defKey = task.getTaskDefinitionKey();
-        if ("updateRequestTask".equals(defKey)) {
-            return "/update-request?faces-redirect=true&taskId=" + taskId;
-        }
         if ("departmentApprovalTask".equals(defKey)
                 || "financeApprovalTask".equals(defKey)
                 || "admissionApprovalTask".equals(defKey)
@@ -84,8 +81,8 @@ public class DashboardBean extends BaseBackingBean {
             // standalone FYI / result tasks created programmatically
             return "/clearance-task?faces-redirect=true&taskId=" + taskId;
         }
-        // managerApprovalTask or financeApprovalTask (generic approval process)
-        return "/task-form?faces-redirect=true&taskId=" + taskId;
+        // Unknown task definition key - no dedicated form available
+        return null;
     }
 
     // Getters
@@ -141,10 +138,6 @@ public class DashboardBean extends BaseBackingBean {
 
     public String goToProcesses() {
         return "/processes?faces-redirect=true";
-    }
-
-    public String goToStartProcess() {
-        return "/start-process?faces-redirect=true";
     }
 
     public String goToDashboard() {

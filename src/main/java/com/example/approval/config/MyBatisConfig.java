@@ -4,7 +4,6 @@ import com.example.approval.mapper.BpmAuditMapper;
 import com.example.approval.mapper.CommonMapper;
 import com.example.approval.mapper.ExternalGroupMapper;
 import com.example.approval.mapper.FlowableIdentityMapper;
-import com.example.approval.mapper.UserMapper;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.SqlSessionTemplate;
@@ -35,15 +34,14 @@ import javax.sql.DataSource;
  * once this class exists - each factory below points at its own XML file
  * explicitly instead.</p>
  *
- * <p>{@code UserMapper.xml} -> primaryDataSource (MySQL)<br>
- * {@code CommonMapper.xml} + {@code FlowableIdentityMapper.xml} + {@code BpmAuditMapper.xml}
+ * <p>{@code CommonMapper.xml} + {@code FlowableIdentityMapper.xml} + {@code BpmAuditMapper.xml}
  * -> externalDataSource (Oracle SIS/HRS schema, home of the {@code BPM_*} audit tables)</p>
  */
 @Configuration
 public class MyBatisConfig {
 
     // ------------------------------------------------------------------
-    // Primary (MySQL) - UserMapper
+    // Primary (MySQL) - Flowable engine tables
     // ------------------------------------------------------------------
 
     @Bean(name = "primarySqlSessionFactory")
@@ -51,8 +49,7 @@ public class MyBatisConfig {
     public SqlSessionFactory primarySqlSessionFactory(
             @Qualifier("primaryDataSource") DataSource primaryDataSource,
             MybatisProperties mybatisProperties) throws Exception {
-        return buildSqlSessionFactory(primaryDataSource, mybatisProperties,
-                "classpath:mapper/UserMapper.xml");
+        return buildSqlSessionFactory(primaryDataSource, mybatisProperties);
     }
 
     @Bean(name = "primarySqlSessionTemplate")
@@ -60,14 +57,6 @@ public class MyBatisConfig {
     public SqlSessionTemplate primarySqlSessionTemplate(
             @Qualifier("primarySqlSessionFactory") SqlSessionFactory sqlSessionFactory) {
         return new SqlSessionTemplate(sqlSessionFactory);
-    }
-
-    @Bean
-    public MapperFactoryBean<UserMapper> userMapper(
-            @Qualifier("primarySqlSessionFactory") SqlSessionFactory sqlSessionFactory) {
-        MapperFactoryBean<UserMapper> mapperFactoryBean = new MapperFactoryBean<>(UserMapper.class);
-        mapperFactoryBean.setSqlSessionFactory(sqlSessionFactory);
-        return mapperFactoryBean;
     }
 
     // ------------------------------------------------------------------

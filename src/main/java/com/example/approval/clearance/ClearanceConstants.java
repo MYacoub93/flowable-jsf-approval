@@ -96,6 +96,18 @@ public final class ClearanceConstants {
     /** Map<department, DepartmentDecision> of the current approval round. */
     public static final String VAR_DEPARTMENT_DECISIONS = "departmentDecisions";
 
+    /**
+     * Cumulative List<department> of departments that already APPROVED in
+     * ANY round of this clearance request. Maintained across the whole
+     * amendment/resubmission loop (unlike {@link #VAR_DEPARTMENT_DECISIONS},
+     * which is reset every round) so {@code resolveRequiredDepartments} can
+     * exclude those departments: they must never receive a second
+     * {@code departmentApprovalTask} for the same request. A department that
+     * REJECTED is never added and therefore keeps receiving a new task after
+     * every resubmission until it approves.
+     */
+    public static final String VAR_APPROVED_DEPARTMENTS = "approvedDepartments";
+
     /** Free text the initiator added when amending a rejected request. */
     public static final String VAR_AMENDMENT_NOTES = "amendmentNotes";
 

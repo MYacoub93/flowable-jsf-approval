@@ -6,159 +6,34 @@ import org.flowable.engine.TaskService;
 import org.flowable.idm.api.Group;
 import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.task.api.Task;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.example.approval.audit.service.BpmAuditService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Core service for completing tasks, resolving dynamic assignees, and querying
- * tasks / process instances. Referenced from BPMN expressions:
- * ${approvalService.getManager(execution)} etc.
+ * Core service for querying tasks / process instances of all deployed
+ * process definitions, used by the JSF dashboard and task forms.
  *
- * Process starting now lives in {@link ProcessStartService}, which is generic
- * across process definitions.
- *
- * Spring injects this bean; Flowable expression language resolves it by name.
+ * Process starting lives in {@link ProcessStartService}; per-process task
+ * completion lives in the process-specific services (e.g. ClearanceService,
+ * StudentProofService).
  */
 @Service("approvalService")
 @Transactional
 public class ApprovalService {
 
-    private static final Logger log = LoggerFactory.getLogger(ApprovalService.class);
-
     private final RuntimeService runtimeService;
     private final TaskService taskService;
     private final IdentityService identityService;
-    private final BpmAuditService auditService;
 
     public ApprovalService(RuntimeService runtimeService,
                            TaskService taskService,
-                           IdentityService identityService,
-                           BpmAuditService auditService) {
+                           IdentityService identityService) {
         this.runtimeService = runtimeService;
         this.taskService = taskService;
         this.identityService = identityService;
-        this.auditService = auditService;
-    }
-
-    // -------------------------------------------------------------------------
-    // Dynamic assignee resolution (called from BPMN expressions)
-    // -------------------------------------------------------------------------
-
-    /**
-     * Called by Flowable when creating the Manager Approval task.
-     * Expression: ${approvalService.getManager(execution)}
-     */
-    public String getManager(org.flowable.engine.delegate.DelegateExecution execution) {
-//        String department = (String) execution.getVariable("department");
-//        log.info("Resolving manager for department={}", department);
-//        User manager = userService.findManagerByDepartment(department);
-//        // Store for later use / display
-//        execution.setVariable("manager", manager.getUsername());
-//        return manager.getUsername();
-        return "";
-    }
-
-    /**
-     * Called by Flowable when creating the Finance Approval task.
-     * Expression: ${approvalService.getFinanceApprover(execution)}
-     */
-    public String getFinanceApprover(org.flowable.engine.delegate.DelegateExecution execution) {
-//        Number amount = (Number) execution.getVariable("amount");
-//        log.info("Resolving finance approver for amount={}", amount);
-//        User finance = userService.findFinanceApprover();
-//        execution.setVariable("financeUser", finance.getUsername());
-//        return finance.getUsername();
-        return "";
-    }
-
-    // -------------------------------------------------------------------------
-    // Task completion
-    // -------------------------------------------------------------------------
-
-    /**
-     * Complete an approval task (Manager or Finance).
-     *
-     * @param taskId   Flowable task id
-     * @param approved true = approve, false = reject
-     * @param comments free text
-     * @param username current user (must match assignee)
-     */
-    public void completeApprovalTask(String taskId, boolean approved, String comments, String username) {
-        Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
-        if (task == null) {
-            throw new IllegalArgumentException("Task not found: " + taskId);
-        }
-        if (!username.equals(task.getAssignee())) {
-            throw new IllegalStateException("User " + username + " is not the assignee of task " + taskId);
-        }
-
-        Map<String, Object> vars = new HashMap<>();
-        vars.put("approved", approved);
-        vars.put("comments", comments != null ? comments : "");
-
-        if (!approved) {
-            // Determine which task rejected so we know where to return after update
-            String taskDefKey = task.getTaskDefinitionKey();
-            if ("managerApprovalTask".equals(taskDefKey)) {
-                vars.put("rejectedBy", "manager");
-            } else if ("financeApprovalTask".equals(taskDefKey)) {
-                vars.put("rejectedBy", "finance");
-            }
-        } else {
-            // Clear rejection marker on approve
-            vars.put("rejectedBy", null);
-        }
-
-        auditService.logTaskCompleted(task.getProcessInstanceId(),
-                task.getTaskDefinitionKey(), null, username,
-                approved ? "approve" : "reject", comments, taskId, null);
-
-        taskService.complete(taskId, vars);
-        log.info("Task {} completed by {} with approved={}", taskId, username, approved);
-    }
-
-    /**
-     * Complete the "Update Request" task after rejection.
-     * Updates process variables and continues the flow.
-     */
-    public void completeUpdateRequest(String taskId,
-                                      String title,
-                                      String description,
-                                      Double amount,
-                                      String department,
-                                      String username) {
-        Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
-        if (task == null) {
-            throw new IllegalArgumentException("Task not found: " + taskId);
-        }
-        if (!username.equals(task.getAssignee())) {
-            throw new IllegalStateException("User " + username + " is not the assignee of task " + taskId);
-        }
-
-        Map<String, Object> vars = new HashMap<>();
-        vars.put("title", title);
-        vars.put("description", description);
-        vars.put("amount", amount);
-        vars.put("department", department);
-        // Keep rejectedBy so the gateway knows where to send next
-        // Clear previous decision
-        vars.put("approved", null);
-        vars.put("comments", "");
-
-        auditService.logProcessAction(task.getProcessInstanceId(),
-                "REQUEST_AMENDED", task.getTaskDefinitionKey(), department,
-                username, null, "Request updated: " + title);
-
-        taskService.complete(taskId, vars);
-        log.info("Update Request task {} completed by {}", taskId, username);
     }
 
     // -------------------------------------------------------------------------

@@ -70,25 +70,42 @@ public class ClearanceProcessHandler {
      * Service task "Resolve Required Departments". Called before the parallel
      * multi-instance stage is created - initially and again after every
      * amendment - so the department list is always dynamic.
+     *
+     * <p><b>Resubmission rule:</b> departments that already APPROVED this
+     * request in an earlier round (cumulative {@code approvedDepartments}
+     * variable, maintained by {@link #evaluateDepartmentStage}) are filtered
+     * out - they never receive a second {@code departmentApprovalTask}. Only
+     * the departments that did NOT approve yet (rejected or never reached)
+     * circulate again. On the first round nobody has approved, so the full
+     * resolved set is used.</p>
      */
     public void resolveRequiredDepartments(DelegateExecution execution) {
         String initiator = var(execution, VAR_INITIATOR);
-        List<String> departments =
+        List<String> resolved =
                 new ArrayList<>(departmentResolverService.getRequiredDepartments(initiator));
 
+        List<String> alreadyApproved = approvedDepartments(execution);
+        List<String> pending = new ArrayList<>();
+        for (String department : resolved) {
+            if (!alreadyApproved.contains(department)) {
+                pending.add(department);
+            }
+        }
+
         int round = roundOf(execution) + 1;
-        execution.setVariable(VAR_REQUIRED_DEPARTMENTS, departments);
+        execution.setVariable(VAR_REQUIRED_DEPARTMENTS, pending);
         execution.setVariable(VAR_ANY_DEPARTMENT_REJECTED, false);
         execution.setVariable(VAR_DEPARTMENT_DECISIONS, new LinkedHashMap<String, DepartmentDecision>());
+        execution.setVariable(VAR_APPROVED_DEPARTMENTS, alreadyApproved);
         execution.setVariable(VAR_APPROVAL_ROUND, round);
 
 //        auditService.logProcessAction(execution.getProcessInstanceId(),
 //                ACTION_DEPARTMENTS_RESOLVED, STAGE_DEPARTMENT_RESOLUTION, null,
 //                initiator, initiator,
-//                "Round " + round + " requires " + departments.size()
-//                        + " departments: " + departments);
-        log.info("Clearance {}: round {} departments = {}",
-                execution.getProcessInstanceId(), round, departments);
+//                "Round " + round + " requires " + pending.size()
+//                        + " departments: " + pending);
+        log.info("Clearance {}: round {} departments = {} (already approved: {})",
+                execution.getProcessInstanceId(), round, pending, alreadyApproved);
     }
 
     // ------------------------------------------------------------------
@@ -97,10 +114,22 @@ public class ClearanceProcessHandler {
 
     /**
      * Service task after the multi-instance stage: copies the first rejection
-     * of the round into {@code lastRejected*} variables for the amendment form.
+     * of the round into {@code lastRejected*} variables for the amendment form
+     * and carries every department that approved in this round over into the
+     * cumulative {@code approvedDepartments} variable, so the next
+     * {@link #resolveRequiredDepartments} call skips them.
      */
     public void evaluateDepartmentStage(DelegateExecution execution) {
         Map<String, DepartmentDecision> decisions = decisions(execution);
+
+        List<String> approved = approvedDepartments(execution);
+        decisions.values().stream()
+                .filter(DepartmentDecision::isApproved)
+                .map(DepartmentDecision::getDepartment)
+                .filter(department -> !approved.contains(department))
+                .forEach(approved::add);
+        execution.setVariable(VAR_APPROVED_DEPARTMENTS, approved);
+
         DepartmentDecision rejection = decisions.values().stream()
                 .filter(d -> !d.isApproved())
                 .findFirst()
@@ -230,6 +259,23 @@ public class ClearanceProcessHandler {
     private int roundOf(DelegateExecution execution) {
         Object round = execution.getVariable(VAR_APPROVAL_ROUND);
         return round instanceof Number ? ((Number) round).intValue() : 0;
+    }
+
+    /**
+     * Cumulative list of departments that already approved this request in
+     * any round (empty on the first round). A fresh mutable copy is returned
+     * because {@link #evaluateDepartmentStage} extends it while evaluating
+     * the stage result.
+     */
+    private List<String> approvedDepartments(DelegateExecution execution) {
+        Object value = execution.getVariable(VAR_APPROVED_DEPARTMENTS);
+        List<String> result = new ArrayList<>();
+        if (value instanceof List<?> list) {
+            for (Object element : list) {
+                result.add(String.valueOf(element));
+            }
+        }
+        return result;
     }
 
     @SuppressWarnings("unchecked")
