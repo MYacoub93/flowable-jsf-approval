@@ -2,6 +2,7 @@ package com.example.approval.clearance.service;
 
 import com.example.approval.audit.service.BpmAuditService;
 import com.example.approval.origin.beans.StudentInfoBean;
+import com.example.approval.processes.clearance.service.ClearanceService;
 import com.example.approval.service.CommonService;
 import com.example.approval.service.ProcessStartService;
 import org.flowable.engine.IdentityService;
@@ -16,7 +17,7 @@ import org.mockito.ArgumentCaptor;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.example.approval.clearance.ClearanceConstants.*;
+import static com.example.approval.processes.clearance.ClearanceConstants.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;

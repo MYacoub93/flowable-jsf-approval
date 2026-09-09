@@ -1,6 +1,6 @@
 package com.example.approval.audit;
 
-import com.example.approval.clearance.ClearanceConstants;
+import com.example.approval.processes.clearance.ClearanceConstants;
 import org.junit.jupiter.api.Test;
 
 import static com.example.approval.audit.BpmAuditAction.ActionType.APPROVAL;

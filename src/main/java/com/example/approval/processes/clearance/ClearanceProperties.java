@@ -1,0 +1,81 @@
+package com.example.approval.processes.clearance;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Externalized configuration for the Clearance Letter process
+ * (prefix {@code clearance.*} in application.yml).
+ *
+ * <p>Keeps the BPMN and listeners free of environment specifics: the
+ * department resolution strategy is configurable. E-mail / notification
+ * behaviour is global and lives in the
+ * {@code com.example.approval.notification} package
+ * ({@code notification.*} properties).</p>
+ */
+@Component
+@ConfigurationProperties(prefix = "clearance")
+public class ClearanceProperties {
+
+    private final Departments departments = new Departments();
+
+    public Departments getDepartments() {
+        return departments;
+    }
+
+    /** Dynamic department resolution behaviour. */
+    public static class Departments {
+
+        /** Resolution strategy. */
+        public enum Mode {
+            /** Always the full default catalogue from {@link ClearanceConstants}. */
+            ALL,
+            /** The configured {@code default-departments} list. */
+            CONFIGURED
+        }
+
+        private Mode mode = Mode.ALL;
+
+        /**
+         * Departments used when {@code mode == CONFIGURED}; may be a subset of
+         * the catalogue (or contain additional group ids known to the IDM).
+         */
+        private List<String> defaultDepartments = new ArrayList<>(ClearanceConstants.ALL_DEPARTMENTS);
+
+        /**
+         * Per-initiator override: {@code username -> comma separated departments}.
+         * An override always wins over the mode-based list; {@code *} can be
+         * used as username for a global override.
+         */
+        private Map<String, String> initiatorOverrides = new LinkedHashMap<>();
+
+        public Mode getMode() {
+            return mode;
+        }
+
+        public void setMode(Mode mode) {
+            this.mode = mode;
+        }
+
+        public List<String> getDefaultDepartments() {
+            return defaultDepartments;
+        }
+
+        public void setDefaultDepartments(List<String> defaultDepartments) {
+            this.defaultDepartments = defaultDepartments;
+        }
+
+        public Map<String, String> getInitiatorOverrides() {
+            return initiatorOverrides;
+        }
+
+        public void setInitiatorOverrides(Map<String, String> initiatorOverrides) {
+            this.initiatorOverrides = initiatorOverrides;
+        }
+    }
+}

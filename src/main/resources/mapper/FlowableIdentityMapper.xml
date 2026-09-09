@@ -2,6 +2,16 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.approval.mapper.FlowableIdentityMapper">
 
+    <!-- أعضاء المجموعة (اسم المستخدم + البريد الإلكتروني) كما هم في
+         FLOWABLE_USERS_VW. يُستخدم من نظام الإشعارات العالمي لإرسال
+         الإشعار إلى كل عضو على حدة - لا يوجد بريد مشترك للمجموعة.
+         ROLE_CODE_ هو معرف المجموعة (الرول) داخل العرض. -->
+    <resultMap id="groupMemberMap" type="com.example.approval.entity.ExternalUser">
+        <id property="id" column="ID_"/>
+        <result property="username" column="USERNAME_"/>
+        <result property="email" column="EMAIL_"/>
+    </resultMap>
+
     <!-- جلب المستخدم مع فك تشفير كلمة المرور مباشرة داخل استعلام الـ SQL -->
     <select id="findUserByUsernameForAuth" resultType="org.flowable.idm.engine.impl.persistence.entity.UserEntityImpl">
         SELECT
@@ -64,17 +74,17 @@
             ID = #{groupId}
     </select>
 
-    <!-- عناوين البريد الإلكتروني لجميع أعضاء المجموعة، مسحوبة مباشرة من
-         FLOWABLE_USERS_VW عبر استعلام خاص. يُستخدم من نظام الإشعارات
-         العالمي لإرسال رسالة واحدة إلى كل معتمدي المجموعة المرشحة.
-         ROLE_CODE_ هو معرف المجموعة (الرول) داخل العرض. -->
-    <select id="findEmailsByGroup" resultType="java.lang.String">
+    <!-- كل أعضاء المجموعة مع بريدهم - DISTINCT على الأعمدة الثلاثة يمنع تكرار
+         نفس المستخدم متعدد الأدوار. المستخدمون بدون USERNAME_ يتجاهلون. -->
+    <select id="findMembersByGroup" resultMap="groupMemberMap">
         SELECT DISTINCT
+            u.ID_,
+            u.USERNAME_,
             u.EMAIL_
         FROM FLOWABLE_USERS_VW u
-        WHERE u.ROLE_CODE_ = #{groupId}
-          AND u.EMAIL_ IS NOT NULL
-        ORDER BY u.EMAIL_
+        WHERE u.id_ in (select user_id from flowable_groups_vw g where g.id = #{groupId})
+          AND u.USERNAME_ IS NOT NULL
+        ORDER BY u.USERNAME_
     </select>
 
     <!-- البريد الإلكتروني لمستخدم واحد (يُستخدم عندما تكون المهمة محجوزة

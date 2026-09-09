@@ -1,27 +1,34 @@
 package com.example.approval.mapper;
 
+import com.example.approval.entity.ExternalUser;
 import org.apache.ibatis.annotations.Mapper;
 import org.flowable.idm.engine.impl.persistence.entity.GroupEntityImpl;
 import org.flowable.idm.engine.impl.persistence.entity.UserEntityImpl;
+
 import java.util.List;
 
 @Mapper
 public interface FlowableIdentityMapper {
+
     UserEntityImpl findUserByUsernameForAuth(String username);
+
     UserEntityImpl findUserById(String id);
+
     UserEntityImpl findUserByUsername(String username);
+
     List<GroupEntityImpl> findGroupsByUser(String userId);
 
     /** Groups with the exact id, sourced from the SIS view (usually 0..1 rows). */
     List<GroupEntityImpl> findGroupById(String groupId);
 
     /**
-     * E-mail addresses of every member of a group (FLOWABLE_USERS_VW rows whose
-     * ROLE_CODE_ equals the group id). Used by the notification subsystem to
-     * mail all approvers of a candidate group; empty when the group has no
-     * members with an e-mail.
+     * Username and e-mail address of every member of a group
+     * (FLOWABLE_USERS_VW rows whose ROLE_CODE_ equals the group id). Used by
+     * the notification subsystem to mail <b>every member individually</b> of a
+     * candidate group - a group never resolves to a shared group mailbox.
+     * Empty when the group is unknown or has no members.
      */
-    List<String> findEmailsByGroup(String groupId);
+    List<ExternalUser> findMembersByGroup(String groupId);
 
     /**
      * E-mail address of a single user from FLOWABLE_USERS_VW (used when a task

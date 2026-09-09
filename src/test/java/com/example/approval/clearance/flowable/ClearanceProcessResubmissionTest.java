@@ -1,7 +1,9 @@
 package com.example.approval.clearance.flowable;
 
 import com.example.approval.audit.service.BpmAuditService;
-import com.example.approval.clearance.service.DepartmentResolverService;
+import com.example.approval.processes.clearance.flowable.ClearanceProcessHandler;
+import com.example.approval.processes.clearance.flowable.ClearanceTaskListener;
+import com.example.approval.processes.clearance.service.DepartmentResolverService;
 import com.example.approval.notification.service.NotificationService;
 import org.flowable.engine.ProcessEngine;
 import org.flowable.engine.ProcessEngineConfiguration;
@@ -22,7 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.example.approval.clearance.ClearanceConstants.*;
+import static com.example.approval.processes.clearance.ClearanceConstants.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

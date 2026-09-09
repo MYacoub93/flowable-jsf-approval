@@ -17,8 +17,6 @@ import java.util.Map;
  *   task-link-base: http://localhost:8080
  *   always-log: true
  *   user-email-domain: students.example.edu
- *   group-mailboxes:            # Flowable candidate group / department id -> mailbox
- *     IT Department: it@example.edu
  *   user-mailboxes:             # username -> mailbox (overrides the domain convention)
  *     student.john: john@example.edu
  *   task-link-paths:            # process definition key -> JSF task page path
@@ -55,14 +53,6 @@ public class NotificationProperties {
      * is configured: {@code student.john -> student.john@students.example.edu}.
      */
     private String userEmailDomain = "students.example.edu";
-
-    /**
-     * Group mailbox per Flowable candidate group / department id. Keys
-     * containing spaces must be quoted in YAML:
-     * {@code "[IT Department]": it@example.edu}. Multiple recipients can be
-     * given comma-separated.
-     */
-    private Map<String, String> groupMailboxes = new LinkedHashMap<>();
 
     /**
      * Explicit mailbox per username; wins over the {@link #userEmailDomain}
@@ -118,14 +108,6 @@ public class NotificationProperties {
 
     public void setUserEmailDomain(String userEmailDomain) {
         this.userEmailDomain = userEmailDomain;
-    }
-
-    public Map<String, String> getGroupMailboxes() {
-        return groupMailboxes;
-    }
-
-    public void setGroupMailboxes(Map<String, String> groupMailboxes) {
-        this.groupMailboxes = groupMailboxes;
     }
 
     public Map<String, String> getUserMailboxes() {

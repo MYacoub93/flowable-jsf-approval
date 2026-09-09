@@ -20,9 +20,11 @@ package com.example.approval.notification.model;
  *       approvers receive the mail;</li>
  *   <li>{@link #getRecipientUser()} - a single named user (typically the
  *       initiator), address from {@code FLOWABLE_USERS_VW};</li>
- *   <li>static fallbacks: {@code notification.user-mailboxes},
- *       {@code notification.user-email-domain} convention,
- *       {@code notification.group-mailboxes}.</li>
+ *   <li>static fallbacks for <b>individual users only</b>:
+ *       {@code notification.user-mailboxes}, then the
+ *       {@code notification.user-email-domain} convention. Groups never fall
+ *       back to a shared mailbox - a group without members having a valid
+ *       address resolves to no recipients.</li>
  * </ol>
  *
  * <p>Instances are immutable - create them with {@link #builder()}.</p>

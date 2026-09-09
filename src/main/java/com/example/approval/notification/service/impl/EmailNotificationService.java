@@ -1,6 +1,7 @@
 package com.example.approval.notification.service.impl;
 
 import com.example.approval.notification.NotificationProperties;
+import com.example.approval.notification.model.GroupEmailResolution;
 import com.example.approval.notification.model.NotificationMessage;
 import com.example.approval.notification.service.NotificationRecipientResolver;
 import com.example.approval.notification.service.NotificationService;
@@ -25,12 +26,13 @@ import java.util.Map;
  *   <li>explicit {@code recipientEmail} on the message (always wins);</li>
  *   <li><b>claimed task</b> - when the message carries an
  *       {@code assigneeUser}, only that person's address is used;</li>
- *   <li><b>group task</b> - the addresses of <b>every member</b> of the
- *       candidate group ({@code ROLE_CODE_} = group id) are collected and all
- *       of them receive the mail;</li>
- *   <li>static fallbacks from {@code notification.*}: {@code user-mailboxes},
- *       {@code user-email-domain} convention, then
- *       {@code group-mailboxes}.</li>
+ *   <li><b>group task</b> - the validated, deduplicated addresses of
+ *       <b>every member</b> of the candidate group ({@code ROLE_CODE_} =
+ *       group id) are collected and all of them receive one joint mail -
+ *       <b>a group never resolves to a shared/group mailbox</b>;</li>
+ *   <li>static user fallbacks from {@code notification.*} for <b>individual
+ *       users only</b>: {@code user-mailboxes}, then the
+ *       {@code user-email-domain} convention.</li>
  * </ol>
  *
  * <p>Task deep links are built from {@code notification.task-link-base} plus
@@ -89,9 +91,11 @@ public class EmailNotificationService implements NotificationService {
      *   <li>{@code assigneeUser} (claimed task) - exactly that person, address
      *       from FLOWABLE_USERS_VW;</li>
      *   <li>candidate group - <b>all member addresses</b> from
-     *       FLOWABLE_USERS_VW ({@code ROLE_CODE_} = group id);</li>
-     *   <li>static config fallbacks ({@code user-mailboxes} /
-     *       {@code user-email-domain} / {@code group-mailboxes}).</li>
+     *       FLOWABLE_USERS_VW ({@code ROLE_CODE_} = group id), validated and
+     *       deduplicated. There is <b>no</b> group mailbox fallback: an empty
+     *       member list simply means no mail is sent;</li>
+     *   <li>static user fallbacks for individual users only
+     *       ({@code user-mailboxes} / {@code user-email-domain}).</li>
      * </ol>
      */
     private List<String> resolveRecipients(NotificationMessage message) {
@@ -123,24 +127,18 @@ public class EmailNotificationService implements NotificationService {
         }
 
         // 3. group task -> mail every member of the candidate group
+        //    (Group -> Users -> Emails; NO shared group mailbox is used)
         String group = message.getCandidateGroup() != null
                 ? message.getCandidateGroup()
                 : message.getDepartment();
         if (group != null && !group.isBlank()) {
-            List<String> groupEmails = recipientResolver.resolveGroupEmails(group);
-            if (!groupEmails.isEmpty()) {
-                recipients.addAll(groupEmails);
-                return recipients;
+            GroupEmailResolution resolution = recipientResolver.resolveGroupRecipients(group);
+            if (resolution.hasRecipients()) {
+                recipients.addAll(resolution.getRecipients());
+            } else {
+                log.warn("No valid member e-mail addresses for group '{}' - group notification skipped",
+                        group);
             }
-            // static group mailbox fallback (e.g. shared department inbox)
-            Map<String, String> groupMailboxes = properties.getGroupMailboxes();
-            String mailbox = groupMailboxes.get(group);
-            if (mailbox != null && !mailbox.isBlank()) {
-                recipients.add(mailbox.trim());
-                return recipients;
-            }
-            log.warn("No member e-mails found in FLOWABLE_USERS_VW for group '{}' - notification skipped",
-                    group);
             return recipients;
         }
 

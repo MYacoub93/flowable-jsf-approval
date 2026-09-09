@@ -118,13 +118,12 @@ notification:                              # global - shared by every process
   always-log: true
   # DB-FIRST resolution: group member / assignee addresses are pulled live
   # from the Oracle view FLOWABLE_USERS_VW:
-  #   - unclaimed group task -> e-mail of EVERY group member
+  #   - unclaimed group task -> personal e-mail of EVERY group member
+  #     (a group NEVER resolves to a shared/group mailbox)
   #   - claimed task         -> only the assignee's e-mail
-  # the entries below are only static FALLBACKS for when the view returns
-  # nothing
+  # the entries below are only static FALLBACKS for INDIVIDUAL USERS when
+  # the view returns nothing
   user-email-domain: students.example.edu  # username -> username@domain
-  group-mailboxes:
-    IT Department: it@example.edu          # shared inbox per candidate group
   user-mailboxes:                          # explicit mailbox per username
     student.john: john@example.edu
   task-link-paths:                         # process key -> JSF task page
@@ -141,8 +140,9 @@ clearance:
 - `notification.*` – global settings and deep-link paths used by every
   process (see `com.example.approval.notification`). Recipients are resolved
   **database-first** from `FLOWABLE_USERS_VW`: an unclaimed group task mails
-  every member of the candidate group, a claimed task mails only the assignee;
-  the configured mailboxes are fallbacks.
+  every member of the candidate group individually (never a shared group
+  mailbox), a claimed task mails only the assignee; the configured user
+  mailboxes are fallbacks for individual users only.
 - `mode: ALL` – all 11 departments for every initiator.
 - `initiator-overrides` – comma-separated or list values select a subset
   for a specific initiator (re-evaluated after every amendment).
@@ -154,13 +154,17 @@ live from the SIS view via dedicated queries in `FlowableIdentityMapper`:
 
 | Situation | Query | Recipients |
 |---|---|---|
-| Task created for a candidate group (not claimed) | `findEmailsByGroup(groupId)` (`ROLE_CODE_` = group id) | every member address of the group |
+| Task created for a candidate group (not claimed) | `findMembersByGroup(groupId)` (`ROLE_CODE_` = group id) | every member address of the group (validated + deduplicated, **no group mailbox**) |
 | Task claimed (`assignment` event or created with assignee) | `findEmailByUsername(assignee)` | only the claimer's address |
 | Initiator result notification | `findEmailByUsername(initiator)` | only the initiator |
 
-Static `notification.group-mailboxes` / `user-mailboxes` /
-`user-email-domain` are only used when the view returns nothing, and any
-lookup/SendMail failure is logged without breaking the Flowable transaction.
+Static `notification.user-mailboxes` / `user-email-domain` are only used for
+**individual users** when the view returns nothing, and any lookup/SendMail
+failure is logged without breaking the Flowable transaction. A group with no
+members holding a valid address resolves to **no recipients** - the mail is
+skipped and the resolution counts are logged:
+`Notification target: GROUP | Group: X | Resolved users: N | Valid email
+recipients: M | Skipped users: K`.
 
 ## Audit trail
 
