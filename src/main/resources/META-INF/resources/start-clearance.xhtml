@@ -7,97 +7,97 @@
 <ui:composition template="/templates/portal.xhtml">
     <ui:param name="activeMenu" value="start-clearance"/>
 
-    <ui:define name="title">Start Clearance Letter - Workflow Station</ui:define>
-    <ui:define name="pageTitle">Start Clearance Letter Request</ui:define>
+    <ui:define name="title">#{labels['clearance.browserTitle']} - #{labels['app.title']}</ui:define>
+    <ui:define name="pageTitle">#{labels['clearance.pageTitle']}</ui:define>
 
     <ui:define name="content">
         <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
             <div class="-empty-state empty-state">
                 <i class="pi pi-lock"/>
-                <div class="empty-title">You are not signed in</div>
-                <p>Please sign in to submit a clearance request.</p>
-                <p:button outcome="/login" value="Go to Sign in" icon="pi pi-sign-in"/>
+                <div class="empty-title">#{labels['login.notSignedIn.title']}</div>
+                <p>#{labels['clearance.notSignedIn.text']}</p>
+                <p:button outcome="/login" value="#{labels['login.goToSignIn']}" icon="pi pi-sign-in"/>
             </div>
         </h:panelGroup>
 
         <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
             <div class="page-head">
                 <div>
-                    <h1>Start Clearance Letter Request Start Clearance Letter Request</h1>
-                    <p class="page-sub">The letter is routed automatically to the departments configured for clearance.</p>
+                    <h1>#{labels['clearance.pageTitle']}</h1>
+                    <p class="page-sub">#{labels['clearance.pageSub']}</p>
                 </div>
             </div>
 
             <!-- Requester info (read-only, from the logged-in user) -->
-            <p:panel header="Requester">
+            <p:panel header="#{labels['clearance.requester']}">
                 <dl class="detail-list">
-                    <dt>Username</dt>
+                    <dt>#{labels['common.username']}</dt>
                     <dd>#{loginBean.currentUser.id}</dd>
-                    <dt>Name</dt>
+                    <dt>#{labels['common.name']}</dt>
                     <dd>#{loginBean.currentUser.firstName} #{loginBean.currentUser.lastName}</dd>
-                    <dt>Email</dt>
+                    <dt>#{labels['common.email']}</dt>
                     <dd>#{empty loginBean.currentUser.email ? '-' : loginBean.currentUser.email}</dd>
                 </dl>
             </p:panel>
 
             <!-- Student Information (read-only, auto-loaded from the SIS) -->
-            <p:panel header="Student Information" style="margin-top:16px;">
+            <p:panel header="#{labels['clearance.studentInfo']}" style="margin-top:16px;">
                 <h:panelGroup rendered="#{startClearanceBean.studentInfoLoaded}" layout="block">
                     <dl class="detail-list">
-                        <dt>Student ID</dt>
+                        <dt>#{labels['clearance.studentId']}</dt>
                         <dd>#{startClearanceBean.contract.studentId}</dd>
-                        <dt>Student Name</dt>
+                        <dt>#{labels['clearance.studentName']}</dt>
                         <dd>#{startClearanceBean.contract.studentName}</dd>
-                        <dt>Email</dt>
+                        <dt>#{labels['common.email']}</dt>
                         <dd>#{empty startClearanceBean.contract.studentEmail ? '-' : startClearanceBean.contract.studentEmail}</dd>
-                        <dt>Cumulative GPA</dt>
+                        <dt>#{labels['clearance.gpa']}</dt>
                         <dd>#{empty startClearanceBean.contract.studentGpa ? '-' : startClearanceBean.contract.studentGpa}</dd>
-                        <dt>Mobile</dt>
+                        <dt>#{labels['clearance.mobile']}</dt>
                         <dd>#{empty startClearanceBean.contract.studentMobile ? '-' : startClearanceBean.contract.studentMobile}</dd>
-                        <dt>Academic Year</dt>
+                        <dt>#{labels['clearance.academicYear']}</dt>
                         <dd>#{empty startClearanceBean.contract.academicYear ? '-' : startClearanceBean.contract.academicYear}</dd>
                     </dl>
                 </h:panelGroup>
                 <h:panelGroup rendered="#{!startClearanceBean.studentInfoLoaded}" layout="block">
                     <div class="empty-state">
                         <i class="pi pi-exclamation-triangle"/>
-                        <div class="empty-title">No student information found</div>
-                        <p>Your account is not linked to a student record, so a clearance request cannot be started.</p>
+                        <div class="empty-title">#{labels['clearance.noStudent.title']}</div>
+                        <p>#{labels['clearance.noStudent.text']}</p>
                     </div>
                 </h:panelGroup>
             </p:panel>
 
             <h:form id="startClearanceForm" style="margin-top:16px;">
-                <p:panel header="Request details">
+                <p:panel header="#{labels['clearance.requestDetails']}">
                     <div class="form-grid">
                         <div class="field">
-                            <p:outputLabel for="program" value="Program"/>
+                            <p:outputLabel for="program" value="#{labels['clearance.program']}"/>
                             <p:inputText id="program" value="#{startClearanceBean.contract.program}"/>
                         </div>
 
                         <div class="field">
-                            <p:outputLabel for="contactEmail" value="Contact Email (notifications)"/>
+                            <p:outputLabel for="contactEmail" value="#{labels['clearance.contactEmail']}"/>
                             <p:inputText id="contactEmail" value="#{startClearanceBean.contract.contactEmail}"
-                                         validatorMessage="Please enter a valid e-mail address">
+                                         validatorMessage="#{labels['clearance.emailInvalid']}">
                                 <f:validateRegex pattern="^$|^[^@\s]+@[^@\s]+\.[^@\s]+$"/>
                             </p:inputText>
                             <p:message for="contactEmail"/>
                         </div>
 
                         <div class="field full">
-                            <p:outputLabel for="notes" value="Note"/>
+                            <p:outputLabel for="notes" value="#{labels['clearance.note']}"/>
                             <p:inputTextarea id="notes" rows="4" value="#{startClearanceBean.contract.notes}"
-                                             counter="notesCounter" counterTemplate="{0} characters"
+                                             counter="notesCounter" counterTemplate="#{labels['clearance.characters']}"
                                              maxlength="1000" autoResize="true"/>
                             <h:panelGroup id="notesCounter" styleClass="field-hint"/>
                         </div>
                     </div>
 
                     <div class="action-bar" style="margin-top:18px;">
-                        <p:commandButton value="Submit Clearance Request" icon="pi pi-send"
+                        <p:commandButton value="#{labels['clearance.submit']}" icon="pi pi-send"
                                          action="#{startClearanceBean.submit}"
                                          styleClass="ui-button-success"/>
-                        <p:button outcome="/dashboard" value="Cancel" icon="pi pi-times"
+                        <p:button outcome="/dashboard" value="#{labels['common.cancel']}" icon="pi pi-times"
                                   styleClass="ui-button-secondary ui-button-outlined"/>
                     </div>
                 </p:panel>

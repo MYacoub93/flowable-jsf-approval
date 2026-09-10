@@ -1,5 +1,6 @@
 package com.example.approval.mapper;
 
+import com.example.approval.entity.AuthenticatedUser;
 import com.example.approval.entity.ExternalUser;
 import org.apache.ibatis.annotations.Mapper;
 import org.flowable.idm.engine.impl.persistence.entity.GroupEntityImpl;
@@ -10,7 +11,16 @@ import java.util.List;
 @Mapper
 public interface FlowableIdentityMapper {
 
-    UserEntityImpl findUserByUsernameForAuth(String username);
+    /**
+     * The login lookup against FLOWABLE_USERS_VW (password included for the
+     * comparison in UserLoginBean). Returns {@link AuthenticatedUser} because
+     * the query additionally selects USERNAME_, DEFAULT_ROLE_ (default role)
+     * and ROLE_CODE_ (role code) - properties Flowable's own
+     * {@code UserEntityImpl} does not have. Both role values may be
+     * {@code null}; they are informational only and never affect the
+     * authentication result.
+     */
+    AuthenticatedUser findUserByUsernameForAuth(String username);
 
     UserEntityImpl findUserById(String id);
 

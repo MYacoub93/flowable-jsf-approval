@@ -635,7 +635,13 @@ body.sb-collapsed .app-main {
         transform: translateX(-100%);
         width: var(--pf-sidebar-w) !important;
     }
-    .app-sidebar.show {
+    /* RTL: the drawer hangs off the inline-start (right) edge, so it must
+       slide toward +X - the transform X axis is NOT direction-aware. */
+    [dir="rtl"] .app-sidebar {
+        transform: translateX(100%);
+    }
+    .app-sidebar.show,
+    [dir="rtl"] .app-sidebar.show {
         transform: translateX(0);
         box-shadow: 0 0 40px rgba(0, 0, 0, .35);
     }
@@ -670,19 +676,55 @@ body.sb-collapsed .app-main {
     direction: rtl;
 }
 
-[dir="rtl"] .app-sidebar {
-    inset-inline-start: auto;
-    inset-inline-end: 0;
-    transform: translateX(100%);
-}
-
-[dir="rtl"] .app-sidebar.show {
-    transform: translateX(0);
-}
+/* NOTE: desktop RTL needs no re-positioning - .app-sidebar/.app-main use
+   logical properties (inset-inline-start, margin-inline-start) that mirror
+   automatically: the rail sits on the right edge and content reserves its
+   margin on the right. Only the mobile off-canvas drawer needs an RTL
+   slide direction (handled inside the max-width:991px media query). */
 
 [dir="rtl"] body.sb-collapsed .app-sidebar a.nav-item {
     justify-content: center;
 }
+
+/* --------------------------------------------------------------------------
+   Language switcher (login screen + settings/header)
+   -------------------------------------------------------------------------- */
+
+.auth-page {
+    /* room for the absolutely positioned language switcher */
+    position: relative;
+}
+
+.lang-switch {
+    position: absolute;
+    top: 18px;
+    inset-inline-end: 18px; /* direction-aware: right in LTR, left in RTL */
+    display: inline-flex;
+    gap: 8px;
+    z-index: 10;
+}
+
+/* Quick language toggle in the portal header */
+.app-header .header-lang-form {
+    display: inline-flex;
+    margin-inline-end: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   RTL mirroring (continued)
+   PrimeFaces 14 widgets (dialogs, menus, inputs, buttons, panels, messages)
+   derive RTL from the document dir attribute - the [dir=rtl] rules here only
+   adjust the custom app chrome that CSS logical properties cannot express.
+   -------------------------------------------------------------------------- */
+
+/* Sidebar divider on the content-facing side (inline-end = left in RTL). */
+[dir=rtl] .app-sidebar {
+    border-inline-end: 1px solid var(--pf-border);
+    border-inline-start: none;
+}
+
+/* Text alignment helper for bidirectional content (e.g. usernames stay LTR). */
+.dir-ltr { direction: ltr; unicode-bidi: isolate; }
 
 /* utility */
 

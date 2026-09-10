@@ -1,11 +1,13 @@
 package com.example.approval.backing;
 
 import jakarta.enterprise.context.SessionScoped;
+import jakarta.faces.context.FacesContext;
 import jakarta.inject.Named;
 import org.flowable.idm.api.User;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 /**
  * Centralized, session-scoped holder of the currently logged-in user's
@@ -30,12 +32,33 @@ import java.time.LocalDateTime;
  * here either - they are resolved live by the existing services
  * (e.g. {@code ExternalGroupService.isGroupAdmin}) so authorization decisions
  * always reflect the current database state.</p>
+ *
+ * <p>Localization note: this bean is also the single source of truth for the
+ * user's current UI {@link Locale} (English by default, Arabic after the user
+ * switches). The locale intentionally survives login/logout - it is neither
+ * set by {@link #populate(User, String)} nor reset by {@link #clear()} - so a
+ * language chosen on the login screen is still active after authentication
+ * and stays consistent during navigation. Views pick it up centrally through
+ * {@code <f:view locale="#{sessionInfoBean.locale}">}.</p>
  */
 @Named("sessionInfoBean")
 @SessionScoped
 public class SessionInfoBean implements Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    /**
+     * The application's default/fallback locale. English, i.e. the language
+     * the app used before localization existed - the default behavior is
+     * unchanged until the user actively switches.
+     */
+    private static final Locale DEFAULT_LOCALE = Locale.ENGLISH;
+
+    /** Locale for Arabic (language-only, no country/variant). */
+    private static final Locale ARABIC_LOCALE = new Locale("ar");
+
+    /** Locales backed by a resource bundle (labels[_xx].properties). */
+    private static final Locale[] SUPPORTED_LOCALES = {Locale.ENGLISH, ARABIC_LOCALE};
 
     /** Flowable user id (FLOWABLE_USERS_VW.ID_) - the id every service call uses. */
     private String userId;
@@ -51,10 +74,20 @@ public class SessionInfoBean implements Serializable {
     private LocalDateTime loginTime;
 
     /**
+     * The current UI locale. Initialized to {@link #DEFAULT_LOCALE} (English)
+     * and changed only when the user switches language (login screen or
+     * settings screen). Kept across login/logout on purpose.
+     */
+    private Locale locale = DEFAULT_LOCALE;
+
+    /**
      * Snapshot the authenticated user. Called by {@link UserLoginBean} after
      * a successful login; {@code loginName} is the username that was submitted
      * on the login form (kept here because the Flowable {@link User} object
      * carries no username attribute).
+     *
+     * <p>Note: deliberately does not touch {@link #locale} - a language chosen
+     * on the login screen must survive authentication.</p>
      */
     public void populate(User user, String loginName) {
         if (user == null) {
@@ -74,6 +107,9 @@ public class SessionInfoBean implements Serializable {
     /**
      * Clears all session information. Called on logout, before the session is
      * invalidated, so no user data survives the end of the session.
+     *
+     * <p>Note: deliberately does not reset {@link #locale} - the language
+     * selection is a UI preference, not user identity data.</p>
      */
     public void clear() {
         this.userId = null;
@@ -173,5 +209,73 @@ public class SessionInfoBean implements Serializable {
 
     public void setLoginTime(LocalDateTime loginTime) {
         this.loginTime = loginTime;
+    }
+
+    // Locale / language -----------------------------------------------------
+
+    /** Current UI locale (never {@code null}; falls back to English). */
+    public Locale getLocale() {
+        return locale;
+    }
+
+    /**
+     * Sets the current UI locale and, when called inside a JSF request,
+     * immediately applies it to the current {@code UIViewRoot} so the rest of
+     * the render response (resource bundle texts, PrimeFaces widgets) already
+     * uses the new locale.
+     */
+    public void setLocale(Locale locale) {
+        this.locale = locale != null ? locale : DEFAULT_LOCALE;
+        FacesContext facesContext = FacesContext.getCurrentInstance();
+        if (facesContext != null && facesContext.getViewRoot() != null) {
+            facesContext.getViewRoot().setLocale(this.locale);
+        }
+    }
+
+    /** Language code of the current locale ("en" or "ar") - selectOneMenu binding. */
+    public String getLanguage() {
+        return locale.getLanguage();
+    }
+
+    /**
+     * Sets the locale from a language code. Unknown/unsupported codes are
+     * ignored (the current locale is kept), so a stale browser value can
+     * never break rendering.
+     */
+    public void setLanguage(String language) {
+        setLocale(localeFor(language));
+    }
+
+    /**
+     * Language switcher action (login screen and settings screen): applies
+     * the given language code and returns {@code null} so the current view is
+     * re-rendered in the new language and direction without navigation.
+     */
+    public String switchLanguage(String language) {
+        setLocale(localeFor(language));
+        return null; // re-render current view
+    }
+
+    /** Arabic (RTL) or English/anything else (LTR). */
+    public boolean isRtl() {
+        return ARABIC_LOCALE.getLanguage().equals(locale.getLanguage());
+    }
+
+    /** "rtl" when the current locale is Arabic, otherwise "ltr" - html dir binding. */
+    public String getDirection() {
+        return isRtl() ? "rtl" : "ltr";
+    }
+
+    /** Resolves a language code to a supported locale (unknown -> current locale). */
+    private Locale localeFor(String language) {
+        if (language != null && !language.isBlank()) {
+            Locale candidate = Locale.forLanguageTag(language.trim());
+            for (Locale supported : SUPPORTED_LOCALES) {
+                if (supported.getLanguage().equals(candidate.getLanguage())) {
+                    return supported;
+                }
+            }
+        }
+        return locale;
     }
 }

@@ -8,40 +8,40 @@
         <aside class="app-sidebar" id="app-sidebar">
             <h:link outcome="/dashboard" styleClass="brand">
                 <span class="brand-badge"><i class="pi pi-verified"/></span>
-                <span class="brand-text">Workflow Station</span>
+                <span class="brand-text">#{labels['app.title']}</span>
             </h:link>
             <nav class="nav">
-                <div class="nav-label">Workflow</div>
+                <div class="nav-label">#{labels['menu.workflow']}</div>
                 <h:link outcome="/dashboard" styleClass="nav-item #{activeMenu == 'dashboard' ? 'active' : ''}">
-                    <i class="pi pi-home"/><span>Dashboard</span>
+                    <i class="pi pi-home"/><span>#{labels['menu.dashboard']}</span>
                 </h:link>
                 <h:link outcome="/processes" styleClass="nav-item #{activeMenu == 'processes' ? 'active' : ''}">
-                    <i class="pi pi-list"/><span>Processes</span>
+                    <i class="pi pi-list"/><span>#{labels['menu.processes']}</span>
                 </h:link>
-                <div class="nav-label">Requests</div>
+                <div class="nav-label">#{labels['menu.requests']}</div>
                 <h:link outcome="/start-clearance" styleClass="nav-item #{activeMenu == 'start-clearance' ? 'active' : ''}">
-                    <i class="pi pi-file"/><span>Clearance Letter</span>
+                    <i class="pi pi-file"/><span>#{labels['menu.clearanceLetter']}</span>
                 </h:link>
 
                 <h:link outcome="/start-student-proof" styleClass="nav-item #{activeMenu == 'start-student-proof' ? 'active' : ''}">
-                    <i class="pi pi-verified"/><span>Student Proof Certificate</span>
+                    <i class="pi pi-verified"/><span>#{labels['menu.studentProof']}</span>
                 </h:link>
 
                 <ui:fragment rendered="#{externalGroupService.isGroupAdmin(loginBean.currentUser.id)}">
-                    <div class="nav-label">Administration</div>
+                    <div class="nav-label">#{labels['menu.administration']}</div>
                     <!-- Deploy/undeploy BPMN process definitions; every action
                          is re-checked server-side in ProcessDeploymentService. -->
                     <h:link outcome="/process-management" styleClass="nav-item #{activeMenu == 'process-management' ? 'active' : ''}">
-                        <i class="pi pi-bolt"/><span>Process Management</span>
+                        <i class="pi pi-bolt"/><span>#{labels['menu.processManagement']}</span>
                     </h:link>
                     <h:link outcome="/external-group-create" styleClass="nav-item #{activeMenu == 'external-groups' ? 'active' : ''}">
-                        <i class="pi pi-sitemap"/><span>External Groups</span>
+                        <i class="pi pi-sitemap"/><span>#{labels['menu.externalGroups']}</span>
                     </h:link>
                     <h:link outcome="/group-memberships" styleClass="nav-item #{activeMenu == 'group-memberships' ? 'active' : ''}">
-                        <i class="pi pi-users"/><span>Group Memberships</span>
+                        <i class="pi pi-users"/><span>#{labels['menu.groupMemberships']}</span>
                     </h:link>
                     <h:link outcome="/users_managment" styleClass="nav-item #{activeMenu == 'users-managment' ? 'active' : ''}">
-                        <i class="pi pi-user-edit"/><span>Users Management</span>
+                        <i class="pi pi-user-edit"/><span>#{labels['menu.usersManagement']}</span>
                     </h:link>
 
                     <!-- Dev-only destructive tool: additionally guarded by
@@ -49,13 +49,18 @@
                          ClearDataService on every action). -->
                     <h:link outcome="/clear-data" styleClass="nav-item #{activeMenu == 'clear-data' ? 'active' : ''}"
                             rendered="#{clearDataService.isDevMode()}">
-                        <i class="pi pi-trash"/><span>Clear Data</span>
+                        <i class="pi pi-trash"/><span>#{labels['menu.clearData']}</span>
                     </h:link>
                 </ui:fragment>
+
+                <div class="nav-label">#{labels['menu.account']}</div>
+                <h:link outcome="/settings" styleClass="nav-item #{activeMenu == 'settings' ? 'active' : ''}">
+                    <i class="pi pi-cog"/><span>#{labels['settings.title']}</span>
+                </h:link>
             </nav>
 
             <div class="nav-footer">
-                Flowable BPM &#183; Jakarta Faces
+                #{labels['menu.footer']}
             </div>
         </aside>
     </ui:fragment>

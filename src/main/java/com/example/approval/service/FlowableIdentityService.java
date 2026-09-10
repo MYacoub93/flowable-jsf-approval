@@ -1,16 +1,15 @@
 package com.example.approval.service;
 
 
+import com.example.approval.entity.AuthenticatedUser;
 import com.example.approval.mapper.FlowableIdentityMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.flowable.idm.api.User;
 import org.flowable.idm.engine.impl.persistence.entity.GroupEntityImpl;
 import org.flowable.idm.engine.impl.persistence.entity.UserEntityImpl;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Service layer for User operations.
@@ -23,13 +22,16 @@ public class FlowableIdentityService {
     @Autowired
     private FlowableIdentityMapper identityMapper;
 
-    public User findUserByUsernameForAuth(String username) {
-
-
-        org.flowable.idm.api.User flowableUser = identityMapper.findUserByUsernameForAuth(username);
-
-        return flowableUser;
-        //return Optional.ofNullable(flowableUser);
+    /**
+     * The login user lookup against FLOWABLE_USERS_VW. Returns
+     * {@link AuthenticatedUser}, which carries the identity columns
+     * (id, first/last name, e-mail, password for the login comparison)
+     * <b>plus</b> the default role and role code selected from the same row
+     * (DEFAULT_ROLE_ / ROLE_CODE_). The role values may be null - they are
+     * informational only and never influence the authentication result.
+     */
+    public AuthenticatedUser findUserByUsernameForAuth(String username) {
+        return identityMapper.findUserByUsernameForAuth(username);
     }
 
     /**

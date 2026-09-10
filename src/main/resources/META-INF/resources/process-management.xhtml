@@ -10,17 +10,17 @@
 <ui:composition template="/templates/portal.xhtml">
     <ui:param name="activeMenu" value="process-management"/>
 
-    <ui:define name="title">Process Management - Workflow Station</ui:define>
-    <ui:define name="pageTitle">Process Management</ui:define>
+    <ui:define name="title">#{labels['procman.browserTitle']} - #{labels['app.title']}</ui:define>
+    <ui:define name="pageTitle">#{labels['procman.pageTitle']}</ui:define>
 
     <ui:define name="content">
         <!-- Guard 1: not signed in -->
         <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
             <div class="empty-state">
                 <i class="pi pi-lock"/>
-                <div class="empty-title">You are not signed in</div>
-                <p>Please sign in first.</p>
-                <p:button outcome="/login" value="Go to Sign in" icon="pi pi-sign-in"/>
+                <div class="empty-title">#{labels['login.notSignedIn.title']}</div>
+                <p>#{labels['common.signInFirst']}</p>
+                <p:button outcome="/login" value="#{labels['login.goToSignIn']}" icon="pi pi-sign-in"/>
             </div>
         </h:panelGroup>
 
@@ -29,9 +29,9 @@
                      layout="block">
             <div class="empty-state">
                 <i class="pi pi-ban"/>
-                <div class="empty-title">Not authorized</div>
-                <p>Process Management is restricted to members of the ADM group.</p>
-                <p:button outcome="/dashboard" value="Back to Dashboard" icon="pi pi-home"
+                <div class="empty-title">#{labels['common.notAuthorized.title']}</div>
+                <p>#{labels['procman.notAuthorized.text']}</p>
+                <p:button outcome="/dashboard" value="#{labels['common.backToDashboard']}" icon="pi pi-home"
                           styleClass="ui-button-secondary"/>
             </div>
         </h:panelGroup>
@@ -39,11 +39,11 @@
         <h:panelGroup rendered="#{processManagementBean.pageVisible}" layout="block">
             <div class="page-head">
                 <div>
-                    <h1>Process Management <span class="status info"><span class="dot"/>ADMIN</span></h1>
+                    <h1>#{labels['procman.pageTitle']} <span class="status info"><span class="dot"/>ADMIN</span></h1>
                     <p class="page-sub">
-                        Deploy new BPMN 2.0 process definitions, enable/disable them and
-                        undeploy existing Flowable deployments. #{processManagementBean.rowCount}
-                        process definition(s) currently deployed.
+                        <h:outputFormat value="#{labels['procman.pageSub']}">
+                            <f:param value="#{processManagementBean.rowCount}"/>
+                        </h:outputFormat>
                     </p>
                 </div>
             </div>
@@ -53,54 +53,54 @@
 
                 <!-- global confirm dialog (single undeploy / enable / disable / bulk state) -->
                 <p:confirmDialog global="true" showEffect="fade" hideEffect="fade">
-                    <p:commandButton value="Yes" type="button"
+                    <p:commandButton value="#{labels['common.yes']}" type="button"
                                      styleClass="ui-confirmdialog-yes ui-button-danger"/>
-                    <p:commandButton value="No" type="button"
+                    <p:commandButton value="#{labels['common.no']}" type="button"
                                      styleClass="ui-confirmdialog-no ui-button-secondary"/>
                 </p:confirmDialog>
 
                 <!-- Deploy panel -->
-                <p:panel header="Deploy a new process (BPMN 2.0 XML)">
+                <p:panel header="#{labels['procman.deployPanel']}">
                     <p class="page-sub" style="margin-top:0;">
-                        Upload a <code>.bpmn20.xml</code> file. Deploying identical
-                        content again does not create a new version.
+                        #{labels['procman.deployHelp']}
                     </p>
                     <p:fileUpload id="bpmnUpload"
                                   listener="#{processManagementBean.handleFileUpload}"
                                   mode="advanced" auto="true" dragDropSupport="true"
                                   allowTypes="/(\.|\/)(bpmn20\.xml|bpmn)$/i"
-                                  invalidFileMessage="Only .bpmn20.xml files can be deployed."
+                                  invalidFileMessage="#{labels['procman.invalidFile']}"
                                   sizeLimit="10485760"
-                                  uploadLabel="Deploy" label="Choose BPMN file"
+                                  uploadLabel="#{labels['procman.uploadLabel']}"
+                                  label="#{labels['procman.chooseLabel']}"
                                   update="@form"/>
                 </p:panel>
 
                 <!-- Deployed processes table -->
-                <p:panel id="processTablePanel" header="Deployed processes (#{processManagementBean.rowCount})"
+                <p:panel id="processTablePanel" header="#{labels['procman.deployed']} (#{processManagementBean.rowCount})"
                          style="margin-top:18px;">
                     <!-- Bulk action toolbar: enabled once rows are checked -->
                     <h:panelGroup id="bulkToolbar" layout="block" style="margin-bottom:12px;">
                         <span class="status info" style="margin-inline-end:8px;">
                             <span class="dot"/>#{processManagementBean.hasSelection
-                                ? processManagementBean.selectionLabel : 'Nothing selected'}
+                                ? processManagementBean.selectionLabel : labels['procman.nothingSelected']}
                         </span>
-                        <p:commandButton value="Enable Selected" icon="pi pi-play"
+                        <p:commandButton value="#{labels['procman.enableSelected']}" icon="pi pi-play"
                                          action="#{processManagementBean.bulkEnable}"
                                          update="@form" styleClass="ui-button-outlined"
                                          disabled="#{not processManagementBean.hasSelection}">
-                            <p:confirm header="Enable selected processes?"
-                                       message="Enable (activate) the selected process definitions: #{processManagementBean.selectionNames}? Definitions already enabled are skipped. Running instances and history are not affected."
+                            <p:confirm header="#{labels['procman.confirm.enableSelected.header']}"
+                                       message="#{labels['procman.confirm.enableSelected.pre']} #{processManagementBean.selectionNames}#{labels['procman.confirm.enableSelected.post']}"
                                        icon="pi pi-play-circle"/>
                         </p:commandButton>
-                        <p:commandButton value="Disable Selected" icon="pi pi-pause"
+                        <p:commandButton value="#{labels['procman.disableSelected']}" icon="pi pi-pause"
                                          action="#{processManagementBean.bulkDisable}"
                                          update="@form" styleClass="ui-button-outlined"
                                          disabled="#{not processManagementBean.hasSelection}">
-                            <p:confirm header="Disable selected processes?"
-                                       message="Disable (suspend) the selected process definitions: #{processManagementBean.selectionNames}? Definitions already disabled are skipped. Running instances and history are NOT deleted - only new starts are blocked."
+                            <p:confirm header="#{labels['procman.confirm.disableSelected.header']}"
+                                       message="#{labels['procman.confirm.disableSelected.pre']} #{processManagementBean.selectionNames}#{labels['procman.confirm.disableSelected.post']}"
                                        icon="pi pi-pause-circle"/>
                         </p:commandButton>
-                        <p:commandButton value="Delete Selected" icon="pi pi-trash"
+                        <p:commandButton value="#{labels['procman.deleteSelected']}" icon="pi pi-trash"
                                          action="#{processManagementBean.confirmBulkDelete}"
                                          update="@form"
                                          styleClass="ui-button-danger ui-button-outlined"
@@ -110,7 +110,7 @@
                     <p:dataTable id="processTable" value="#{processManagementBean.rows}" var="row"
                                  selection="#{processManagementBean.selectedProcesses}"
                                  rowKey="#{row.definitionId}"
-                                 emptyMessage="No process definitions deployed."
+                                 emptyMessage="#{labels['procman.empty']}"
                                  paginator="true" rows="10" paginatorAlwaysVisible="false"
                                  paginatorPosition="bottom"
                                  selectionMode="multiple"
@@ -118,7 +118,7 @@
                                  widgetVar="processTable">
                         <f:facet name="header">
                             <div class="table-toolbar">
-                                <p:inputText id="globalFilter" placeholder="Search processes..."
+                                <p:inputText id="globalFilter" placeholder="#{labels['procman.search']}"
                                              onkeyup="PF('processTable').filter()"/>
                             </div>
                         </f:facet>
@@ -139,39 +139,39 @@
                                 update=":processManagementForm:bulkToolbar"/>
 
 
-                        <p:column headerText="Name" sortBy="#{row.name}" filterBy="#{row.name}"
+                        <p:column headerText="#{labels['common.col.name']}" sortBy="#{row.name}" filterBy="#{row.name}"
                                   filterMatchMode="contains">
                             <i class="pi pi-bolt" style="margin-inline-end:6px;color:var(--pf-primary);"/>
                             #{row.name}
                         </p:column>
-                        <p:column headerText="Key" sortBy="#{row.key}" filterBy="#{row.key}"
+                        <p:column headerText="#{labels['common.col.key']}" sortBy="#{row.key}" filterBy="#{row.key}"
                                   filterMatchMode="contains">
                             <span class="text-muted">#{row.key}</span>
                         </p:column>
-                        <p:column headerText="Version" sortBy="#{row.version}">
+                        <p:column headerText="#{labels['common.col.version']}" sortBy="#{row.version}">
                             <span class="status info"><span class="dot"/>v#{row.version}</span>
                         </p:column>
-                        <p:column headerText="Deployment ID" filterBy="#{row.deploymentId}"
+                        <p:column headerText="#{labels['procman.col.deploymentId']}" filterBy="#{row.deploymentId}"
                                   filterMatchMode="contains">
                             <span class="text-muted">#{row.deploymentId}</span>
                         </p:column>
-                        <p:column headerText="Deployed" sortBy="#{row.deploymentTime}">
+                        <p:column headerText="#{labels['procman.col.deployed']}" sortBy="#{row.deploymentTime}">
                             <h:outputText value="#{row.deploymentTime}">
                                 <f:convertDateTime type="both" dateStyle="medium"
                                                    timeStyle="short"/>
                             </h:outputText>
                         </p:column>
-                        <p:column headerText="Status" sortBy="#{row.suspended}">
+                        <p:column headerText="#{labels['common.col.status']}" sortBy="#{row.suspended}">
                             <span class="status #{row.suspended ? 'pending' : 'approved'}">
-                                <span class="dot"/>#{row.suspended ? 'Disabled (Suspended)' : 'Enabled'}
+                                <span class="dot"/>#{row.suspended ? labels['procman.status.disabled'] : labels['procman.status.enabled']}
                             </span>
                         </p:column>
-                        <p:column headerText="Running" sortBy="#{row.runningInstanceCount}"
+                        <p:column headerText="#{labels['procman.col.running']}" sortBy="#{row.runningInstanceCount}"
                                   style="text-align:right;">
                             <h:outputText value="#{row.runningInstanceCount}"/>
                         </p:column>
-                        <p:column headerText="Actions" style="text-align:right;white-space:nowrap;">
-                            <p:commandButton icon="pi pi-play" title="Enable (activate) this process"
+                        <p:column headerText="#{labels['common.col.actions']}" style="text-align:right;white-space:nowrap;">
+                            <p:commandButton icon="pi pi-play" title="#{labels['procman.title.enable']}"
                                              rendered="#{row.suspended}"
                                              action="#{processManagementBean.enableProcess}"
                                              update="@form"
@@ -180,11 +180,11 @@
                                                              value="#{row.definitionId}"/>
                                 <f:setPropertyActionListener target="#{processManagementBean.stateChangeLabel}"
                                                              value="#{row.key} v#{row.version}"/>
-                                <p:confirm header="Enable process?"
-                                           message="Enable (activate) '#{row.key} v#{row.version}'? New instances can be started again. Running instances and history are not affected."
+                                <p:confirm header="#{labels['procman.confirm.enable.header']}"
+                                           message="#{labels['procman.confirm.enable.pre']} '#{row.key} v#{row.version}'#{labels['procman.confirm.enable.post']}"
                                            icon="pi pi-play-circle"/>
                             </p:commandButton>
-                            <p:commandButton icon="pi pi-pause" title="Disable (suspend) this process"
+                            <p:commandButton icon="pi pi-pause" title="#{labels['procman.title.disable']}"
                                              rendered="#{!row.suspended}"
                                              action="#{processManagementBean.disableProcess}"
                                              update="@form"
@@ -193,11 +193,11 @@
                                                              value="#{row.definitionId}"/>
                                 <f:setPropertyActionListener target="#{processManagementBean.stateChangeLabel}"
                                                              value="#{row.key} v#{row.version}"/>
-                                <p:confirm header="Disable process?"
-                                           message="Disable (suspend) '#{row.key} v#{row.version}'? Starting new instances will be blocked. Running instances and history are NOT deleted."
+                                <p:confirm header="#{labels['procman.confirm.disable.header']}"
+                                           message="#{labels['procman.confirm.disable.pre']} '#{row.key} v#{row.version}'#{labels['procman.confirm.disable.post']}"
                                            icon="pi pi-pause-circle"/>
                             </p:commandButton>
-                            <p:commandButton icon="pi pi-trash" title="Undeploy this deployment"
+                            <p:commandButton icon="pi pi-trash" title="#{labels['procman.title.undeploy']}"
                                              action="#{processManagementBean.undeploy}"
                                              update="@form"
                                              styleClass="ui-button-danger ui-button-outlined">
@@ -205,8 +205,8 @@
                                                              value="#{row.deploymentId}"/>
                                 <f:setPropertyActionListener target="#{processManagementBean.selectedDeploymentLabel}"
                                                              value="#{row.key} v#{row.version}"/>
-                                <p:confirm header="Undeploy process?"
-                                           message="Deployment '#{row.key} v#{row.version}' (#{row.deploymentId}) will be removed from the engine. New instances cannot be started afterwards. Continue?"
+                                <p:confirm header="#{labels['procman.confirm.undeploy.header']}"
+                                           message="#{labels['procman.confirm.undeploy.pre']} '#{row.key} v#{row.version}'#{labels['procman.confirm.undeploy.mid']}#{row.deploymentId}#{labels['procman.confirm.undeploy.post']}"
                                            icon="pi pi-exclamation-triangle"/>
                             </p:commandButton>
                         </p:column>
@@ -215,26 +215,24 @@
 
                 <!-- Cascade confirmation: shown when the deployment still has
                      running instances (set by processManagementBean.undeploy) -->
-                <p:dialog id="cascadeDialog" header="Deployment has running instances"
+                <p:dialog id="cascadeDialog" header="#{labels['procman.cascade.header']}"
                           widgetVar="cascadeDialogWidget" modal="true"
                           visible="#{processManagementBean.cascadePending}"
                           resizable="false" showEffect="fade" hideEffect="fade"
                           closeOnEscape="true">
                     <p class="page-sub">
-                        Deployment <b>#{processManagementBean.selectedDeploymentLabel}</b>
-                        (#{processManagementBean.selectedDeploymentId}) still has
-                        <b>#{processManagementBean.cascadeRunningCount}</b> running process
-                        instance(s). Undeploying it requires deleting these instances
-                        together with the deployment. Historic data of already finished
-                        instances is kept.
+                        #{labels['procman.cascade.pre']} <b>#{processManagementBean.selectedDeploymentLabel}</b>
+                        (#{processManagementBean.selectedDeploymentId}) #{labels['procman.cascade.mid']}
+                        <b>#{processManagementBean.cascadeRunningCount}</b>
+                        #{labels['procman.cascade.post']}
                     </p>
                     <f:facet name="footer">
-                        <p:commandButton value="Delete instances and undeploy" icon="pi pi-trash"
+                        <p:commandButton value="#{labels['procman.cascade.deleteBtn']}" icon="pi pi-trash"
                                          action="#{processManagementBean.undeployWithCascade}"
                                          update="@form"
                                          styleClass="ui-button-danger"
                                          oncomplete="PF('cascadeDialogWidget').hide()"/>
-                        <p:commandButton value="Cancel" icon="pi pi-times"
+                        <p:commandButton value="#{labels['common.cancel']}" icon="pi pi-times"
                                          action="#{processManagementBean.cancelCascade}"
                                          update="@form"
                                          styleClass="ui-button-secondary"
@@ -243,25 +241,23 @@
                 </p:dialog>
 
                 <!-- Bulk delete: first confirmation stage (what will be deleted) -->
-                <p:dialog id="bulkDeleteDialog" header="Undeploy selected deployments"
+                <p:dialog id="bulkDeleteDialog" header="#{labels['procman.bulk.header']}"
                           widgetVar="bulkDeleteDialogWidget" modal="true"
                           visible="#{processManagementBean.bulkDeleteConfirmPending}"
                           resizable="false" showEffect="fade" hideEffect="fade"
                           closeOnEscape="true">
                     <p class="page-sub">
-                        You are about to undeploy the deployments of:
+                        #{labels['procman.bulk.text.pre']}
                         <b>#{processManagementBean.selectionNames}</b>.
-                        Deployments with running process instances are not deleted
-                        automatically - they will be reported back for an explicit
-                        cascade decision.
+                        #{labels['procman.bulk.text.post']}
                     </p>
                     <f:facet name="footer">
-                        <p:commandButton value="Undeploy selected" icon="pi pi-trash"
+                        <p:commandButton value="#{labels['procman.bulk.undeploy']}" icon="pi pi-trash"
                                          action="#{processManagementBean.bulkUndeployConfirmed}"
                                          update="@form"
                                          styleClass="ui-button-danger"
                                          oncomplete="PF('bulkDeleteDialogWidget').hide()"/>
-                        <p:commandButton value="Cancel" icon="pi pi-times"
+                        <p:commandButton value="#{labels['common.cancel']}" icon="pi pi-times"
                                          action="#{processManagementBean.cancelBulkDelete}"
                                          update="@form"
                                          styleClass="ui-button-secondary"
@@ -270,37 +266,35 @@
                 </p:dialog>
 
                 <!-- Bulk delete: cascade stage for deployments with running instances -->
-                <p:dialog id="bulkCascadeDialog" header="Some deployments have running instances"
+                <p:dialog id="bulkCascadeDialog" header="#{labels['procman.bulkCascade.header']}"
                           widgetVar="bulkCascadeDialogWidget" modal="true"
                           visible="#{processManagementBean.bulkCascadePending}"
                           resizable="false" showEffect="fade" hideEffect="fade"
                           closeOnEscape="true">
                     <p class="page-sub">
-                        The following deployments still have running process instances:
+                        #{labels['procman.bulkCascade.text']}
                     </p>
                     <p:dataTable id="bulkBlockedTable"
                                  value="#{processManagementBean.bulkBlocked}" var="blocked"
-                                 emptyMessage="No blocked deployments." size="small">
-                        <p:column headerText="Deployment ID">
+                                 emptyMessage="#{labels['procman.noBlocked']}" size="small">
+                        <p:column headerText="#{labels['procman.col.deploymentId']}">
                             <span class="text-muted">#{blocked.deploymentId}</span>
                         </p:column>
-                        <p:column headerText="Running instances" style="text-align:right;">
+                        <p:column headerText="#{labels['procman.bulkCascade.col.running']}" style="text-align:right;">
                             #{blocked.runningInstances}
                         </p:column>
                     </p:dataTable>
                     <p class="page-sub">
-                        Confirming will delete these instances together with their
-                        deployments (Flowable cascade delete). Historic data of already
-                        finished instances is kept.
+                        #{labels['procman.bulkCascade.text2']}
                     </p>
                     <f:facet name="footer">
-                        <p:commandButton value="Delete instances and undeploy"
+                        <p:commandButton value="#{labels['procman.cascade.deleteBtn']}"
                                          icon="pi pi-trash"
                                          action="#{processManagementBean.bulkUndeployWithCascade}"
                                          update="@form"
                                          styleClass="ui-button-danger"
                                          oncomplete="PF('bulkCascadeDialogWidget').hide()"/>
-                        <p:commandButton value="Cancel" icon="pi pi-times"
+                        <p:commandButton value="#{labels['common.cancel']}" icon="pi pi-times"
                                          action="#{processManagementBean.cancelBulkCascade}"
                                          update="@form"
                                          styleClass="ui-button-secondary"

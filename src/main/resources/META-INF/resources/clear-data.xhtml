@@ -7,17 +7,17 @@
 <ui:composition template="/templates/portal.xhtml">
     <ui:param name="activeMenu" value="clear-data"/>
 
-    <ui:define name="title">Clear Data - Workflow Station</ui:define>
-    <ui:define name="pageTitle">Clear Data (Dev)</ui:define>
+    <ui:define name="title">#{labels['cd.browserTitle']} - #{labels['app.title']}</ui:define>
+    <ui:define name="pageTitle">#{labels['cd.pageTitle']}</ui:define>
 
     <ui:define name="content">
         <!-- Guard 1: not signed in -->
         <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
             <div class="empty-state">
                 <i class="pi pi-lock"/>
-                <div class="empty-title">You are not signed in</div>
-                <p>Please sign in first.</p>
-                <p:button outcome="/login" value="Go to Sign in" icon="pi pi-sign-in"/>
+            <div class="empty-title">#{labels['login.notSignedIn.title']}</div>
+            <p>#{labels['common.signInFirst']}</p>
+            <p:button outcome="/login" value="#{labels['login.goToSignIn']}" icon="pi pi-sign-in"/>
             </div>
         </h:panelGroup>
 
@@ -25,11 +25,10 @@
         <h:panelGroup rendered="#{loginBean.loggedIn and !clearDataBean.pageVisible}" layout="block">
             <div class="empty-state">
                 <i class="pi pi-ban"/>
-                <div class="empty-title">Not available</div>
-                <p>Clear Data is a development-only tool and is disabled
-                    (app.dev-mode.enabled=false).</p>
-                <p:button outcome="/dashboard" value="Back to Dashboard" icon="pi pi-home"
-                          styleClass="ui-button-secondary"/>
+            <div class="empty-title">#{labels['cd.notAvailable.title']}</div>
+            <p>#{labels['cd.disabled.text']}</p>
+            <p:button outcome="/dashboard" value="#{labels['common.backToDashboard']}" icon="pi pi-home"
+                      styleClass="ui-button-secondary"/>
             </div>
         </h:panelGroup>
 
@@ -37,10 +36,10 @@
         <h:panelGroup rendered="#{clearDataBean.pageVisible and !clearDataBean.actionAllowed}" layout="block">
             <div class="empty-state">
                 <i class="pi pi-ban"/>
-                <div class="empty-title">Not authorized</div>
-                <p>Clear Data is restricted to members of the ADM group.</p>
-                <p:button outcome="/dashboard" value="Back to Dashboard" icon="pi pi-home"
-                          styleClass="ui-button-secondary"/>
+            <div class="empty-title">#{labels['common.notAuthorized.title']}</div>
+            <p>#{labels['cd.notAuthorized.text']}</p>
+            <p:button outcome="/dashboard" value="#{labels['common.backToDashboard']}" icon="pi pi-home"
+                      styleClass="ui-button-secondary"/>
             </div>
         </h:panelGroup>
 
@@ -48,82 +47,81 @@
             <h:form id="clearForm">
                 <p:growl id="growl" showDetail="true"/>
                 <p:confirmDialog global="true" showEffect="fade" hideEffect="fade">
-                    <p:commandButton value="Yes" type="button"
+                    <p:commandButton value="#{labels['common.yes']}" type="button"
                                      styleClass="ui-confirmdialog-yes ui-button-danger"/>
-                    <p:commandButton value="No" type="button"
+                    <p:commandButton value="#{labels['common.no']}" type="button"
                                      styleClass="ui-confirmdialog-no ui-button-secondary"/>
                 </p:confirmDialog>
 
                 <div class="page-head">
                     <div>
-                        <h1>Clear Data <span class="tag">DEV ONLY</span></h1>
+                        <h1>#{labels['menu.clearData']} <span class="tag">#{labels['cd.devOnly']}</span></h1>
                         <p class="page-sub">
-                            Permanently deletes the Flowable data (runtime and history) of process
-                            instances. The Oracle F_BPM_* audit trail and attachments are kept.
+                            #{labels['cd.pageSub']}
                         </p>
                     </div>
-                    <p:commandButton value="Clear ALL Instances" icon="pi pi-trash"
+                    <p:commandButton value="#{labels['cd.clearAll']}" icon="pi pi-trash"
                                      action="#{clearDataBean.clearAll}"
                                      update="@form" styleClass="ui-button-danger"
                                      disabled="#{clearDataBean.runningCount + clearDataBean.finishedCount == 0}">
-                        <p:confirm header="Delete ALL Flowable data?"
-                                   message="This permanently deletes runtime and history of ALL #{clearDataBean.runningCount + clearDataBean.finishedCount} instance(s). Oracle audit rows are kept. This cannot be undone."
+                        <p:confirm header="#{labels['cd.confirm.all.header']}"
+                                   message="#{labels['cd.confirm.all.pre']} #{clearDataBean.runningCount + clearDataBean.finishedCount} #{labels['cd.confirm.all.post']}"
                                    icon="pi pi-exclamation-triangle"/>
                     </p:commandButton>
                 </div>
 
-                <p:panel header="Running instances (#{clearDataBean.runningCount})">
+                <p:panel header="#{labels['cd.running']} (#{clearDataBean.runningCount})">
                     <p:dataTable value="#{clearDataBean.runningInstances}" var="inst"
-                                 emptyMessage="No running instances.">
-                        <p:column headerText="Instance Id">
+                                 emptyMessage="#{labels['cd.noRunning']}">
+                        <p:column headerText="#{labels['cd.col.instanceId']}">
                             <h:outputText value="#{inst.id}"/>
                         </p:column>
-                        <p:column headerText="Definition">
+                        <p:column headerText="#{labels['cd.col.definition']}">
                             <h:outputText value="#{inst.processDefinitionId}"/>
                         </p:column>
-                        <p:column headerText="Started">
+                        <p:column headerText="#{labels['cd.col.started']}">
                             <h:outputText value="#{inst.startTime}"/>
                         </p:column>
-                        <p:column headerText="Actions" styleClass="align-right">
-                            <p:commandButton icon="pi pi-trash" title="Clear this instance"
+                        <p:column headerText="#{labels['common.col.actions']}" styleClass="align-right">
+                            <p:commandButton icon="pi pi-trash" title="#{labels['cd.title.clearInstance']}"
                                              action="#{clearDataBean.clearInstance}"
                                              update="@form"
                                              styleClass="ui-button-danger ui-button-outlined">
                                 <f:setPropertyActionListener target="#{clearDataBean.selectedInstanceId}"
                                                              value="#{inst.id}"/>
-                                <p:confirm header="Delete Flowable data?"
-                                           message="Instance '#{inst.id}': runtime and history will be deleted permanently. Oracle audit rows are kept. Continue?"
+                                <p:confirm header="#{labels['cd.confirm.one.header']}"
+                                           message="#{labels['cd.confirm.one.pre']} '#{inst.id}'#{labels['cd.confirm.one.post']}"
                                            icon="pi pi-exclamation-triangle"/>
                             </p:commandButton>
                         </p:column>
                     </p:dataTable>
                 </p:panel>
 
-                <p:panel header="Finished instances (#{clearDataBean.finishedCount})"
+                <p:panel header="#{labels['cd.finished']} (#{clearDataBean.finishedCount})"
                          style="margin-top:18px;">
                     <p:dataTable value="#{clearDataBean.finishedInstances}" var="hist"
-                                 emptyMessage="No finished instances.">
-                        <p:column headerText="Instance Id">
+                                 emptyMessage="#{labels['cd.noFinished']}">
+                        <p:column headerText="#{labels['cd.col.instanceId']}">
                             <h:outputText value="#{hist.id}"/>
                         </p:column>
-                        <p:column headerText="Definition">
+                        <p:column headerText="#{labels['cd.col.definition']}">
                             <h:outputText value="#{hist.processDefinitionId}"/>
                         </p:column>
-                        <p:column headerText="Started">
+                        <p:column headerText="#{labels['cd.col.started']}">
                             <h:outputText value="#{hist.startTime}"/>
                         </p:column>
-                        <p:column headerText="Finished">
+                        <p:column headerText="#{labels['cd.col.finished']}">
                             <h:outputText value="#{hist.endTime}"/>
                         </p:column>
-                        <p:column headerText="Actions" styleClass="align-right">
-                            <p:commandButton icon="pi pi-trash" title="Clear this instance"
+                        <p:column headerText="#{labels['common.col.actions']}" styleClass="align-right">
+                            <p:commandButton icon="pi pi-trash" title="#{labels['cd.title.clearInstance']}"
                                              action="#{clearDataBean.clearInstance}"
                                              update="@form"
                                              styleClass="ui-button-danger ui-button-outlined">
                                 <f:setPropertyActionListener target="#{clearDataBean.selectedInstanceId}"
                                                              value="#{hist.id}"/>
-                                <p:confirm header="Delete Flowable data?"
-                                           message="Instance '#{hist.id}': runtime and history will be deleted permanently. Oracle audit rows are kept. Continue?"
+                                <p:confirm header="#{labels['cd.confirm.one.header']}"
+                                           message="#{labels['cd.confirm.one.pre']} '#{hist.id}'#{labels['cd.confirm.one.post']}"
                                            icon="pi pi-exclamation-triangle"/>
                             </p:commandButton>
                         </p:column>

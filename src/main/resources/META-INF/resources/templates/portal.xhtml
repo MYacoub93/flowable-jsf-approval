@@ -1,13 +1,30 @@
 ﻿<!DOCTYPE html>
+<!--
+  Main layout template - all portal pages (dashboard, settings, ...) use it.
+
+  Localization/RTL (central, one place for every client page):
+  * <f:view locale="#{sessionInfoBean.locale}"> sets the JSF UIViewRoot
+    locale from the session bean, so every #{labels[...]} on the page
+    resolves labels.properties (en) or labels_ar.properties (ar) and
+    PrimeFaces widgets render in the right locale. When a language switch
+    action runs (SessionInfoBean.setLocale), it also applies the new locale
+    to the current view root for the rest of the request.
+  * <html dir="#{sessionInfoBean.direction}"> flips the whole document
+    between LTR (English) and RTL (Arabic). PrimeFaces 14 components pick
+    RTL up from this document-level dir attribute (RTLAware), so dialogs,
+    menus, inputs, etc. mirror automatically - no per-component config.
+-->
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
       xmlns:ui="jakarta.faces.facelets"
-      xmlns:p="http://primefaces.org/ui">
+      xmlns:p="http://primefaces.org/ui"
+      dir="#{sessionInfoBean.direction}">
+<f:view locale="#{sessionInfoBean.locale}">
 <h:head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title><ui:insert name="title">Workflow Station</ui:insert></title>
+    <title><ui:insert name="title">#{labels['app.title']}</ui:insert></title>
     <h:outputStylesheet name="css/portal.css"/>
 </h:head>
 <h:body>
@@ -16,14 +33,22 @@
         <ui:include src="/templates/side-menu.xhtml"/>
 
         <div class="app-main">
-            <!-- Top header: burger, title, user chip -->
+            <!-- Top header: burger, title, language, user chip -->
             <header class="app-header">
-                <button type="button" class="btn-burger" id="btn-burger" aria-label="Toggle menu">
+                <button type="button" class="btn-burger" id="btn-burger" aria-label="#{labels['menu.toggle']}">
                     <i class="pi pi-bars"/>
                 </button>
-                <h1 class="header-title"><ui:insert name="pageTitle">Workflow Station</ui:insert></h1>
+                <h1 class="header-title"><ui:insert name="pageTitle">#{labels['app.title']}</ui:insert></h1>
 
                 <ui:fragment rendered="#{loginBean.loggedIn}">
+                    <!-- Quick language switch (same mechanism as Settings;
+                         ajax=false re-renders the page in the new language+direction) -->
+                    <h:form styleClass="header-lang-form">
+                        <p:commandButton icon="pi pi-globe" value="#{sessionInfoBean.language eq 'ar' ? 'EN' : 'ع'}"
+                                         title="#{labels['settings.language']}"
+                                         action="#{sessionInfoBean.switchLanguage(sessionInfoBean.language eq 'ar' ? 'en' : 'ar')}"
+                                         ajax="false" styleClass="ui-button-secondary ui-button-sm"/>
+                    </h:form>
                     <span class="user-chip">
                         <span class="user-avatar">
                             #{empty loginBean.currentUser.firstName ? loginBean.currentUser.id.charAt(0) : loginBean.currentUser.firstName.charAt(0)}
@@ -33,7 +58,7 @@
                         </span>
                     </span>
                     <h:form styleClass="logout-form">
-                        <p:commandButton icon="pi pi-sign-out" value="Sign out"
+                        <p:commandButton icon="pi pi-sign-out" value="#{labels['login.signout']}"
                                          action="#{loginBean.logout}" styleClass="ui-button-secondary ui-button-sm"/>
                     </h:form>
                 </ui:fragment>
@@ -95,4 +120,5 @@
         .nav-scrim.show { display: block; }
     </h:outputStylesheet>
 </h:body>
+</f:view>
 </html>

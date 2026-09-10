@@ -1,58 +1,85 @@
 <!DOCTYPE html>
+<!--
+  Login screen - localized (English/Arabic) with RTL support.
+
+  * <f:view locale> binds the JSF UIViewRoot locale to sessionInfoBean.locale
+    (the session's source of truth for the language), so #{labels[...]}
+    resolves labels.properties (en) or labels_ar.properties (ar).
+  * <html dir> derives from the same bean (sessionInfoBean.direction), which
+    flips the whole document (and every PrimeFaces component, v14 derives
+    RTL from the document dir attribute) between LTR and RTL.
+  * The language switcher works BEFORE authentication: it only touches the
+    locale stored in the session bean and re-renders this same view - no
+    navigation, no duplicate page, no authentication involved.
+-->
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
-      xmlns:p="http://primefaces.org/ui">
-<h:head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Sign in - Workflow Station</title>
-    <h:outputStylesheet name="css/portal.css"/>
-</h:head>
-<h:body>
-    <div class="auth-page">
-        <div class="auth-card">
-            <div class="auth-brand">
-                <span class="brand-badge"><i class="pi pi-verified"/></span>
-                <div>
-                    <h1 class="auth-title">Workflow Station</h1>
-                </div>
-            </div>
-            <p class="auth-sub">Sign in with your university account to continue.</p>
-
-            <h:messages styleClass="auth-messages" globalOnly="false"/>
-
-            <h:form id="loginForm">
-                <div class="form-grid" style="grid-template-columns: 1fr;">
-                    <div class="field">
-                        <p:outputLabel for="username" value="Username"/>
-                        <p:inputText id="username" value="#{loginBean.username}"
-                                     required="true" requiredMessage="Username is required"
-                                     autocomplete="username" placeholder="e.g. alice"/>
-                        <p:message for="username"/>
-                    </div>
-
-                    <div class="field">
-                        <p:outputLabel for="password" value="Password"/>
-                        <p:password id="password" value="#{loginBean.password}"
-                                    required="true" requiredMessage="Password is required"
-                                    autocomplete="current-password" feedback="false"/>
-                        <p:message for="password"/>
-                    </div>
-
-                    <p:commandButton id="loginBtn" value="Sign in" icon="pi pi-sign-in"
-                                     action="#{loginBean.login}"
-                                     styleClass="ui-button-lg w-full"
-                                     onclick="PrimeFaces.widgets.loginBtn?.disable?.()"
-                                     oncomplete="PrimeFaces.widgets.loginBtn?.enable?.()"/>
-                </div>
+      xmlns:p="http://primefaces.org/ui"
+      dir="#{sessionInfoBean.direction}">
+<f:view locale="#{sessionInfoBean.locale}">
+    <h:head>
+        <meta charset="UTF-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <title>#{labels['login.title']}</title>
+        <h:outputStylesheet name="css/portal.css"/>
+    </h:head>
+    <h:body>
+        <div class="auth-page">
+            <!-- Language switcher (works pre-authentication). ajax="false" so the
+                 whole page re-renders: #{labels[...]} texts AND the html dir
+                 attribute switch together in one round-trip. -->
+            <h:form id="langForm" styleClass="lang-switch">
+                <p:commandButton value="English" icon="pi pi-globe" ajax="false"
+                                 styleClass="ui-button-sm #{sessionInfoBean.language eq 'en' ? 'ui-button-outlined' : ''}"
+                                 action="#{sessionInfoBean.switchLanguage('en')}"/>
+                <p:commandButton value="العربية" icon="pi pi-globe" ajax="false"
+                                 styleClass="ui-button-sm #{sessionInfoBean.language eq 'ar' ? 'ui-button-outlined' : ''}"
+                                 action="#{sessionInfoBean.switchLanguage('ar')}"/>
             </h:form>
 
-            <div class="field-hint" style="margin-top: 18px;">
-                <strong>Demo users:</strong> alice (Initiator, IT) &#183; bob (Manager, IT) &#183;
-                dave (Finance) &#183; frank (Initiator, HR) &#183; grace (Manager, HR)
+            <div class="auth-card">
+                <div class="auth-brand">
+                    <span class="brand-badge"><i class="pi pi-verified"/></span>
+                    <div>
+                        <h1 class="auth-title">#{labels['app.title']}</h1>
+                    </div>
+                </div>
+                <p class="auth-sub">#{labels['login.subtitle']}</p>
+
+                <h:messages styleClass="auth-messages" globalOnly="false"/>
+
+                <h:form id="loginForm">
+                    <div class="form-grid" style="grid-template-columns: 1fr;">
+                        <div class="field">
+                            <p:outputLabel for="username" value="#{labels['login.username']}"/>
+                            <p:inputText id="username" value="#{loginBean.username}"
+                                         required="true" requiredMessage="#{labels['login.username.required']}"
+                                         autocomplete="username"/>
+                            <p:message for="username"/>
+                        </div>
+
+                        <div class="field">
+                            <p:outputLabel for="password" value="#{labels['login.password']}"/>
+                            <p:password id="password" value="#{loginBean.password}"
+                                        required="true" requiredMessage="#{labels['login.password.required']}"
+                                        autocomplete="current-password" feedback="false"/>
+                            <p:message for="password"/>
+                        </div>
+
+                        <p:commandButton id="loginBtn" value="#{labels['login.button']}" icon="pi pi-sign-in"
+                                         action="#{loginBean.login}"
+                                         styleClass="ui-button-lg w-full"
+                                         onclick="PrimeFaces.widgets.loginBtn?.disable?.()"
+                                         oncomplete="PrimeFaces.widgets.loginBtn?.enable?.()"/>
+                    </div>
+                </h:form>
+
+                <div class="field-hint" style="margin-top: 18px;">
+                    <strong>#{labels['login.demoUsers.title']}</strong> #{labels['login.demoUsers.list']}
+                </div>
             </div>
         </div>
-    </div>
-</h:body>
+    </h:body>
+</f:view>
 </html>

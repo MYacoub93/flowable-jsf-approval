@@ -8,6 +8,24 @@
     <application>
         <!-- Allow Spring beans to be resolved in EL (#{approvalService} etc.) -->
         <el-resolver>org.springframework.web.jsf.el.SpringBeanFacesELResolver</el-resolver>
+
+        <!-- Localized UI texts: base bundle "labels" (labels.properties = English,
+             labels_ar.properties = Arabic) is exposed to every view as #{labels}.
+             JSF picks the file matching the UIViewRoot locale automatically. -->
+        <resource-bundle>
+            <base-name>labels</base-name>
+            <var>labels</var>
+        </resource-bundle>
+
+        <!-- Supported locales; English stays the application default so the
+             existing behavior is unchanged until the user switches language.
+             (The UIViewRoot locale itself is driven by sessionInfoBean.locale,
+             see the f:view locale in the templates/pages.) -->
+        <locale-config>
+            <default-locale>en</default-locale>
+            <supported-locale>en</supported-locale>
+            <supported-locale>ar</supported-locale>
+        </locale-config>
     </application>
 
 </faces-config>

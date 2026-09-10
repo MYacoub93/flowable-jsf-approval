@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<!--
+  Settings screen - language selection (English / العربية).
+
+  * Uses the main portal template, so locale + dir are applied centrally
+    (f:view locale + html dir, see templates/portal.xhtml).
+  * The selectOneMenu is bound to sessionInfoBean.language (the language
+    code of sessionInfoBean.locale) - the current language is therefore
+    selected automatically on load.
+  * "Apply" (or just changing the select) updates sessionInfoBean.locale
+    (which also re-applies the UIViewRoot locale for this request), then
+    ajax=false re-renders the whole page: labels AND direction switch
+    immediately - no restart, no navigation.
+  * A confirmation growl is added so the user sees the change happened.
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
+<ui:composition template="/templates/portal.xhtml">
+    <ui:param name="activeMenu" value="settings"/>
+
+    <ui:define name="title">#{labels['settings.title']} - #{labels['app.title']}</ui:define>
+    <ui:define name="pageTitle">#{labels['settings.title']}</ui:define>
+
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <div class="empty-state">
+                <i class="pi pi-lock"/>
+                <div class="empty-title">#{labels['login.notSignedIn.title']}</div>
+                <p>#{labels['login.notSignedIn.text']}</p>
+                <p:button outcome="/login" value="#{labels['login.goToSignIn']}" icon="pi pi-sign-in"/>
+            </div>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
+            <div class="page-head">
+                <div>
+                    <h1>#{labels['settings.title']}</h1>
+                    <p class="page-sub">#{labels['settings.languageHelp']}</p>
+                </div>
+            </div>
+
+            <h:form id="settingsForm">
+                <p:panel id="languagePanel" header="#{labels['settings.language']}">
+                    <div class="field" style="max-width: 360px;">
+                        <p:outputLabel for="language" value="#{labels['settings.language']}"/>
+                        <p:selectOneMenu id="language" value="#{sessionInfoBean.language}"
+                                         autoWidth="false" style="width: 100%;">
+                            <f:selectItem itemLabel="#{labels['language.english']}" itemValue="en"/>
+                            <f:selectItem itemLabel="#{labels['language.arabic']}" itemValue="ar"/>
+                        </p:selectOneMenu>
+                        <div class="field-hint">#{labels['settings.languageHelp']}</div>
+                    </div>
+
+                    <p:commandButton id="applyBtn" value="#{labels['settings.apply']}" icon="pi pi-check"
+                                     action="#{settingsBean.apply}" ajax="false"
+                                     styleClass="ui-button-primary"/>
+                </p:panel>
+            </h:form>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>
+</html>

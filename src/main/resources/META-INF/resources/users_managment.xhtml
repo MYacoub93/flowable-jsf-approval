@@ -8,25 +8,25 @@
 <ui:composition template="/templates/portal.xhtml">
     <ui:param name="activeMenu" value="users-managment"/>
 
-    <ui:define name="title">Users Management - Workflow Station</ui:define>
-    <ui:define name="pageTitle">Users Management</ui:define>
+    <ui:define name="title">#{labels['um.browserTitle']} - #{labels['app.title']}</ui:define>
+    <ui:define name="pageTitle">#{labels['um.pageTitle']}</ui:define>
 
     <ui:define name="content">
         <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
             <div class="empty-state">
                 <i class="pi pi-lock"/>
-                <div class="empty-title">You are not signed in</div>
-                <p>Please sign in first.</p>
-                <p:button outcome="/login" value="Go to Sign in" icon="pi pi-sign-in"/>
+                <div class="empty-title">#{labels['login.notSignedIn.title']}</div>
+                <p>#{labels['common.signInFirst']}</p>
+                <p:button outcome="/login" value="#{labels['login.goToSignIn']}" icon="pi pi-sign-in"/>
             </div>
         </h:panelGroup>
 
         <h:panelGroup rendered="#{loginBean.loggedIn and !usersManagementBean.groupAdmin}" layout="block">
             <div class="empty-state">
                 <i class="pi pi-ban"/>
-                <div class="empty-title">Not authorized</div>
-                <p>You are not authorized to manage users.</p>
-                <p:button outcome="/dashboard" value="Back to Dashboard" icon="pi pi-home"
+                <div class="empty-title">#{labels['common.notAuthorized.title']}</div>
+                <p>#{labels['um.notAuthorized.text']}</p>
+                <p:button outcome="/dashboard" value="#{labels['common.backToDashboard']}" icon="pi pi-home"
                           styleClass="ui-button-secondary"/>
             </div>
         </h:panelGroup>
@@ -34,19 +34,19 @@
         <h:panelGroup rendered="#{usersManagementBean.groupAdmin}" layout="block">
             <div class="page-head">
                 <div>
-                    <h1>Users Management</h1>
-                    <p class="page-sub">Browse all users, search by username or user id, and inspect group memberships by selecting a row.</p>
+                    <h1>#{labels['um.pageTitle']}</h1>
+                    <p class="page-sub">#{labels['um.pageSub']}</p>
                 </div>
             </div>
 
             <h:form id="usersForm">
-                <p:panel id="usersPanel" header="Users">
+                <p:panel id="usersPanel" header="#{labels['um.users']}">
                     <p:messages closable="true" autoUpdate="true"/>
 
                     <div class="table-toolbar">
                         <p:inputText id="search" value="#{usersManagementBean.searchTerm}"
-                                     placeholder="Username, name, email or ID" style="margin-inline-end:8px;"/>
-                        <p:commandButton value="Search" icon="pi pi-search" action="#{usersManagementBean.search}"
+                                     placeholder="#{labels['gm.searchPlaceholder']}" style="margin-inline-end:8px;"/>
+                        <p:commandButton value="#{labels['common.search']}" icon="pi pi-search" action="#{usersManagementBean.search}"
                                          process="@form" update="usersPanel" styleClass="ui-button-outlined"/>
                     </div>
 
@@ -54,28 +54,28 @@
                                  selection="#{usersManagementBean.selectedUser}"
                                  selectionMode="single"
                                  rowKey="#{u.id}"
-                                 emptyMessage="No users found for the current search."
+                                 emptyMessage="#{labels['common.noUsers']}"
                                  resizableColumns="true" reflow="true" size="small" paginator="false">
                         <p:ajax event="rowSelect" listener="#{usersManagementBean.onRowSelect}"
                                 update=":usersForm:membershipsPanel"/>
                         <p:ajax event="rowUnselect" listener="#{usersManagementBean.onRowUnselect}"
                                 update=":usersForm:membershipsPanel"/>
 
-                        <p:column headerText="User ID" sortBy="#{u.id}">
+                        <p:column headerText="#{labels['common.col.userId']}" sortBy="#{u.id}">
                             <span class="text-muted">#{u.id}</span>
                         </p:column>
-                        <p:column headerText="Username" sortBy="#{u.username}" filterBy="#{u.username}"
+                        <p:column headerText="#{labels['common.col.username']}" sortBy="#{u.username}" filterBy="#{u.username}"
                                   filterMatchMode="contains">
                             <i class="pi pi-user" style="margin-inline-end:6px;color:var(--pf-primary);"/>
                             #{u.username}
                         </p:column>
-                        <p:column headerText="First Name" sortBy="#{u.firstName}">
+                        <p:column headerText="#{labels['common.col.firstName']}" sortBy="#{u.firstName}">
                             #{u.firstName}
                         </p:column>
-                        <p:column headerText="Last Name" sortBy="#{u.lastName}">
+                        <p:column headerText="#{labels['common.col.lastName']}" sortBy="#{u.lastName}">
                             #{u.lastName}
                         </p:column>
-                        <p:column headerText="Email">
+                        <p:column headerText="#{labels['common.col.email']}">
                             #{u.email}
                         </p:column>
                     </p:dataTable>
@@ -83,23 +83,23 @@
                     <!-- Pagination -->
                     <div class="action-bar" style="margin-top:12px;"
                          rendered="#{usersManagementBean.hasUsers}">
-                        <p:commandButton icon="pi pi-angle-double-left" title="First page"
+                        <p:commandButton icon="pi pi-angle-double-left" title="#{labels['common.pager.first']}"
                                          action="#{usersManagementBean.firstPage}"
                                          process="@form" update="usersPanel"
                                          disabled="#{!usersManagementBean.hasPrevious}"
                                          styleClass="ui-button-secondary ui-button-sm"/>
-                        <p:commandButton icon="pi pi-angle-left" title="Previous page"
+                        <p:commandButton icon="pi pi-angle-left" title="#{labels['common.pager.previous']}"
                                          action="#{usersManagementBean.previousPage}"
                                          process="@form" update="usersPanel"
                                          disabled="#{!usersManagementBean.hasPrevious}"
                                          styleClass="ui-button-secondary ui-button-sm"/>
                         <span class="text-muted nowrap">#{usersManagementBean.rangeLabel}</span>
-                        <p:commandButton icon="pi pi-angle-right" title="Next page"
+                        <p:commandButton icon="pi pi-angle-right" title="#{labels['common.pager.next']}"
                                          action="#{usersManagementBean.nextPage}"
                                          process="@form" update="usersPanel"
                                          disabled="#{!usersManagementBean.hasNext}"
                                          styleClass="ui-button-secondary ui-button-sm"/>
-                        <p:commandButton icon="pi pi-angle-double-right" title="Last page"
+                        <p:commandButton icon="pi pi-angle-double-right" title="#{labels['common.pager.last']}"
                                          action="#{usersManagementBean.lastPage}"
                                          process="@form" update="usersPanel"
                                          disabled="#{!usersManagementBean.hasNext}"
@@ -110,29 +110,29 @@
                 <!-- Wrapper is ALWAYS in the component tree so the rowSelect ajax
                      update can always resolve it; the conditional content lives inside. -->
                 <h:panelGroup id="membershipsPanel" layout="block">
-                    <p:panel header="Group memberships"
+                    <p:panel header="#{labels['um.memberships']}"
                              style="margin-top:16px;"
                              rendered="#{not empty usersManagementBean.selectedUser}">
                         <dl class="detail-list">
-                            <dt>User ID</dt><dd>#{usersManagementBean.selectedUser.id}</dd>
-                            <dt>Username</dt><dd>#{usersManagementBean.selectedUser.username}</dd>
-                            <dt>First Name</dt><dd>#{empty usersManagementBean.selectedUser.firstName ? '-' : usersManagementBean.selectedUser.firstName}</dd>
-                            <dt>Last Name</dt><dd>#{empty usersManagementBean.selectedUser.lastName ? '-' : usersManagementBean.selectedUser.lastName}</dd>
-                            <dt>Email</dt><dd>#{empty usersManagementBean.selectedUser.email ? '-' : usersManagementBean.selectedUser.email}</dd>
+                            <dt>#{labels['common.col.userId']}</dt><dd>#{usersManagementBean.selectedUser.id}</dd>
+                            <dt>#{labels['common.col.username']}</dt><dd>#{usersManagementBean.selectedUser.username}</dd>
+                            <dt>#{labels['common.col.firstName']}</dt><dd>#{empty usersManagementBean.selectedUser.firstName ? '-' : usersManagementBean.selectedUser.firstName}</dd>
+                            <dt>#{labels['common.col.lastName']}</dt><dd>#{empty usersManagementBean.selectedUser.lastName ? '-' : usersManagementBean.selectedUser.lastName}</dd>
+                            <dt>#{labels['common.col.email']}</dt><dd>#{empty usersManagementBean.selectedUser.email ? '-' : usersManagementBean.selectedUser.email}</dd>
                         </dl>
 
                         <p:dataTable id="groupsTable" var="group"
                                      value="#{usersManagementBean.groups}"
                                      style="margin-top:12px;"
-                                     emptyMessage="This user does not belong to any group."
+                                     emptyMessage="#{labels['um.noGroups']}"
                                      resizableColumns="true" reflow="true" size="small">
-                            <p:column headerText="Group ID">
+                            <p:column headerText="#{labels['um.col.groupId']}">
                                 <h:outputText value="#{group.id}"/>
                             </p:column>
-                            <p:column headerText="Group Name">
+                            <p:column headerText="#{labels['um.col.groupName']}">
                                 <h:outputText value="#{group.name}"/>
                             </p:column>
-                            <p:column headerText="Group Type">
+                            <p:column headerText="#{labels['um.col.groupType']}">
                                 <h:outputText value="#{group.type}"/>
                             </p:column>
                         </p:dataTable>

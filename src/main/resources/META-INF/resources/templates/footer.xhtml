@@ -3,10 +3,10 @@
                       xmlns:ui="jakarta.faces.facelets">
     <!-- Footer: included from templates/portal.xhtml. -->
     <footer class="app-footer">
-        <div>Workflow Station &#8212; Powered by Flowable + Jakarta Faces + PrimeFaces</div>
+        <div>#{labels['app.title']} &#8212; #{labels['footer.powered']}</div>
         <div>
-            <h:link outcome="/dashboard" value="Dashboard"/> &#183;
-            <h:link outcome="/processes" value="Processes"/>
+            <h:link outcome="/dashboard" value="#{labels['menu.dashboard']}"/> &#183;
+            <h:link outcome="/processes" value="#{labels['menu.processes']}"/>
         </div>
     </footer>
 </ui:composition>

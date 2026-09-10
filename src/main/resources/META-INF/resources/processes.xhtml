@@ -10,59 +10,63 @@
 <ui:composition template="/templates/portal.xhtml">
     <ui:param name="activeMenu" value="processes"/>
 
-    <ui:define name="title">Processes - Workflow Station</ui:define>
-    <ui:define name="pageTitle">Available Processes</ui:define>
+    <ui:define name="title">#{labels['processes.browserTitle']} - #{labels['app.title']}</ui:define>
+    <ui:define name="pageTitle">#{labels['processes.pageTitle']}</ui:define>
 
     <ui:define name="content">
         <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
             <div class="empty-state">
                 <i class="pi pi-lock"/>
-                <div class="empty-title">You are not signed in</div>
-                <p>Please sign in to browse available processes.</p>
-                <p:button outcome="/login" value="Go to Sign in" icon="pi pi-sign-in"/>
+                <div class="empty-title">#{labels['login.notSignedIn.title']}</div>
+                <p>#{labels['processes.notSignedIn.text']}</p>
+                <p:button outcome="/login" value="#{labels['login.goToSignIn']}" icon="pi pi-sign-in"/>
             </div>
         </h:panelGroup>
 
         <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
             <div class="page-head">
                 <div>
-                    <h1>Available Processes</h1>
-                    <p class="page-sub">#{processListBean.availableProcessCount} process definition(s) you can start.</p>
+                    <h1>#{labels['processes.pageTitle']}</h1>
+                    <p class="page-sub">
+                        <h:outputFormat value="#{labels['processes.pageSub']}">
+                            <f:param value="#{processListBean.availableProcessCount}"/>
+                        </h:outputFormat>
+                    </p>
                 </div>
                 <div class="spacer"/>
-                <p:button outcome="/dashboard" value="Dashboard" icon="pi pi-home"
+                <p:button outcome="/dashboard" value="#{labels['menu.dashboard']}" icon="pi pi-home"
                           styleClass="ui-button-secondary ui-button-sm"/>
             </div>
 
             <h:form id="processesForm">
-                <p:panel header="Processes you can start">
+                <p:panel header="#{labels['processes.youCanStart']}">
                     <p:dataTable id="processesTable" value="#{processListBean.availableProcesses}" var="pd"
-                                 emptyMessage="There are no processes available for you to start."
+                                 emptyMessage="#{labels['processes.empty']}"
                                  paginator="true" rows="10" paginatorAlwaysVisible="false"
                                  paginatorPosition="bottom"
                                  resizableColumns="true" reflow="true" size="small"
                                  widgetVar="processesTable">
                         <f:facet name="header">
                             <div class="table-toolbar">
-                                <p:inputText id="globalFilter" placeholder="Search processes..."
+                                <p:inputText id="globalFilter" placeholder="#{labels['processes.search']}"
                                              onkeyup="PF('processesTable').filter()"/>
                             </div>
                         </f:facet>
 
-                        <p:column headerText="Name" sortBy="#{pd.name}" filterBy="#{pd.name}"
+                        <p:column headerText="#{labels['common.col.name']}" sortBy="#{pd.name}" filterBy="#{pd.name}"
                                   filterMatchMode="contains">
                             <i class="pi pi-bolt" style="margin-inline-end:6px;color:var(--pf-primary);"/>
                             #{pd.name}
                         </p:column>
-                        <p:column headerText="Key" sortBy="#{pd.key}" filterBy="#{pd.key}"
+                        <p:column headerText="#{labels['common.col.key']}" sortBy="#{pd.key}" filterBy="#{pd.key}"
                                   filterMatchMode="contains">
                             <span class="text-muted">#{pd.key}</span>
                         </p:column>
-                        <p:column headerText="Version" sortBy="#{pd.version}">
+                        <p:column headerText="#{labels['common.col.version']}" sortBy="#{pd.version}">
                             <span class="status info"><span class="dot"/>v#{pd.version}</span>
                         </p:column>
-                        <p:column headerText="Action" styleClass="nowrap">
-                            <p:commandButton value="Start" icon="pi pi-play"
+                        <p:column headerText="#{labels['common.col.action']}" styleClass="nowrap">
+                            <p:commandButton value="#{labels['common.start']}" icon="pi pi-play"
                                              styleClass="ui-button-success ui-button-sm"
                                              action="#{processListBean.start(pd.key)}"/>
                         </p:column>

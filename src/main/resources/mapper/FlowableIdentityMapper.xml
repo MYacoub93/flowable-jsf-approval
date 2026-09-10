@@ -12,17 +12,22 @@
         <result property="email" column="EMAIL_"/>
     </resultMap>
 
-    <!-- جلب المستخدم مع فك تشفير كلمة المرور مباشرة داخل استعلام الـ SQL -->
-    <select id="findUserByUsernameForAuth" resultType="org.flowable.idm.engine.impl.persistence.entity.UserEntityImpl">
+    <!-- جلب المستخدم مع فك تشفير كلمة المرور مباشرة داخل استعلام الـ SQL.
+         default_role_ / role_code_ (دور المستخدم الافتراضي) تُجلب مع نفس
+         الصف لتغذية StudentInfoBean بعد الدخول - قيم فارغة مسموحة ولا تؤثر
+         على التحقق من كلمة المرور. -->
+    <select id="findUserByUsernameForAuth" resultType="AuthenticatedUser">
         SELECT
-            ID_ as id,
-            USERNAME_ as username,
-            FIRST_NAME_ as firstName,
-            LAST_NAME_ as lastName,
-            EMAIL_ as email,
-            NVL(dic_pkg.decrypt_data('a1t1s25375752334', PASSWORD_), TRIM(USERNAME_)) as password
-        FROM FLOWABLE_USERS_VW
-        WHERE USERNAME_ = LOWER(#{username})
+            u.ID_ as id,
+            u.USERNAME_ as username,
+            u.first_name_ as firstName,
+            u.last_name_ as lastName,
+            u.EMAIL_ as email,
+            NVL(dic_pkg.decrypt_data('a1t1s25375752334', u.PASSWORD_), TRIM(u.USERNAME_)) as password,
+            u.default_role_ as defaultRole,
+            u.role_code_ as roleCode
+        FROM FLOWABLE_USERS_VW u
+        WHERE u.USERNAME_ = LOWER(#{username})
     </select>
 
     <!-- جلب مستخدم بواسطة الـ ID -->

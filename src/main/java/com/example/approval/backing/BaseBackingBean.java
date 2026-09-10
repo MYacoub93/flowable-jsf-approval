@@ -7,6 +7,10 @@ import jakarta.enterprise.inject.spi.CDI;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.Serializable;
+import java.text.MessageFormat;
+import java.util.Locale;
+import java.util.MissingResourceException;
+import java.util.ResourceBundle;
 
 /**
  * Common base class of all JSF backing beans.
@@ -116,5 +120,49 @@ public abstract class BaseBackingBean implements Serializable {
         } catch (UnsatisfiedResolutionException | ContextNotActiveException | IllegalStateException e) {
             return SpringCdiBridge.getBean(UserLoginBean.class);
         }
+    }
+
+    // Localization -----------------------------------------------------------
+
+    /**
+     * Base name of the application's UI resource bundle. Must match the
+     * {@code <resource-bundle><base-name>} entry in {@code faces-config.xml}
+     * ({@code labels.properties} = English, {@code labels_ar.properties} =
+     * Arabic).
+     */
+    private static final String LABELS_BUNDLE = "labels";
+
+    /**
+     * Localized text for a key from the {@code labels} resource bundle, in
+     * the locale currently stored in {@link SessionInfoBean} (this session's
+     * source of truth for the UI language). Optional placeholders ({@code {0}}
+     * etc.) are filled with {@link MessageFormat}.
+     *
+     * <p>Missing keys render as {@code !key!} (same convention JSF itself
+     * uses for {@code #{labels['key']}}), a missing bundle falls back to the
+     * key itself - neither ever breaks the request.</p>
+     */
+    protected String getLabel(String key, Object... arguments) {
+        Locale locale = resolveUiLocale();
+        try {
+            ResourceBundle bundle = ResourceBundle.getBundle(LABELS_BUNDLE, locale,
+                    Thread.currentThread().getContextClassLoader());
+            if (!bundle.containsKey(key)) {
+                return "!" + key + "!";
+            }
+            String pattern = bundle.getString(key);
+            return arguments != null && arguments.length > 0
+                    ? MessageFormat.format(pattern, arguments)
+                    : pattern;
+        } catch (MissingResourceException e) {
+            return key;
+        }
+    }
+
+    /** Current UI locale: the session's choice, English as fallback. */
+    protected Locale resolveUiLocale() {
+        SessionInfoBean info = getSessionInfo();
+        Locale locale = info != null ? info.getLocale() : null;
+        return locale != null ? locale : Locale.ENGLISH;
     }
 }

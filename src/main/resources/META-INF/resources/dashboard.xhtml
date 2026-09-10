@@ -10,16 +10,16 @@
 <ui:composition template="/templates/portal.xhtml">
     <ui:param name="activeMenu" value="dashboard"/>
 
-    <ui:define name="title">Dashboard - Workflow Station</ui:define>
-    <ui:define name="pageTitle">Dashboard</ui:define>
+    <ui:define name="title">#{labels['dashboard.browserTitle']} - #{labels['app.title']}</ui:define>
+    <ui:define name="pageTitle">#{labels['dashboard.browserTitle']}</ui:define>
 
     <ui:define name="content">
         <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
             <div class="empty-state">
                 <i class="pi pi-lock"/>
-                <div class="empty-title">You are not signed in</div>
-                <p>Please sign in to view your dashboard.</p>
-                <p:button outcome="/login" value="Go to Sign in" icon="pi pi-sign-in"/>
+                <div class="empty-title">#{labels['login.notSignedIn.title']}</div>
+                <p>#{labels['dashboard.notSignedIn.text']}</p>
+                <p:button outcome="/login" value="#{labels['login.goToSignIn']}" icon="pi pi-sign-in"/>
             </div>
         </h:panelGroup>
 
@@ -29,10 +29,10 @@
             <div class="page-head">
                 <div>
                     <h1>#{dashboardBean.welcomeMessage}</h1>
-                    <p class="page-sub">Here is a summary of your workflow activity.</p>
+                    <p class="page-sub">#{labels['dashboard.summary']}</p>
                 </div>
                 <div class="spacer"/>
-                <p:button outcome="/processes" value="New Request" icon="pi pi-plus"
+                <p:button outcome="/processes" value="#{labels['dashboard.newRequest']}" icon="pi pi-plus"
                           styleClass="ui-button-success"/>
             </div>
 
@@ -42,31 +42,31 @@
                     <span class="stat-icon primary"><i class="pi pi-inbox"/></span>
                     <span>
                         <span class="stat-value">#{dashboardBean.taskCount}</span>
-                        <span class="stat-label">My tasks</span>
+                        <span class="stat-label">#{labels['dashboard.stat.myTasks']}</span>
                     </span>
                 </a>
                 <a class="stat-tile" href="#myProcessesPanel">
                     <span class="stat-icon success"><i class="pi pi-play-circle"/></span>
                     <span>
                         <span class="stat-value">#{dashboardBean.startedProcessCount}</span>
-                        <span class="stat-label">Requests started by me</span>
+                        <span class="stat-label">#{labels['dashboard.stat.startedByMe']}</span>
                     </span>
                 </a>
                 <a class="stat-tile" href="#availableProcessesPanel">
                     <span class="stat-icon warning"><i class="pi pi-list"/></span>
                     <span>
                         <span class="stat-value">#{dashboardBean.availableProcessCount}</span>
-                        <span class="stat-label">Processes I can start</span>
+                        <span class="stat-label">#{labels['dashboard.stat.canStart']}</span>
                     </span>
                 </a>
             </div>
 
             <!-- My Tasks -->
             <h:form id="myTasksForm" style="margin-top:20px;">
-                <p:panel id="myTasksPanel" header="My Tasks">
+                <p:panel id="myTasksPanel" header="#{labels['dashboard.myTasks']}">
                     <p:dataTable id="myTasksTable" value="#{dashboardBean.myTasks}" var="t"
                                  widgetVar="tasksTable"
-                                 emptyMessage="No tasks assigned to you."
+                                 emptyMessage="#{labels['dashboard.noTasks']}"
                                  paginator="true" rows="10" paginatorAlwaysVisible="false"
                                  paginatorPosition="bottom"
                                  rowsPerPageTemplate="5,10,25"
@@ -76,32 +76,32 @@
                                  size="small">
                         <f:facet name="header">
                             <div class="table-toolbar">
-                                <span class="text-muted">Tasks assigned to you or your groups</span>
+                                <span class="text-muted">#{labels['dashboard.tasksHint']}</span>
                                 <span class="spacer"/>
-                                <p:inputText id="globalFilter" placeholder="Search tasks..."
+                                <p:inputText id="globalFilter" placeholder="#{labels['dashboard.searchTasks']}"
                                              onkeyup="PF('tasksTable').filter()"/>
                             </div>
                         </f:facet>
 
-                        <p:column headerText="Task" sortBy="#{t.name}" filterBy="#{t.name}"
+                        <p:column headerText="#{labels['dashboard.col.task']}" sortBy="#{t.name}" filterBy="#{t.name}"
                                   filterMatchMode="contains">
                             <i class="pi pi-check-circle" style="margin-inline-end:6px;color:var(--pf-primary);"/>
                             #{t.name}
                         </p:column>
-                        <p:column headerText="Process" sortBy="#{dashboardBean.processNameOf(t)}"
-                                  filterBy="#{dashboardBean.processNameOf(t)}" filterMatchMode="contains">
+                        <p:column headerText="#{labels['dashboard.col.process']}" sortBy="#{dashboardBean.processNameOf(t)}"
+                                   filterBy="#{dashboardBean.processNameOf(t)}" filterMatchMode="contains">
                             <span class="text-muted">#{dashboardBean.processNameOf(t)}</span>
                         </p:column>
-                        <p:column headerText="Created" sortBy="#{t.createTime}">
+                        <p:column headerText="#{labels['dashboard.col.created']}" sortBy="#{t.createTime}">
                             <h:outputText value="#{t.createTime}">
                                 <f:convertDateTime type="both" dateStyle="medium" timeStyle="short"/>
                             </h:outputText>
                         </p:column>
-                        <p:column headerText="Process Instance">
+                        <p:column headerText="#{labels['dashboard.col.processInstance']}">
                             <span class="text-muted nowrap">#{t.processInstanceId}</span>
                         </p:column>
-                        <p:column headerText="Action" styleClass="nowrap">
-                            <p:commandButton value="Open" icon="pi pi-external-link" styleClass="ui-button-sm"
+                        <p:column headerText="#{labels['common.col.action']}" styleClass="nowrap">
+                            <p:commandButton value="#{labels['common.open']}" icon="pi pi-external-link" styleClass="ui-button-sm"
                                              action="#{dashboardBean.openTask(t.id)}"/>
                         </p:column>
                     </p:dataTable>
@@ -109,24 +109,24 @@
             </h:form>
 
             <!-- My Started Processes -->
-            <p:panel id="myProcessesPanel" header="Requests I Started" style="margin-top:20px;">
+            <p:panel id="myProcessesPanel" header="#{labels['dashboard.requestsStarted']}" style="margin-top:20px;">
                 <p:dataTable id="myProcessesTable" value="#{dashboardBean.myProcesses}" var="p"
-                             emptyMessage="You have not started any requests yet."
+                             emptyMessage="#{labels['dashboard.noStartedRequests']}"
                              paginator="true" rows="10" paginatorAlwaysVisible="false"
                              paginatorPosition="bottom"
                              resizableColumns="true" reflow="true" size="small">
-                    <p:column headerText="Started" sortBy="#{p.startTime}">
+                    <p:column headerText="#{labels['dashboard.col.started']}" sortBy="#{p.startTime}">
                         <h:outputText value="#{p.startTime}">
                             <f:convertDateTime type="both" dateStyle="medium" timeStyle="short"/>
                         </h:outputText>
                     </p:column>
-                    <p:column headerText="Process" sortBy="#{p.processDefinitionId}">
+                    <p:column headerText="#{labels['dashboard.col.process']}" sortBy="#{p.processDefinitionId}">
                         <span class="text-muted">#{p.processDefinitionId}</span>
                     </p:column>
-                    <p:column headerText="Status">
+                    <p:column headerText="#{labels['common.col.status']}">
                         <span class="status #{p.ended ? 'completed' : 'inprogress'}">
                             <span class="dot"/>
-                            #{p.ended ? 'Completed' : 'In progress'}
+                            #{p.ended ? labels['dashboard.status.completed'] : labels['dashboard.status.inprogress']}
                         </span>
                     </p:column>
                 </p:dataTable>
@@ -134,17 +134,17 @@
 
             <!-- Quick links -->
             <div class="grid cols-3" style="margin-top:20px;">
-                <p:panel header="Start something new">
+                <p:panel header="#{labels['dashboard.startSomethingNew']}">
                     <div class="action-bar">
-                        <p:button outcome="/processes" value="Browse processes" icon="pi pi-list"/>
+                        <p:button outcome="/processes" value="#{labels['dashboard.browseProcesses']}" icon="pi pi-list"/>
                     </div>
                 </p:panel>
-                <p:panel header="Clearance Letter">
+                <p:panel header="#{labels['menu.clearanceLetter']}">
                     <div class="action-bar">
-                        <p:button outcome="/start-clearance" value="New clearance request" icon="pi pi-file"/>
+                        <p:button outcome="/start-clearance" value="#{labels['dashboard.newClearanceRequest']}" icon="pi pi-file"/>
                     </div>
                 </p:panel>
-                <p:panel id="availableProcessesPanel" header="Processes you can start">
+                <p:panel id="availableProcessesPanel" header="#{labels['dashboard.processesYouCanStart']}">
                     <ui:repeat value="#{dashboardBean.availableProcesses}" var="d">
                         <div class="history-item info">
                             <span class="h-icon"><i class="pi pi-bolt"/></span>
@@ -156,7 +156,7 @@
                     </ui:repeat>
                     <h:panelGroup rendered="#{empty dashboardBean.availableProcesses}" layout="block"
                                   styleClass="text-muted">
-                        No process definitions are available to your account.
+                        #{labels['dashboard.noProcessDefs']}
                     </h:panelGroup>
                 </p:panel>
             </div>

@@ -7,50 +7,49 @@
 <ui:composition template="/templates/portal.xhtml">
     <ui:param name="activeMenu" value="start-student-proof"/>
 
-    <ui:define name="title">Student Proof Certificate Letter - Workflow Station</ui:define>
-    <ui:define name="pageTitle">Student Proof Certificate Letter</ui:define>
+    <ui:define name="title">#{labels['proof.browserTitle']} - #{labels['app.title']}</ui:define>
+    <ui:define name="pageTitle">#{labels['proof.pageTitle']}</ui:define>
 
     <ui:define name="content">
         <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
             <div class="-empty-state empty-state">
                 <i class="pi pi-lock"/>
-                <div class="empty-title">You are not signed in</div>
-                <p>Please sign in with your student account to request a proof certificate letter.</p>
-                <p:button outcome="/login" value="Go to Sign in" icon="pi pi-sign-in"/>
+                <div class="empty-title">#{labels['login.notSignedIn.title']}</div>
+                <p>#{labels['proof.notSignedIn.text']}</p>
+                <p:button outcome="/login" value="#{labels['login.goToSignIn']}" icon="pi pi-sign-in"/>
             </div>
         </h:panelGroup>
 
         <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
             <div class="page-head">
                 <div>
-                    <h1>Student Proof Certificate Letter</h1>
-                    <p class="page-sub">Submit your request - the Admission and Registration department will issue
-                        and archive the certificate, then notify you when it is ready.</p>
+                    <h1>#{labels['proof.pageTitle']}</h1>
+                    <p class="page-sub">#{labels['proof.pageSub']}</p>
                 </div>
             </div>
 
             <!-- Student information (read-only, loaded from the Oracle SIS for the logged-in student) -->
-            <p:panel header="Student Information">
+            <p:panel header="#{labels['proof.studentInfo']}">
                 <h:panelGroup rendered="#{startStudentProofBean.studentInfoMissing}" layout="block">
                     <div class="-empty-state empty-state">
                         <i class="pi pi-exclamation-triangle"/>
-                        <div class="empty-title">No student information found</div>
-                        <p>Your student record could not be loaded from the student information system.</p>
+                        <div class="empty-title">#{labels['proof.noStudent.title']}</div>
+                        <p>#{labels['proof.noStudent.text']}</p>
                     </div>
                 </h:panelGroup>
                 <h:panelGroup rendered="#{!startStudentProofBean.studentInfoMissing}" layout="block">
                     <dl class="detail-list">
-                        <dt>Student ID</dt>
+                        <dt>#{labels['proof.studentId']}</dt>
                         <dd>#{startStudentProofBean.studentId}</dd>
-                        <dt>Student Name</dt>
+                        <dt>#{labels['proof.studentName']}</dt>
                         <dd>#{startStudentProofBean.studentName}</dd>
-                        <dt>Email</dt>
+                        <dt>#{labels['common.email']}</dt>
                         <dd>#{empty startStudentProofBean.studentEmail ? '-' : startStudentProofBean.studentEmail}</dd>
-                        <dt>GPA</dt>
+                        <dt>#{labels['proof.gpa']}</dt>
                         <dd>#{empty startStudentProofBean.studentGpa ? '-' : startStudentProofBean.studentGpa}</dd>
-                        <dt>Mobile Phone</dt>
+                        <dt>#{labels['proof.mobilePhone']}</dt>
                         <dd>#{empty startStudentProofBean.studentMobile ? '-' : startStudentProofBean.studentMobile}</dd>
-                        <dt>Current Semester</dt>
+                        <dt>#{labels['proof.currentSemester']}</dt>
                         <dd>#{empty startStudentProofBean.currentSemester ? '-' : startStudentProofBean.currentSemester}</dd>
                     </dl>
                 </h:panelGroup>
@@ -58,15 +57,15 @@
 
             <h:form id="startStudentProofForm" style="margin-top:16px;"
                     rendered="#{startStudentProofBean.canStart}">
-                <p:panel header="Request Note">
+                <p:panel header="#{labels['proof.requestNote']}">
                     <div class="form-grid">
                         <div class="field full">
-                            <p:outputLabel for="initiatorNote" value="Note"/>
+                            <p:outputLabel for="initiatorNote" value="#{labels['proof.note']}"/>
                             <p:inputTextarea id="initiatorNote" rows="4"
                                              value="#{startStudentProofBean.note}"
                                              required="true"
-                                             requiredMessage="A note is required - please describe your request"
-                                             counter="noteCounter" counterTemplate="{0} characters"
+                                             requiredMessage="#{labels['proof.noteRequired']}"
+                                             counter="noteCounter" counterTemplate="#{labels['proof.characters']}"
                                              maxlength="1000" autoResize="true"/>
                             <p:message for="initiatorNote"/>
                             <h:panelGroup id="noteCounter" styleClass="field-hint"/>
@@ -74,10 +73,10 @@
                     </div>
 
                     <div class="action-bar" style="margin-top:18px;">
-                        <p:commandButton value="Submit Request" icon="pi pi-send"
+                        <p:commandButton value="#{labels['proof.submit']}" icon="pi pi-send"
                                          action="#{startStudentProofBean.submit}"
                                          styleClass="ui-button-success"/>
-                        <p:button outcome="/dashboard" value="Cancel" icon="pi pi-times"
+                        <p:button outcome="/dashboard" value="#{labels['common.cancel']}" icon="pi pi-times"
                                   styleClass="ui-button-secondary ui-button-outlined"/>
                     </div>
                 </p:panel>

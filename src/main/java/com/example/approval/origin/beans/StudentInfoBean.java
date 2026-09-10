@@ -73,6 +73,10 @@ public class StudentInfoBean extends BaseBean {
     private String permCity;
     private String permCountry;
     private String userName ;
+    /** Default role of the logged-in user (FLOWABLE_USERS_VW.DEFAULT_ROLE_) - may be null. */
+    private String defaultRole;
+    /** Role code of the user's default role (FLOWABLE_USERS_VW.ROLE_CODE_) - may be null. */
+    private String roleCode;
 
     public String getPermAddress() {
         return permAddress;
@@ -512,6 +516,22 @@ public class StudentInfoBean extends BaseBean {
 
     public void setTotalBalance(String totalBalance) {
         this.totalBalance = totalBalance;
+    }
+
+    public String getDefaultRole() {
+        return defaultRole;
+    }
+
+    public void setDefaultRole(String defaultRole) {
+        this.defaultRole = defaultRole;
+    }
+
+    public String getRoleCode() {
+        return roleCode;
+    }
+
+    public void setRoleCode(String roleCode) {
+        this.roleCode = roleCode;
     }
 
     public String getUserName() {
