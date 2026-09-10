@@ -2,13 +2,17 @@ package com.example.approval.backing;
 
 import com.example.approval.config.SpringCdiBridge;
 import com.example.approval.entity.AuthenticatedUser;
+import com.example.approval.origin.beans.StaffInfoBean;
 import com.example.approval.origin.beans.StudentInfoBean;
+import com.example.approval.service.CommonService;
 import com.example.approval.service.FlowableIdentityService;
 import jakarta.enterprise.context.SessionScoped;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.inject.Named;
 import org.flowable.idm.api.User;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 
@@ -31,8 +35,11 @@ import java.io.Serializable;
  * After a successful authentication the bean snapshots the logged-in user's
  * information into the {@link SessionInfoBean} (obtained through
  * {@link BaseBackingBean} inheritance), which every other backing bean reads
- * through the same inheritance instead of a per-bean injection. On logout the
- * session info is cleared before the HTTP session is invalidated.
+ * through the same inheritance instead of a per-bean injection. It then loads
+ * the role-specific SIS profile (student vs staff, decided by
+ * DEFAULT_ROLE_ - see {@link #loadRoleProfile(AuthenticatedUser, String)})
+ * and stores it in the same SessionInfoBean for the whole session. On logout
+ * the session info is cleared before the HTTP session is invalidated.
  *
  * All user-visible messages produced here are localized through the
  * {@code labels} resource bundle (see {@link BaseBackingBean#getLabel}) in the
@@ -44,6 +51,15 @@ import java.io.Serializable;
 public class UserLoginBean extends BaseBackingBean implements Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    private static final Logger log = LoggerFactory.getLogger(UserLoginBean.class);
+
+    /**
+     * Default role value ({@code FLOWABLE_USERS_VW.DEFAULT_ROLE_}) that marks
+     * the user as a student. Every other value (including null) means staff -
+     * see {@link #isStudent(String)}.
+     */
+    static final String STUDENT_ROLE = "STD";
 
     private String username;
     private String password;
@@ -100,6 +116,12 @@ public class UserLoginBean extends BaseBackingBean implements Serializable {
         // a missing role never blocks the login.
         this.studentInfo = studentInfoOf(dbUser, loginName);
 
+        // Role-based session profile (business rule: DEFAULT_ROLE_ == "STD" ->
+        // student, anything else including null -> staff): loads the matching
+        // SIS profile through the existing CommonService queries and stores it
+        // in SessionInfoBean for the whole session. Never fails the login.
+        loadRoleProfile(dbUser, loginName);
+
         addMessage(FacesMessage.SEVERITY_INFO, getLabel("login.welcome", currentUser.getFirstName()));
         return "/dashboard?faces-redirect=true";
     }
@@ -143,6 +165,110 @@ public class UserLoginBean extends BaseBackingBean implements Serializable {
         info.setDefaultRole(user.getDefaultRole());
         info.setRoleCode(user.getRoleCode());
         return info;
+    }
+
+    /**
+     * Single place implementing the user-type business rule. After a
+     * successful login the default role ({@code FLOWABLE_USERS_VW.DEFAULT_ROLE_})
+     * decides which SIS profile is loaded:
+     * <ul>
+     *   <li>{@code "STD"} -> student: {@code CommonService.getStudentInfo}
+     *       (backed by {@code CommonMapper.xml getStudentInfo})</li>
+     *   <li>anything else, including null -> staff:
+     *       {@code CommonService.getStaffInfo}
+     *       (backed by {@code CommonMapper.xml getStaffInfo})</li>
+     * </ul>
+     * Both queries are keyed on the web username (SIS {@code WEB_NAME}) -
+     * exactly how the existing synchronizer ({@code SISOC}) calls them.
+     *
+     * <p>The loaded profile is stored in {@link SessionInfoBean} (student ->
+     * {@code studentInfoBean}, staff -> {@code staffInfoBean}) while the
+     * other property is explicitly nulled, so no stale profile of a previous
+     * login survives. A missing SIS row (null result) or a lookup error is
+     * logged and leaves the profile null - it never fails the login.</p>
+     */
+    private void loadRoleProfile(AuthenticatedUser user, String loginName) {
+        SessionInfoBean sessionInfo = getSessionInfo();
+        if (sessionInfo == null) {
+            return;
+        }
+        loadRoleProfileInto(sessionInfo, user, loginName,
+                SpringCdiBridge.getBean(CommonService.class));
+    }
+
+    /**
+     * Testable core of loadRoleProfile: the session info, the login row and
+     * the (already resolved) CommonService are parameters, so the role logic
+     * can be verified without a Spring/CDI runtime.
+     */
+    static void loadRoleProfileInto(SessionInfoBean sessionInfo, AuthenticatedUser user,
+                                    String loginName, CommonService commonService) {
+        String webName = user.getUsername() != null && !user.getUsername().isBlank()
+                ? user.getUsername()
+                : loginName;
+        try {
+            if (isStudent(user.getDefaultRole())) {
+                StudentInfoBean profile = commonService.getStudentInfo(webName);
+                applyLoginRow(profile, user, loginName);
+                storeRoleProfile(sessionInfo, profile, null);
+                log.info("Student profile for {} loaded (default role {}): {}",
+                        loginName, user.getDefaultRole(),
+                        profile != null ? profile.getStudentId() : "no SIS record");
+            } else {
+                StaffInfoBean profile = commonService.getStaffInfo(webName);
+                storeRoleProfile(sessionInfo, null, profile);
+                log.info("Staff profile for {} loaded (default role {}): {}",
+                        loginName, user.getDefaultRole(),
+                        profile != null ? profile.getInstructorId() : "no SIS record");
+            }
+        } catch (Exception e) {
+            log.error("Failed to load the SIS profile for {} (default role {})",
+                    loginName, user.getDefaultRole(), e);
+            storeRoleProfile(sessionInfo, null, null);
+        }
+    }
+
+    /**
+     * The business rule itself: only the exact value {@code "STD"} marks a
+     * student. Null and every other value mean staff. The constant is placed
+     * first so a null role can never throw a NullPointerException.
+     */
+    static boolean isStudent(String defaultRole) {
+        return STUDENT_ROLE.equals(defaultRole);
+    }
+
+    /**
+     * Copies the login-row role fields ({@code FLOWABLE_USERS_VW}
+     * {@code DEFAULT_ROLE_} / {@code ROLE_CODE_}, plus the web username when
+     * the SIS query did not populate it) onto the SIS-loaded student profile,
+     * so the session bean carries both the SIS data and the role
+     * information. No-op for a null profile (no SIS record).
+     */
+    static void applyLoginRow(StudentInfoBean profile, AuthenticatedUser user, String loginName) {
+        if (profile == null) {
+            return;
+        }
+        profile.setDefaultRole(user.getDefaultRole());
+        profile.setRoleCode(user.getRoleCode());
+        if (profile.getUserName() == null || profile.getUserName().isBlank()) {
+            profile.setUserName(loginName);
+        }
+    }
+
+    /**
+     * Stores the role-specific profile in the session and explicitly clears
+     * the other one (student -> staff null, staff -> student null) so no
+     * stale information from a previous login survives. Passing null for
+     * both simply drops the profiles (used on lookup failures).
+     */
+    static void storeRoleProfile(SessionInfoBean sessionInfo,
+                                 StudentInfoBean studentProfile,
+                                 StaffInfoBean staffProfile) {
+        if (sessionInfo == null) {
+            return;
+        }
+        sessionInfo.setStudentInfoBean(studentProfile);
+        sessionInfo.setStaffInfoBean(staffProfile);
     }
 
     // Getters / Setters

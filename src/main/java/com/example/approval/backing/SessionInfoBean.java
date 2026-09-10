@@ -1,5 +1,7 @@
 package com.example.approval.backing;
 
+import com.example.approval.origin.beans.StaffInfoBean;
+import com.example.approval.origin.beans.StudentInfoBean;
 import jakarta.enterprise.context.SessionScoped;
 import jakarta.faces.context.FacesContext;
 import jakarta.inject.Named;
@@ -73,6 +75,12 @@ public class SessionInfoBean implements Serializable {
     /** When the user logged in (informational only). */
     private LocalDateTime loginTime;
 
+    /** SIS profile when the default role (DEFAULT_ROLE_) is STD (student); loaded once by UserLoginBean via CommonService.getStudentInfo. Null for staff. */
+    private StudentInfoBean studentInfoBean;
+
+    /** SIS profile when the default role is anything other than STD (staff); loaded once by UserLoginBean via CommonService.getStaffInfo. Null for students. */
+    private StaffInfoBean staffInfoBean;
+
     /**
      * The current UI locale. Initialized to {@link #DEFAULT_LOCALE} (English)
      * and changed only when the user switches language (login screen or
@@ -102,6 +110,11 @@ public class SessionInfoBean implements Serializable {
         this.lastName = user.getLastName();
         this.email = user.getEmail();
         this.loginTime = LocalDateTime.now();
+        // Fresh authenticated session: drop any profile left over from a
+        // previous login; the role-specific profile is loaded right after
+        // this call by UserLoginBean.
+        this.studentInfoBean = null;
+        this.staffInfoBean = null;
     }
 
     /**
@@ -118,6 +131,8 @@ public class SessionInfoBean implements Serializable {
         this.lastName = null;
         this.email = null;
         this.loginTime = null;
+        this.studentInfoBean = null;
+        this.staffInfoBean = null;
     }
 
     /** A user is logged in as soon as the bean was populated with a user id. */
@@ -209,6 +224,32 @@ public class SessionInfoBean implements Serializable {
 
     public void setLoginTime(LocalDateTime loginTime) {
         this.loginTime = loginTime;
+    }
+
+    // Student / staff profile -----------------------------------------------
+
+    /**
+     * The logged-in student's SIS profile (CommonMapper.getStudentInfo), or
+     * null for staff users / anonymous sessions.
+     */
+    public StudentInfoBean getStudentInfoBean() {
+        return studentInfoBean;
+    }
+
+    public void setStudentInfoBean(StudentInfoBean studentInfoBean) {
+        this.studentInfoBean = studentInfoBean;
+    }
+
+    /**
+     * The logged-in staff member's SIS profile (CommonMapper.getStaffInfo),
+     * or null for students / anonymous sessions.
+     */
+    public StaffInfoBean getStaffInfoBean() {
+        return staffInfoBean;
+    }
+
+    public void setStaffInfoBean(StaffInfoBean staffInfoBean) {
+        this.staffInfoBean = staffInfoBean;
     }
 
     // Locale / language -----------------------------------------------------
