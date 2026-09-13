@@ -48,6 +48,7 @@ public final class BpmAuditConstants {
     public static final String ACTION_REJECTED = "REJECTED";
     public static final String ACTION_REQUEST_AMENDED = "REQUEST_AMENDED";
     public static final String ACTION_TASK_CANCELLED = "TASK_CANCELLED";
+    public static final String ACTION_TASK_DELEGATED = "TASK_DELEGATED";
     public static final String ACTION_PROCESS_COMPLETED = "PROCESS_COMPLETED";
     public static final String ACTION_FYI_CREATED = "FYI_CREATED";
     public static final String ACTION_FYI_ACKNOWLEDGED = "FYI_ACKNOWLEDGED";

@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Service layer for the external group manager (Oracle {@code WEB_ROLES} /
@@ -199,6 +200,24 @@ public class ExternalGroupService {
         }
         List<ExternalUser> rows = mapper.findUsersPage(offset, size, term);
         return new PageResult<>(rows, total, page, size);
+    }
+
+    /**
+     * Users behind a set of Flowable user ids ({@code FLOWABLE_USERS_VW.ID_})
+     * - e.g. the Task Delegation page resolves task assignee ids to
+     * usernames in one batch query instead of one query per table row.
+     * Never null; blank/null ids are filtered out.
+     */
+    @Transactional(transactionManager = "externalTransactionManager", readOnly = true)
+    public List<ExternalUser> findUsersByIds(List<String> ids) {
+        List<String> clean = ids == null ? List.of() : ids.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .collect(Collectors.toList());
+        if (clean.isEmpty()) {
+            return List.of();
+        }
+        return mapper.findUsersByIds(clean);
     }
 
     private String normalizeSearch(String searchTerm) {

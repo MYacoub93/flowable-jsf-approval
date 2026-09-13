@@ -5,10 +5,12 @@ import com.example.approval.processes.clearance.model.DepartmentDecision;
 import com.example.approval.audit.service.BpmAuditService;
 import com.example.approval.notification.model.NotificationMessage;
 import com.example.approval.notification.service.NotificationService;
+import com.example.approval.processes.clearance.service.ClearanceApproverResolverService;
 import org.flowable.engine.delegate.TaskListener;
 import org.flowable.task.service.delegate.DelegateTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -52,11 +54,31 @@ public class ClearanceTaskListener implements TaskListener {
 
     private final NotificationService notificationService;
     private final BpmAuditService auditService;
+    private final ClearanceApproverResolverService approverResolver;
 
+    /**
+     * Production constructor (Spring): the approver resolver assigns the
+     * HOD / dean department tasks directly to one specific person.
+     * {@code @Autowired} is required because the class also exposes a
+     * 2-arg test constructor - without it Spring cannot choose and falls
+     * back to the (non-existent) no-arg constructor.
+     */
+    @Autowired
     public ClearanceTaskListener(NotificationService notificationService,
-            BpmAuditService auditService) {
+            BpmAuditService auditService,
+            ClearanceApproverResolverService approverResolver) {
         this.notificationService = notificationService;
         this.auditService = auditService;
+        this.approverResolver = approverResolver;
+    }
+
+    /**
+     * Test/fallback constructor: no single-approver resolution - every
+     * department task stays a pure candidate-group task.
+     */
+    public ClearanceTaskListener(NotificationService notificationService,
+            BpmAuditService auditService) {
+        this(notificationService, auditService, null);
     }
 
     @Override
@@ -82,6 +104,13 @@ public class ClearanceTaskListener implements TaskListener {
         String initiator = str(task.getVariable(VAR_INITIATOR));
         String pid = task.getProcessInstanceId();
 
+        // HOD / dean tasks go to ONE specific person instead of the whole
+        // candidate group. Runs first so the audit row and the e-mail see
+        // the final assignee. Best effort: if no single approver can be
+        // resolved the task simply remains a group task - task creation
+        // never fails because of it.
+        assignSingleApproverIfConfigured(task, stage, department);
+
         // audit first: TASK_ASSIGNED for every task handed to an approver.
         // The note is optional: if one was persisted on the task (task local
         // variable note/notes or the task description) it is written to
@@ -101,6 +130,10 @@ public class ClearanceTaskListener implements TaskListener {
                     .stage(stage)
                     .department(department)
                     .candidateGroup(candidateGroup)
+                    // null for group tasks; when the HOD / dean task was
+                    // assigned to one person, the e-mail goes to exactly
+                    // that person instead of every group member
+                    .assigneeUser(task.getAssignee())
                     .taskId(task.getId())
                     .initiator(initiator)
                     .subject("[" + PROCESS_NAME + "] Approval required by " + safe(department))
@@ -195,6 +228,37 @@ public class ClearanceTaskListener implements TaskListener {
     // ------------------------------------------------------------------
     // mapping helpers
     // ------------------------------------------------------------------
+
+    /**
+     * Assigns the HOD / dean department task to the single responsible
+     * person resolved from the SIS (head of department / dean of college).
+     * The candidate group stays on the task, so it remains visible in
+     * every group-based view as well.
+     */
+    private void assignSingleApproverIfConfigured(DelegateTask task,
+            String stage, String department) {
+        if (approverResolver == null
+                || !STAGE_DEPARTMENT_APPROVAL.equals(stage)
+                || department == null) {
+            return;
+        }
+        try {
+            String assigneeId = approverResolver.resolveSingleApproverId(
+                    department,
+                    str(task.getVariable(VAR_STUDENT_FACULTY_NO)),
+                    str(task.getVariable(VAR_STUDENT_DEPT_NO)),
+                    str(task.getVariable(VAR_STUDENT_CAMPUS_NO)));
+            if (assigneeId != null) {
+                task.setAssignee(assigneeId);
+                log.info("Clearance task {} (department {}) assigned to single approver {}",
+                        task.getId(), department, assigneeId);
+            }
+        } catch (Exception e) {
+            // resolution must never break task creation
+            log.warn("Single-approver resolution failed for department {} - task stays "
+                    + "a candidate-group task: {}", department, e.getMessage());
+        }
+    }
 
     private String stageOf(DelegateTask task) {
         switch (task.getTaskDefinitionKey() == null ? "" : task.getTaskDefinitionKey()) {

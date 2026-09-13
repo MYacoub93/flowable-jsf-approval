@@ -42,6 +42,11 @@
                     </h:link>
                     <h:link outcome="/users_managment" styleClass="nav-item #{activeMenu == 'users-managment' ? 'active' : ''}">
                         <i class="pi pi-user-edit"/><span>#{labels['menu.usersManagement']}</span>
+                    </h:link>                    <!-- Reassign active tasks to other Flowable users; every
+                         action is re-checked server-side in
+                         TaskDelegationService. -->
+                    <h:link outcome="/task-delegation" styleClass="nav-item #{activeMenu == 'task-delegation' ? 'active' : ''}">
+                        <i class="pi pi-share-alt"/><span>#{labels['menu.taskDelegation']}</span>
                     </h:link>
 
                     <!-- Dev-only destructive tool: additionally guarded by

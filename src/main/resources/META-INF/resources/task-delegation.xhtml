@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
+<ui:composition template="/templates/portal.xhtml">
+    <ui:param name="activeMenu" value="task-delegation"/>
+
+    <ui:define name="title">#{labels['td.browserTitle']} - #{labels['app.title']}</ui:define>
+    <ui:define name="pageTitle">#{labels['td.pageTitle']}</ui:define>
+
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <div class="empty-state">
+                <i class="pi pi-lock"/>
+                <div class="empty-title">#{labels['login.notSignedIn.title']}</div>
+                <p>#{labels['common.signInFirst']}</p>
+                <p:button outcome="/login" value="#{labels['login.goToSignIn']}" icon="pi pi-sign-in"/>
+            </div>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{loginBean.loggedIn and !taskDelegationBean.groupAdmin}" layout="block">
+            <div class="empty-state">
+                <i class="pi pi-ban"/>
+                <div class="empty-title">#{labels['common.notAuthorized.title']}</div>
+                <p>#{labels['td.notAuthorized.text']}</p>
+                <p:button outcome="/dashboard" value="#{labels['common.backToDashboard']}" icon="pi pi-home"
+                          styleClass="ui-button-secondary"/>
+            </div>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{taskDelegationBean.groupAdmin}" layout="block">
+            <div class="page-head">
+                <div>
+                    <h1>#{labels['td.pageTitle']}</h1>
+                    <p class="page-sub">#{labels['td.pageSub']}</p>
+                </div>
+            </div>
+
+            <h:form id="tdForm">
+                <p:messages id="tdMessages" closable="true" autoUpdate="true"/>
+
+                <!-- ============ Step 1: process selection ============ -->
+                <p:panel id="processPanel" header="#{labels['td.process']}">
+                    <div class="table-toolbar">
+                        <span class="text-muted nowrap" style="margin-inline-end:8px;">#{labels['td.process']}:</span>
+                        <p:selectOneMenu id="processSelect" value="#{taskDelegationBean.selectedProcessKey}"
+                                         style="min-width:280px;">
+                            <f:selectItem itemLabel="#{labels['td.selectProcessPlaceholder']}" noSelectionOption="true"
+                                          itemValue=""/>
+                            <f:selectItems value="#{taskDelegationBean.processes}" var="proc"
+                                           itemLabel="#{proc.label}" itemValue="#{proc.key}"/>
+                            <p:ajax event="change" listener="#{taskDelegationBean.onProcessChange}"
+                                    update="instancesPanel tasksPanel"/>
+                        </p:selectOneMenu>
+                    </div>
+                    <h:panelGroup rendered="#{empty taskDelegationBean.processes}" layout="block">
+                        <div class="empty-state">
+                            <i class="pi pi-folder-open"/>
+                            <p>#{labels['td.noProcesses']}</p>
+                        </div>
+                    </h:panelGroup>
+                </p:panel>
+
+                <!-- ============ Step 2: process instances ============ -->
+                <p:panel id="instancesPanel" header="#{labels['td.instances']}"
+                         style="margin-top:16px;">
+                    <h:panelGroup rendered="#{empty taskDelegationBean.selectedProcessKey}" layout="block">
+                        <div class="empty-state">
+                            <i class="pi pi-sitemap"/>
+                            <p>#{labels['td.hint.selectProcess']}</p>
+                        </div>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty taskDelegationBean.selectedProcessKey}" layout="block">
+                    <div class="table-toolbar">
+                        <span class="nowrap" style="margin-inline-end:8px;">
+                            <span class="text-muted">#{labels['td.filter.instanceId']}:</span>
+                            <p:inputText id="instanceIdFilter" value="#{taskDelegationBean.instanceIdFilter}"
+                                         placeholder="#{labels['td.filter.instanceId']}"
+                                         style="margin-inline-start:4px;"/>
+                        </span>
+                        <span class="nowrap" style="margin-inline-end:8px;">
+                            <span class="text-muted">#{labels['common.creationDate']}:</span>
+                            <p:datePicker id="instanceDateFilter" value="#{taskDelegationBean.instanceCreatedOn}"
+                                          pattern="yyyy-MM-dd" showIcon="true" monthNavigator="true"
+                                          yearNavigator="true" style="margin-inline-start:4px;"/>
+                        </span>
+                        <p:commandButton value="#{labels['common.search']}" icon="pi pi-search"
+                                         action="#{taskDelegationBean.searchInstances}"
+                                         process="@form" update="instancesPanel"
+                                         styleClass="ui-button-outlined"/>
+                        <p:commandButton value="#{labels['common.reset']}" icon="pi pi-refresh"
+                                         action="#{taskDelegationBean.resetInstanceFilters}"
+                                         process="@form" update="instancesPanel"
+                                         styleClass="ui-button-secondary ui-button-outlined"/>
+                    </div>
+
+                    <p:dataTable id="instancesTable" value="#{taskDelegationBean.instances}" var="inst"
+                                 rowKey="#{inst.id}"
+                                 emptyMessage="#{labels['td.noInstances']}"
+                                 resizableColumns="true" reflow="true" size="small" paginator="false">
+                        <p:column headerText="#{labels['td.col.instanceId']}">
+                            <span class="text-muted">#{inst.id}</span>
+                        </p:column>
+                        <p:column headerText="#{labels['td.col.instanceName']}">
+                            <h:outputText value="#{empty inst.name ? '-' : inst.name}"/>
+                        </p:column>
+                        <p:column headerText="#{labels['td.col.startedBy']}">
+                            <i class="pi pi-user" style="margin-inline-end:6px;color:var(--pf-primary);"/>
+                            <h:outputText value="#{empty inst.startedBy ? '-' : inst.startedBy}"/>
+                        </p:column>
+                        <p:column headerText="#{labels['common.creationDate']}">
+                            <h:outputText value="#{inst.startTime}">
+                                <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                            </h:outputText>
+                        </p:column>
+                        <p:column headerText="#{labels['td.col.actions']}" styleClass="align-center">
+                            <p:commandButton value="#{labels['common.select']}" icon="pi pi-chevron-right"
+                                             action="#{taskDelegationBean.selectInstance(inst.id)}"
+                                             process="@form" update=":tdForm:instancesPanel :tdForm:tasksPanel"
+                                             styleClass="ui-button-sm ui-button-outlined"/>
+                        </p:column>
+                    </p:dataTable>
+
+                    <!-- Pagination -->
+                    <div class="action-bar" style="margin-top:12px;"
+                         rendered="#{taskDelegationBean.hasInstances}">
+                        <p:commandButton icon="pi pi-angle-double-left" title="#{labels['common.pager.first']}"
+                                         action="#{taskDelegationBean.firstInstancePage}"
+                                         process="@form" update="instancesPanel"
+                                         disabled="#{!taskDelegationBean.instanceHasPrevious}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                        <p:commandButton icon="pi pi-angle-left" title="#{labels['common.pager.previous']}"
+                                         action="#{taskDelegationBean.previousInstancePage}"
+                                         process="@form" update="instancesPanel"
+                                         disabled="#{!taskDelegationBean.instanceHasPrevious}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                        <span class="text-muted nowrap">#{taskDelegationBean.instanceRangeLabel}</span>
+                        <p:commandButton icon="pi pi-angle-right" title="#{labels['common.pager.next']}"
+                                         action="#{taskDelegationBean.nextInstancePage}"
+                                         process="@form" update="instancesPanel"
+                                         disabled="#{!taskDelegationBean.instanceHasNext}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                        <p:commandButton icon="pi pi-angle-double-right" title="#{labels['common.pager.last']}"
+                                         action="#{taskDelegationBean.lastInstancePage}"
+                                         process="@form" update="instancesPanel"
+                                         disabled="#{!taskDelegationBean.instanceHasNext}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                    </div>
+                    </h:panelGroup>
+                </p:panel>
+
+                <!-- ============ Step 3: active tasks of the selected instance ============ -->
+                <p:panel id="tasksPanel" header="#{labels['td.tasks']}"
+                         style="margin-top:16px;">
+                    <h:panelGroup rendered="#{empty taskDelegationBean.selectedInstance}" layout="block">
+                        <div class="empty-state">
+                            <i class="pi pi-list"/>
+                            <p>#{labels['td.hint.selectInstance']}</p>
+                        </div>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty taskDelegationBean.selectedInstance}" layout="block">
+                    <p class="page-sub">
+                        #{labels['td.selectedInstance']}: <strong>#{taskDelegationBean.selectedInstance.id}</strong>
+                    </p>
+
+                    <div class="table-toolbar">
+                        <span class="nowrap" style="margin-inline-end:8px;">
+                            <span class="text-muted">#{labels['td.filter.taskId']}:</span>
+                            <p:inputText id="taskIdFilter" value="#{taskDelegationBean.taskIdFilter}"
+                                         placeholder="#{labels['td.filter.taskId']}"
+                                         style="margin-inline-start:4px;"/>
+                        </span>
+                        <span class="nowrap" style="margin-inline-end:8px;">
+                            <span class="text-muted">#{labels['common.creationDate']}:</span>
+                            <p:datePicker id="taskDateFilter" value="#{taskDelegationBean.taskCreatedOn}"
+                                          pattern="yyyy-MM-dd" showIcon="true" monthNavigator="true"
+                                          yearNavigator="true" style="margin-inline-start:4px;"/>
+                        </span>
+                        <p:commandButton value="#{labels['common.search']}" icon="pi pi-search"
+                                         action="#{taskDelegationBean.searchTasks}"
+                                         process="@form" update="tasksPanel"
+                                         styleClass="ui-button-outlined"/>
+                        <p:commandButton value="#{labels['common.reset']}" icon="pi pi-refresh"
+                                         action="#{taskDelegationBean.resetTaskFilters}"
+                                         process="@form" update="tasksPanel"
+                                         styleClass="ui-button-secondary ui-button-outlined"/>
+                    </div>
+
+                    <p:dataTable id="tasksTable" value="#{taskDelegationBean.tasks}" var="task"
+                                 rowKey="#{task.id}"
+                                 emptyMessage="#{labels['td.noTasks']}"
+                                 resizableColumns="true" reflow="true" size="small" paginator="false">
+                        <p:column headerText="#{labels['td.col.taskId']}">
+                            <span class="text-muted">#{task.id}</span>
+                        </p:column>
+                        <p:column headerText="#{labels['td.col.taskName']}">
+                            <i class="pi pi-check-square" style="margin-inline-end:6px;color:var(--pf-primary);"/>
+                            <h:outputText value="#{task.name}"/>
+                        </p:column>
+                        <p:column headerText="#{labels['td.col.assignee']}">
+                            <h:outputText value="#{empty task.assigneeDisplay ? '-' : task.assigneeDisplay}"/>
+                        </p:column>
+                        <p:column headerText="#{labels['td.col.candidateGroup']}">
+                            <h:outputText value="#{empty task.candidateGroups ? '-' : task.candidateGroups}"/>
+                        </p:column>
+                        <p:column headerText="#{labels['common.creationDate']}">
+                            <h:outputText value="#{task.createTime}">
+                                <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                            </h:outputText>
+                        </p:column>
+                        <p:column headerText="#{labels['td.col.dueDate']}">
+                            <h:outputText value="-" rendered="#{empty task.dueDate}"/>
+                            <h:outputText value="#{task.dueDate}" rendered="#{not empty task.dueDate}">
+                                <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                            </h:outputText>
+                        </p:column>
+                        <p:column headerText="#{labels['td.col.actions']}" styleClass="align-center">
+                            <p:commandButton value="#{labels['td.delegate']}" icon="pi pi-share-alt"
+                                             action="#{taskDelegationBean.openDelegationDialog(task.id)}"
+                                             process="@form" update=":tdForm:delegationDialog"
+                                             oncomplete="PF('delegationDialogWidget').show()"
+                                             styleClass="ui-button-sm ui-button-outlined"/>
+                        </p:column>
+                    </p:dataTable>
+
+                    <!-- Pagination -->
+                    <div class="action-bar" style="margin-top:12px;"
+                         rendered="#{taskDelegationBean.hasTasks}">
+                        <p:commandButton icon="pi pi-angle-double-left" title="#{labels['common.pager.first']}"
+                                         action="#{taskDelegationBean.firstTaskPage}"
+                                         process="@form" update="tasksPanel"
+                                         disabled="#{!taskDelegationBean.taskHasPrevious}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                        <p:commandButton icon="pi pi-angle-left" title="#{labels['common.pager.previous']}"
+                                         action="#{taskDelegationBean.previousTaskPage}"
+                                         process="@form" update="tasksPanel"
+                                         disabled="#{!taskDelegationBean.taskHasPrevious}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                        <span class="text-muted nowrap">#{taskDelegationBean.taskRangeLabel}</span>
+                        <p:commandButton icon="pi pi-angle-right" title="#{labels['common.pager.next']}"
+                                         action="#{taskDelegationBean.nextTaskPage}"
+                                         process="@form" update="tasksPanel"
+                                         disabled="#{!taskDelegationBean.taskHasNext}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                        <p:commandButton icon="pi pi-angle-double-right" title="#{labels['common.pager.last']}"
+                                         action="#{taskDelegationBean.lastTaskPage}"
+                                         process="@form" update="tasksPanel"
+                                         disabled="#{!taskDelegationBean.taskHasNext}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                    </div>
+                    </h:panelGroup>
+                </p:panel>
+
+                <!-- ============ Steps 4-6: delegation dialog ============ -->
+                <p:dialog id="delegationDialog" header="#{labels['td.dialog.header']}"
+                          widgetVar="delegationDialogWidget" modal="true" resizable="true"
+                          dynamic="true" width="760" closable="true"
+                          showEffect="fade" hideEffect="fade">
+                    <p:fragment id="dialogContent">
+                        <p:messages id="dialogMessages" closable="true" autoUpdate="true"/>
+
+                        <dl class="detail-list" rendered="#{not empty taskDelegationBean.selectedTask}">
+                            <dt>#{labels['td.col.taskId']}</dt>
+                            <dd>#{taskDelegationBean.selectedTask.id}</dd>
+                            <dt>#{labels['td.col.taskName']}</dt>
+                            <dd>#{taskDelegationBean.selectedTask.name}</dd>
+                            <dt>#{labels['td.col.currentAssignee']}</dt>
+                            <dd>
+                                <h:outputText value="#{taskDelegationBean.selectedTask.assigneeDisplay}"
+                                              rendered="#{not empty taskDelegationBean.selectedTask.assignee}"/>
+                                <h:outputText value="-"
+                                              rendered="#{empty taskDelegationBean.selectedTask.assignee}"/>
+                            </dd>
+                        </dl>
+
+                        <div class="table-toolbar">
+                            <span class="nowrap" style="margin-inline-end:8px;">
+                                <span class="text-muted">#{labels['td.searchUser']}:</span>
+                                <p:inputText id="userSearch" value="#{taskDelegationBean.userSearchTerm}"
+                                             placeholder="#{labels['gm.searchPlaceholder']}"
+                                             style="margin-inline-start:4px;"/>
+                            </span>
+                            <p:commandButton value="#{labels['common.search']}" icon="pi pi-search"
+                                             action="#{taskDelegationBean.searchUsers}"
+                                             process="@form" update="dialogContent"
+                                             styleClass="ui-button-outlined"/>
+                        </div>
+
+                        <p:dataTable id="usersTable" value="#{taskDelegationBean.users}" var="u"
+                                     selection="#{taskDelegationBean.selectedUser}"
+                                     selectionMode="single" rowKey="#{u.id}"
+                                     emptyMessage="#{labels['common.noUsers']}"
+                                     resizableColumns="true" reflow="true" size="small" paginator="false">
+                            <p:ajax event="rowSelect" update=":tdForm:dialogContent"/>
+                            <p:ajax event="rowUnselect" update=":tdForm:dialogContent"/>
+
+                            <p:column headerText="#{labels['common.col.username']}">
+                                <i class="pi pi-user" style="margin-inline-end:6px;color:var(--pf-primary);"/>
+                                #{u.username}
+                            </p:column>
+                            <p:column headerText="#{labels['common.col.userId']}">
+                                <span class="text-muted">#{u.id}</span>
+                            </p:column>
+                            <p:column headerText="#{labels['common.col.firstName']}">
+                                #{u.firstName}
+                            </p:column>
+                            <p:column headerText="#{labels['common.col.lastName']}">
+                                #{empty u.lastName ? '-' : u.lastName}
+                            </p:column>
+                            <p:column headerText="#{labels['common.col.email']}">
+                                #{u.email}
+                            </p:column>
+                        </p:dataTable>
+
+                        <!-- Pagination -->
+                        <div class="action-bar" style="margin-top:12px;"
+                             rendered="#{taskDelegationBean.hasUsers}">
+                            <p:commandButton icon="pi pi-angle-double-left" title="#{labels['common.pager.first']}"
+                                             action="#{taskDelegationBean.firstUserPage}"
+                                             process="@form" update="dialogContent"
+                                             disabled="#{!taskDelegationBean.userHasPrevious}"
+                                             styleClass="ui-button-secondary ui-button-sm"/>
+                            <p:commandButton icon="pi pi-angle-left" title="#{labels['common.pager.previous']}"
+                                             action="#{taskDelegationBean.previousUserPage}"
+                                             process="@form" update="dialogContent"
+                                             disabled="#{!taskDelegationBean.userHasPrevious}"
+                                             styleClass="ui-button-secondary ui-button-sm"/>
+                            <span class="text-muted nowrap">#{taskDelegationBean.userRangeLabel}</span>
+                            <p:commandButton icon="pi pi-angle-right" title="#{labels['common.pager.next']}"
+                                             action="#{taskDelegationBean.nextPageUsers}"
+                                             process="@form" update="dialogContent"
+                                             disabled="#{!taskDelegationBean.userHasNext}"
+                                             styleClass="ui-button-secondary ui-button-sm"/>
+                            <p:commandButton icon="pi pi-angle-double-right" title="#{labels['common.pager.last']}"
+                                             action="#{taskDelegationBean.lastUserPage}"
+                                             process="@form" update="dialogContent"
+                                             disabled="#{!taskDelegationBean.userHasNext}"
+                                             styleClass="ui-button-secondary ui-button-sm"/>
+                        </div>
+
+                        <!-- New assignee confirmation (refreshes with the row selection) -->
+                        <h:panelGroup layout="block" rendered="#{not empty taskDelegationBean.selectedUser}"
+                                      style="margin-top:12px;">
+                            <span class="text-muted">#{labels['td.newAssignee']}:</span>
+                            <strong>#{taskDelegationBean.selectedUser.username} (#{taskDelegationBean.selectedUser.id})</strong>
+                        </h:panelGroup>
+                    </p:fragment>
+
+                    <!--
+                        NOTE: the footer facet must be a DIRECT child of p:dialog -
+                        nested inside p:fragment above it was never picked up, so
+                        the assign button never rendered at all.
+                    -->
+                    <f:facet name="footer">
+                        <p:commandButton value="#{labels['td.reassign']}" icon="pi pi-send"
+                                         action="#{taskDelegationBean.assign}"
+                                         process="@form"
+                                         update=":tdForm:tdMessages :tdForm:tasksPanel :tdForm:dialogContent"
+                                         styleClass="ui-button-success"/>
+                        <p:commandButton value="#{labels['common.cancel']}" icon="pi pi-times"
+                                         action="#{taskDelegationBean.closeDelegationDialog}"
+                                         process="@form" update=":tdForm:dialogContent"
+                                         oncomplete="PF('delegationDialogWidget').hide()"
+                                         styleClass="ui-button-secondary"/>
+                    </f:facet>
+                </p:dialog>
+            </h:form>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>
+</html>

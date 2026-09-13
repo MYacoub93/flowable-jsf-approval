@@ -144,6 +144,17 @@
         <include refid="userSearchCondition"/>
     </select>
 
+    <!-- Task Delegation: users behind a set of Flowable user ids (batch
+         assignee-id -> username resolution, one query per table page). -->
+    <select id="findUsersByIds" resultMap="externalUserMap">
+        SELECT ID_, USERNAME_, FIRST_NAME_, LAST_NAME_, EMAIL_, KEY_TYPE_, ROLE_CODE_
+        FROM FLOWABLE_USERS_VW
+        WHERE ID_ IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
     <select id="findUserByIdAndUserName" resultMap="externalUserMap">
         SELECT ID_, USERNAME_, FIRST_NAME_, LAST_NAME_, EMAIL_, KEY_TYPE_, ROLE_CODE_
         FROM FLOWABLE_USERS_VW

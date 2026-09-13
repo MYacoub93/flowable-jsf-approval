@@ -142,6 +142,10 @@ public final class ClearanceConstants {
     public static final String VAR_STUDENT_EMAIL = "studentEmail";
     public static final String VAR_STUDENT_GPA = "studentGPA";
     public static final String VAR_STUDENT_MOBILE = "studentMobile";
+    /** SIS keys of the initiating student - used to resolve the HOD / dean. */
+    public static final String VAR_STUDENT_FACULTY_NO = "studentFacultyNo";
+    public static final String VAR_STUDENT_DEPT_NO = "studentDeptNo";
+    public static final String VAR_STUDENT_CAMPUS_NO = "studentCampusNo";
     public static final String VAR_ACADEMIC_YEAR = "academicYear";
 
     public static final String VAR_PROGRAM = "program";

@@ -51,6 +51,9 @@ public interface ExternalGroupMapper {
     /** Total users matching the same filter as {@link #findUsersPage}. */
     long countUsers(@Param("searchTerm") String searchTerm);
 
+    /** Users behind a set of Flowable user ids (batch id -> username). */
+    List<ExternalUser> findUsersByIds(@Param("ids") List<String> ids);
+
     /** One user of the view by numeric id (validation before insert). */
     ExternalUser findUserByIdAndUserName(@Param("userId") long userId,@Param("userName") String userName);
 

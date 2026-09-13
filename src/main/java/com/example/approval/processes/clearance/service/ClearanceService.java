@@ -93,6 +93,12 @@ public class ClearanceService {
         vars.put(VAR_STUDENT_GPA, sis.getCumStudentGPA());
         vars.put(VAR_STUDENT_MOBILE, sis.getMobile());
         vars.put(VAR_ACADEMIC_YEAR, sis.getAcademicYear());
+        // SIS keys needed to resolve the single HOD / dean approver on the
+        // HOD / DEN department tasks (ClearanceTaskListener) - read-only,
+        // may be null, never influence routing
+        vars.put(VAR_STUDENT_FACULTY_NO, sis.getFacultyNo());
+        vars.put(VAR_STUDENT_DEPT_NO, sis.getDeptNo());
+        vars.put(VAR_STUDENT_CAMPUS_NO, sis.getCampusNo());
         return processStartService.startProcess(PROCESS_KEY, username, vars);
     }
 
