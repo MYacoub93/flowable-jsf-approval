@@ -181,4 +181,25 @@
         WHERE UPPER(DOCUMENT_NAME) = UPPER(#{documentName})
     </select>
 
+    <!-- ================================================================ -->
+    <!-- My Cases: "Cases I Approved" - audit rows recorded by a user     -->
+    <!-- (ENTRY_USER holds the numeric id of the acting user, resolved    -->
+    <!-- from the logged-in username via FLOWABLE_USERS_VW).              -->
+    <!-- ================================================================ -->
+
+    <select id="findCaseIdsActedByUser" resultType="string">
+        SELECT CASE_ID
+        FROM F_BPM_AUDIT_LOG_DTL
+        WHERE ENTRY_USER = #{entryUser, jdbcType=INTEGER}
+        GROUP BY CASE_ID
+        ORDER BY MAX(ENTRY_DATE) DESC
+    </select>
+
+    <select id="countActionsByUserOnCase" resultType="long">
+        SELECT COUNT(*)
+        FROM F_BPM_AUDIT_LOG_DTL
+        WHERE ENTRY_USER = #{entryUser, jdbcType=INTEGER}
+          AND CASE_ID = #{caseId, jdbcType=VARCHAR}
+    </select>
+
 </mapper>

@@ -94,4 +94,25 @@ public interface BpmAuditMapper {
 
     /** DOCUMENT_CODE of a process definition key, resolved via BPM_DOCUMENTS mapping. */
     Integer findDocumentCode(@Param("documentName") String documentName);
+
+    // ------------------------------------------------------------------
+    // My Cases: "Cases I Approved" (audit rows recorded by a user)
+    // ------------------------------------------------------------------
+
+    /**
+     * The distinct case ids ({@code CASE_ID} = Flowable process instance id)
+     * on which the user recorded at least one action, most recently acted-on
+     * case first. Used by the read-only "Cases I Approved" tab of My Cases
+     * ({@code ENTRY_USER} restriction in SQL; the caller paginates the ids
+     * and hydrates only one page through the Flowable Query API).
+     */
+    List<String> findCaseIdsActedByUser(@Param("entryUser") Integer entryUser);
+
+    /**
+     * Number of audit rows the user recorded on one specific case - the
+     * server-side check that a user may open a case they acted on (even
+     * when started by someone else) in the My Cases details dialog.
+     */
+    long countActionsByUserOnCase(@Param("entryUser") Integer entryUser,
+                                  @Param("caseId") String caseId);
 }

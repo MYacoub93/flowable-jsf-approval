@@ -384,6 +384,7 @@ body.sb-collapsed .app-main {
 .status.inprogress { background: #e8effd; color: #1e4fc4; }
 .status.approved   { background: #e3f6ec; color: #10704a; }
 .status.rejected   { background: #fde7e7; color: #9c2f2f; }
+.status.cancelled  { background: #fdf0e7; color: #9c5a2f; }
 .status.completed  { background: #e6ecf7; color: #33507c; }
 .status.info       { background: #e8effd; color: #1e4fc4; }
 
@@ -733,3 +734,61 @@ body.sb-collapsed .app-main {
 .mb-0 { margin-bottom: 0 !important; }
 .w-full { width: 100%; }
 .nowrap { white-space: nowrap; }
+
+/* ===== My Cases ===== */
+/* Case-details dialog: tab panels scroll inside the dialog instead of
+   stretching it beyond the viewport. Logical properties keep RTL intact. */
+.mc-details-tabs .ui-tabs-panels {
+    overflow: auto;
+    max-height: min(60vh, 520px);
+    overscroll-behavior: contain;
+}
+/* Read-only diagram container (image scrolls when the BPMN is wide) */
+.mc-diagram {
+    overflow: auto;
+    max-height: 420px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px;
+    background: #fff;
+}
+/* Chronological timeline of one case (flex; flips automatically in RTL) */
+.mc-timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.mc-timeline-item {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px dashed #e2e8f0;
+}
+.mc-timeline-item:last-child { border-bottom: none; }
+.mc-timeline-time {
+    min-width: 150px;
+    color: var(--pf-text-muted, #64748b);
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+.mc-timeline-title {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.mc-timeline-detail {
+    color: var(--pf-text-muted, #64748b);
+    font-size: 0.9em;
+    margin-top: 2px;
+}
+.mc-type-started i       { color: #1e4fc4; }
+.mc-type-completed i     { color: #10704a; }
+.mc-type-taskCreated i   { color: #9a6206; }
+.mc-type-taskCompleted i { color: #10704a; }
+.mc-type-audit i         { color: #64748b; }
+@media (max-width: 640px) {
+    .mc-timeline-item { flex-direction: column; gap: 2px; }
+    .mc-timeline-time { min-width: 0; }
+}

@@ -1,0 +1,427 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
+<f:metadata>
+    <f:viewAction action="#{myCasesBean.init}"/>
+</f:metadata>
+<ui:composition template="/templates/portal.xhtml">
+    <ui:param name="activeMenu" value="my-cases"/>
+
+    <ui:define name="title">#{labels['mc.browserTitle']} - #{labels['app.title']}</ui:define>
+    <ui:define name="pageTitle">#{labels['mc.pageTitle']}</ui:define>
+
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <div class="empty-state">
+                <i class="pi pi-lock"/>
+                <div class="empty-title">#{labels['login.notSignedIn.title']}</div>
+                <p>#{labels['mc.notSignedIn.text']}</p>
+                <p:button outcome="/login" value="#{labels['login.goToSignIn']}" icon="pi pi-sign-in"/>
+            </div>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
+            <div class="page-head">
+                <div>
+                    <h1>#{labels['mc.pageTitle']}</h1>
+                    <p class="page-sub">#{labels['mc.pageSub']}</p>
+                </div>
+                <div class="spacer"/>
+                <p:button outcome="/dashboard" value="#{labels['menu.dashboard']}" icon="pi pi-home"
+                          styleClass="ui-button-secondary ui-button-sm"/>
+            </div>
+
+            <h:form id="mcForm">
+                <p:messages id="mcMessages" closable="true" autoUpdate="true"/>
+
+                <!-- ============ Case listing (read-only follow-up) ============ -->
+                <p:panel id="mcCasesPanel" header="#{labels['mc.pageTitle']}">
+                    <!-- process filter -->
+                    <div class="table-toolbar">
+                        <span class="text-muted nowrap" style="margin-inline-end:8px;">#{labels['mc.process']}:</span>
+                        <p:selectOneMenu id="mcProcessSelect" value="#{myCasesBean.selectedProcessKey}"
+                                         style="min-width:280px;">
+                            <f:selectItem itemLabel="#{labels['mc.allProcesses']}" noSelectionOption="true"
+                                          itemValue=""/>
+                            <f:selectItems value="#{myCasesBean.processes}" var="proc"
+                                           itemLabel="#{proc.label}" itemValue="#{proc.key}"/>
+                            <p:ajax event="change" listener="#{myCasesBean.onProcessChange}"
+                                    update="mcCasesPanel"/>
+                        </p:selectOneMenu>
+                        <!-- status filter (server-side enforced by
+                             finished()/unfinished()/deleted() criteria) -->
+                        <span class="text-muted nowrap" style="margin-inline-start:16px;margin-inline-end:8px;">#{labels['mc.col.status']}:</span>
+                        <p:selectOneMenu id="mcStatusSelect" value="#{myCasesBean.selectedStatus}"
+                                         style="min-width:160px;">
+                            <f:selectItems value="#{myCasesBean.statusOptions}" var="status"
+                                           itemLabel="#{myCasesBean.statusCaptionOf(status)}"
+                                           itemValue="#{status}"/>
+                            <p:ajax event="change" listener="#{myCasesBean.onStatusChange}"
+                                    update="mcCasesPanel"/>
+                        </p:selectOneMenu>
+                        <p:commandButton value="#{labels['common.refresh']}" icon="pi pi-refresh"
+                                         action="#{myCasesBean.refresh}"
+                                         process="@form" update="mcCasesPanel"
+                                         styleClass="ui-button-secondary ui-button-sm ui-button-outlined"
+                                         style="margin-inline-start:8px;"/>
+                    </div>
+
+                    <!-- cases table: only instances started by the logged-in user
+                         (server-side enforced by HistoricProcessInstanceQuery.startedBy) -->
+                    <p:dataTable id="mcCasesTable" value="#{myCasesBean.cases}" var="caseRow"
+                                 rowKey="#{caseRow.id}"
+                                 emptyMessage="#{labels['mc.noCases']}"
+                                 resizableColumns="true" reflow="true" size="small" paginator="false">
+                        <p:column headerText="#{labels['mc.col.caseId']}">
+                            <span class="text-muted">#{caseRow.id}</span>
+                        </p:column>
+                        <p:column headerText="#{labels['mc.col.processName']}">
+                            <h:outputText value="#{empty caseRow.processName ? '-' : caseRow.processName}"/>
+                        </p:column>
+                        <p:column headerText="#{labels['mc.col.definition']}">
+                            <h:outputText value="#{caseRow.definitionDisplay}"/>
+                        </p:column>
+                        <p:column headerText="#{labels['mc.col.started']}">
+                            <h:outputText value="#{caseRow.startTime}">
+                                <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                            </h:outputText>
+                        </p:column>
+                        <p:column headerText="#{labels['mc.col.status']}">
+                            <span class="status #{caseRow.statusKey}">
+                                <span class="dot"/>#{myCasesBean.statusOf(caseRow)}
+                            </span>
+                        </p:column>
+                        <p:column headerText="#{labels['mc.col.actions']}" styleClass="align-center">
+                            <p:commandButton value="#{labels['mc.viewDetails']}" icon="pi pi-eye"
+                                             action="#{myCasesBean.selectCase(caseRow.id)}"
+                                             process="@form"
+                                             update=":mcForm:mcMessages :mcForm:caseDialogContent"
+                                             oncomplete="PF('caseDetailsDialog').show()"
+                                             styleClass="ui-button-sm ui-button-outlined"/>
+                        </p:column>
+                    </p:dataTable>
+
+                    <!-- Pagination (server-side; same pager as the other pages) -->
+                    <ui:fragment rendered="#{myCasesBean.hasCases}">
+                    <div class="action-bar" style="margin-top:12px;">
+                        <p:commandButton icon="pi pi-angle-double-left" title="#{labels['common.pager.first']}"
+                                         action="#{myCasesBean.firstPage}"
+                                         process="@form" update="mcCasesPanel"
+                                         disabled="#{!myCasesBean.hasPrevious}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                        <p:commandButton icon="pi pi-angle-left" title="#{labels['common.pager.previous']}"
+                                         action="#{myCasesBean.previousPage}"
+                                         process="@form" update="mcCasesPanel"
+                                         disabled="#{!myCasesBean.hasPrevious}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                        <span class="text-muted nowrap">#{myCasesBean.rangeLabel}</span>
+                        <p:commandButton icon="pi pi-angle-right" title="#{labels['common.pager.next']}"
+                                         action="#{myCasesBean.nextPage}"
+                                         process="@form" update="mcCasesPanel"
+                                         disabled="#{!myCasesBean.hasNext}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                        <p:commandButton icon="pi pi-angle-double-right" title="#{labels['common.pager.last']}"
+                                         action="#{myCasesBean.lastPage}"
+                                         process="@form" update="mcCasesPanel"
+                                          disabled="#{!myCasesBean.hasNext}"
+                                          styleClass="ui-button-secondary ui-button-sm"/>
+                    </div>
+                    </ui:fragment>
+                </p:panel>
+
+                <!-- ============ Cases I Approved (audit-backed, read-only) ============ -->
+                <p:panel id="mcApprovedPanel" header="#{labels['mc.approvedTitle']}"
+                         style="margin-top:16px;">
+                    <p class="page-sub" style="margin-top:0;margin-bottom:10px;">#{labels['mc.approvedSub']}</p>
+
+                    <!-- approved cases table: only cases the logged-in user recorded an
+                         audit action on (ENTRY_USER restriction, server-side enforced) -->
+                    <p:dataTable id="mcApprovedTable" value="#{myCasesBean.approvedCases}" var="approvedRow"
+                                 rowKey="#{approvedRow.id}"
+                                 emptyMessage="#{labels['mc.noApprovedCases']}"
+                                 resizableColumns="true" reflow="true" size="small" paginator="false">
+                        <p:column headerText="#{labels['mc.col.caseId']}">
+                            <span class="text-muted">#{approvedRow.id}</span>
+                        </p:column>
+                        <p:column headerText="#{labels['mc.col.processName']}">
+                            <h:outputText value="#{empty approvedRow.processName ? '-' : approvedRow.processName}"/>
+                        </p:column>
+                        <p:column headerText="#{labels['mc.col.definition']}">
+                            <h:outputText value="#{approvedRow.definitionDisplay}"/>
+                        </p:column>
+                        <p:column headerText="#{labels['mc.startedBy']}">
+                            <h:outputText value="#{empty approvedRow.startedByDisplay
+                                 ? approvedRow.startedBy : approvedRow.startedByDisplay}"/>
+                        </p:column>
+                        <p:column headerText="#{labels['mc.col.started']}">
+                            <h:outputText value="#{approvedRow.startTime}">
+                                <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                            </h:outputText>
+                        </p:column>
+                        <p:column headerText="#{labels['mc.col.status']}">
+                            <span class="status #{approvedRow.statusKey}">
+                                <span class="dot"/>#{myCasesBean.statusOf(approvedRow)}
+                            </span>
+                        </p:column>
+                        <p:column headerText="#{labels['mc.col.actions']}" styleClass="align-center">
+                            <p:commandButton value="#{labels['mc.viewDetails']}" icon="pi pi-eye"
+                                             action="#{myCasesBean.selectCase(approvedRow.id)}"
+                                             process="@form"
+                                             update=":mcForm:mcMessages :mcForm:caseDialogContent"
+                                             oncomplete="PF('caseDetailsDialog').show()"
+                                             styleClass="ui-button-sm ui-button-outlined"/>
+                        </p:column>
+                    </p:dataTable>
+
+                    <!-- Pagination (server-side; same pager as the other pages) -->
+                    <ui:fragment rendered="#{myCasesBean.hasApprovedCases}">
+                    <div class="action-bar" style="margin-top:12px;">
+                        <p:commandButton icon="pi pi-angle-double-left" title="#{labels['common.pager.first']}"
+                                         action="#{myCasesBean.approvedFirstPage}"
+                                         process="@form" update="mcApprovedPanel"
+                                         disabled="#{!myCasesBean.approvedHasPrevious}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                        <p:commandButton icon="pi pi-angle-left" title="#{labels['common.pager.previous']}"
+                                         action="#{myCasesBean.approvedPreviousPage}"
+                                         process="@form" update="mcApprovedPanel"
+                                         disabled="#{!myCasesBean.approvedHasPrevious}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                        <span class="text-muted nowrap">#{myCasesBean.approvedRangeLabel}</span>
+                        <p:commandButton icon="pi pi-angle-right" title="#{labels['common.pager.next']}"
+                                         action="#{myCasesBean.approvedNextPage}"
+                                         process="@form" update="mcApprovedPanel"
+                                         disabled="#{!myCasesBean.approvedHasNext}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                        <p:commandButton icon="pi pi-angle-double-right" title="#{labels['common.pager.last']}"
+                                         action="#{myCasesBean.approvedLastPage}"
+                                         process="@form" update="mcApprovedPanel"
+                                         disabled="#{!myCasesBean.approvedHasNext}"
+                                         styleClass="ui-button-secondary ui-button-sm"/>
+                    </div>
+                    </ui:fragment>
+                </p:panel>
+
+                <!-- ============ Case details dialog (read-only, lazy-loaded) ============ -->
+                <p:dialog id="caseDialog" header="#{labels['mc.dialog.header']}"
+                          widgetVar="caseDetailsDialog" modal="true" resizable="true"
+                          width="900" closeOnEscape="true" dynamic="true">
+                    <p:fragment id="caseDialogContent">
+                        <p:messages id="caseDialogMessages" closable="true" autoUpdate="true"/>
+
+                        <h:panelGroup rendered="#{empty myCasesBean.selectedCase}" layout="block">
+                            <div class="empty-state">
+                                <i class="pi pi-folder-open"/>
+                                <p>#{labels['mc.error.caseNotFound']}</p>
+                            </div>
+                        </h:panelGroup>
+
+                        <h:panelGroup rendered="#{not empty myCasesBean.selectedCase}" layout="block">
+                            <!-- mc-details-tabs: panels scroll inside the dialog instead of
+                                 stretching it beyond the viewport (see portal.css) -->
+                            <p:tabView styleClass="mc-details-tabs">
+                                <!-- ===== 1. Case Overview ===== -->
+                                <p:tab title="#{labels['mc.tab.overview']}">
+                                    <dl class="detail-list">
+                                        <dt>#{labels['mc.caseId']}</dt>
+                                        <dd>#{myCasesBean.selectedCase.id}</dd>
+                                        <dt>#{labels['mc.col.processName']}</dt>
+                                        <dd>#{myCasesBean.selectedCase.processName}</dd>
+                                        <dt>#{labels['mc.col.definition']}</dt>
+                                        <dd>#{myCasesBean.selectedCase.definitionDisplay}</dd>
+                                        <dt>#{labels['mc.startedBy']}</dt>
+                                        <dd>
+                                            <i class="pi pi-user" style="margin-inline-end:6px;color:var(--pf-primary);"/>
+                                            #{myCasesBean.selectedCase.startedByDisplay}
+                                        </dd>
+                                        <dt>#{labels['mc.col.started']}</dt>
+                                        <dd>
+                                            <h:outputText value="#{myCasesBean.selectedCase.startTime}">
+                                                <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                                            </h:outputText>
+                                        </dd>
+                                        <dt>#{labels['mc.endDate']}</dt>
+                                        <dd>
+                                            <h:outputText value="#{myCasesBean.selectedCase.endTime}"
+                                                          rendered="#{not empty myCasesBean.selectedCase.endTime}">
+                                                <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                                            </h:outputText>
+                                            <h:outputText value="-"
+                                                          rendered="#{empty myCasesBean.selectedCase.endTime}"/>
+                                        </dd>
+                                        <dt>#{labels['mc.col.status']}</dt>
+                                        <dd>
+                                            <span class="status #{myCasesBean.selectedCase.statusKey}">
+                                                <span class="dot"/>#{myCasesBean.statusOf(myCasesBean.selectedCase)}
+                                            </span>
+                                        </dd>
+                                        <dt>#{labels['mc.businessKey']}</dt>
+                                        <dd>#{empty myCasesBean.selectedCase.businessKey
+                                             ? '-' : myCasesBean.selectedCase.businessKey}</dd>
+                                        <dt>#{labels['mc.currentActivity']}</dt>
+                                        <dd>#{myCasesBean.currentActivitiesDisplay}</dd>
+                                    </dl>
+                                </p:tab>
+
+                                <!-- ===== 2. Ongoing / active tasks ===== -->
+                                <p:tab title="#{labels['mc.tab.tasks']}">
+                                    <p:dataTable id="activeTasksTable" value="#{myCasesBean.activeTasks}" var="task"
+                                                 rowKey="#{task.id}"
+                                                 emptyMessage="#{labels['mc.noActiveTasks']}"
+                                                 resizableColumns="true" reflow="true" size="small"
+                                                 paginator="false">
+                                        <p:column headerText="#{labels['mc.task.col.taskId']}">
+                                            <span class="text-muted">#{task.id}</span>
+                                        </p:column>
+                                        <p:column headerText="#{labels['mc.task.col.taskName']}">
+                                            <h:outputText value="#{empty task.name ? '-' : task.name}"/>
+                                        </p:column>
+                                        <p:column headerText="#{labels['mc.task.col.assignee']}">
+                                            <h:panelGroup rendered="#{not empty task.assignee}" layout="inline">
+                                                <i class="pi pi-user" style="margin-inline-end:6px;color:var(--pf-primary);"/>
+                                                <h:outputText value="#{task.assigneeDisplay}"/>
+                                            </h:panelGroup>
+                                            <h:panelGroup rendered="#{empty task.assignee}" layout="inline">
+                                                <span class="text-muted">#{labels['mc.unassigned']}</span>
+                                            </h:panelGroup>
+                                        </p:column>
+                                        <p:column headerText="#{labels['mc.task.col.assignedDate']}">
+                                            <h:outputText value="#{task.claimTime}">
+                                                <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                                            </h:outputText>
+                                        </p:column>
+                                        <p:column headerText="#{labels['mc.task.col.candidateGroup']}">
+                                            <h:outputText value="#{empty task.candidateGroups ? '-' : task.candidateGroups}"/>
+                                        </p:column>
+                                        <p:column headerText="#{labels['mc.task.col.createdDate']}">
+                                            <h:outputText value="#{task.createTime}">
+                                                <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                                            </h:outputText>
+                                        </p:column>
+                                        <p:column headerText="#{labels['mc.task.col.dueDate']}">
+                                            <h:outputText value="#{task.dueDate}">
+                                                <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                                            </h:outputText>
+                                        </p:column>
+                                    </p:dataTable>
+                                </p:tab>
+
+                                <!-- ===== 3. Process variables ===== -->
+                                <p:tab title="#{labels['mc.tab.variables']}">
+                                    <p:dataTable id="variablesTable" value="#{myCasesBean.variables}" var="variable"
+                                                 rowKey="#{variable.name}"
+                                                 emptyMessage="#{labels['mc.noVariables']}"
+                                                 resizableColumns="true" reflow="true" size="small"
+                                                 paginator="false">
+                                        <p:column headerText="#{labels['mc.var.col.name']}">
+                                            #{variable.name}
+                                        </p:column>
+                                        <p:column headerText="#{labels['mc.var.col.value']}">
+                                            <h:outputText value="#{variable.value}" escape="true"/>
+                                        </p:column>
+                                        <p:column headerText="#{labels['mc.var.col.type']}">
+                                            <span class="text-muted">#{variable.type}</span>
+                                        </p:column>
+                                    </p:dataTable>
+                                </p:tab>
+
+                                <!-- ===== 4. Process diagram (read-only) ===== -->
+                                <p:tab title="#{labels['mc.tab.diagram']}">
+                                    <p class="text-muted" style="margin-bottom:8px;">
+                                        <i class="pi pi-info-circle" style="margin-inline-end:4px;"/>
+                                        #{labels['mc.diagram.hint']}
+                                    </p>
+                                    <div class="mc-diagram">
+                                        <p:graphicImage url="#{myCasesBean.diagramUrl}"
+                                                        style="max-width:100%;height:auto;"/>
+                                    </div>
+                                </p:tab>
+
+                                <!-- ===== 5. Timeline ===== -->
+                                <p:tab title="#{labels['mc.tab.timeline']}">
+                                    <h:panelGroup rendered="#{empty myCasesBean.timeline}" layout="block">
+                                        <div class="empty-state">
+                                            <i class="pi pi-history"/>
+                                            <p>#{labels['mc.noTimelineEvents']}</p>
+                                        </div>
+                                    </h:panelGroup>
+                                    <ui:fragment rendered="#{not empty myCasesBean.timeline}">
+                                    <ul class="mc-timeline">
+                                        <ui:repeat value="#{myCasesBean.timeline}" var="event">
+                                            <li class="mc-timeline-item mc-type-#{event.typeKey}">
+                                                <div class="mc-timeline-time">
+                                                    <h:outputText value="#{event.timestamp}">
+                                                        <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                                                    </h:outputText>
+                                                </div>
+                                                <div class="mc-timeline-body">
+                                                    <div class="mc-timeline-title">
+                                                        <i class="pi #{event.typeKey == 'started' ? 'pi-play'
+                                                                        : event.typeKey == 'completed' ? 'pi-check-circle'
+                                                                        : event.typeKey == 'taskCreated' ? 'pi-plus-circle'
+                                                                        : event.typeKey == 'taskCompleted' ? 'pi-check'
+                                                                        : 'pi-clock'}"/>
+                                                        #{myCasesBean.typeCaptionOf(event)}:
+                                                        #{empty event.title ? '' : event.title}
+                                                    </div>
+                                                    <ui:fragment rendered="#{not empty event.detail}">
+                                                        <div class="mc-timeline-detail">
+                                                            <h:outputText value="#{event.detail}" escape="true"/>
+                                                        </div>
+                                                    </ui:fragment>
+                                                </div>
+                                            </li>
+                                        </ui:repeat>
+                                    </ul>
+                                    </ui:fragment>
+                                </p:tab>
+
+                                <!-- ===== 6. My Decisions (audit rows of the logged-in user) ===== -->
+                                <p:tab title="#{labels['mc.tab.decisions']}">
+                                    <p:dataTable id="myDecisionsTable" value="#{myCasesBean.myDecisions}"
+                                                 var="decision"
+                                                 emptyMessage="#{labels['mc.noDecisions']}"
+                                                 resizableColumns="true" reflow="true" size="small"
+                                                 paginator="false">
+                                        <p:column headerText="#{labels['mc.decision.col.date']}">
+                                            <h:outputText value="#{decision.date}">
+                                                <f:convertDateTime type="date" pattern="yyyy-MM-dd HH:mm"/>
+                                            </h:outputText>
+                                        </p:column>
+                                        <p:column headerText="#{labels['mc.decision.col.action']}">
+                                            <span class="status #{decision.actionKey == 'approved' ? 'completed'
+                                                            : decision.actionKey == 'rejected' ? 'cancelled'
+                                                            : 'inprogress'}">
+                                                <span class="dot"/>#{myCasesBean.decisionCaptionOf(decision)}
+                                            </span>
+                                        </p:column>
+                                        <p:column headerText="#{labels['mc.decision.col.description']}">
+                                            <h:outputText value="#{decision.actionDescription}" escape="true"/>
+                                        </p:column>
+                                        <p:column headerText="#{labels['mc.decision.col.note']}">
+                                            <h:outputText value="#{empty decision.note ? '-' : decision.note}"
+                                                          escape="true"/>
+                                        </p:column>
+                                    </p:dataTable>
+                                </p:tab>
+                            </p:tabView>
+                        </h:panelGroup>
+                    </p:fragment>
+
+                    <!-- NOTE: the footer facet must be a DIRECT child of p:dialog -
+                         the same convention as task-delegation.xhtml. -->
+                    <f:facet name="footer">
+                        <p:commandButton value="#{labels['common.close']}" icon="pi pi-times"
+                                         action="#{myCasesBean.closeCase}"
+                                         process="@form" update=":mcForm:mcMessages"
+                                         oncomplete="PF('caseDetailsDialog').hide()"
+                                         styleClass="ui-button-secondary"/>
+                    </f:facet>
+                </p:dialog>
+            </h:form>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>
+</html>

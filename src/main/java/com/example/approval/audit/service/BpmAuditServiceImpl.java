@@ -262,6 +262,36 @@ public class BpmAuditServiceImpl implements BpmAuditService {
         };
     }
 
+    // ------------------------------------------------------------------
+    // Read-side queries for My Cases ("Cases I Approved")
+    // ------------------------------------------------------------------
+
+    @Override
+    public List<String> findCaseIdsActedByUser(String username) {
+        Integer numericUserId = numericUserOf(username);
+        if (numericUserId == null || numericUserId == 0) {
+            return List.of();
+        }
+        return bpmAuditMapper.findCaseIdsActedByUser(numericUserId);
+    }
+
+    @Override
+    public boolean hasUserActedOnCase(String username, String caseId) {
+        if (username == null || username.isBlank() || caseId == null || caseId.isBlank()) {
+            return false;
+        }
+        Integer numericUserId = numericUserOf(username);
+        if (numericUserId == null || numericUserId == 0) {
+            return false;
+        }
+        return bpmAuditMapper.countActionsByUserOnCase(numericUserId, caseId.trim()) > 0;
+    }
+
+    @Override
+    public Integer resolveNumericUserId(String username) {
+        return numericUserOf(username);
+    }
+
     private Integer numericUserOf(String username) {
         if (username == null || username.isBlank()) {
             return null;

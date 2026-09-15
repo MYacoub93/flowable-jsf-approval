@@ -139,4 +139,31 @@ public interface BpmAuditService {
 
     /** All audit detail rows ({@code F_BPM_AUDIT_LOG_DTL}) of a case, oldest first. */
     List<BpmAuditLogDtl> findDetailsOfProcessInstance(String processInstanceId);
+
+    // ------------------------------------------------------------------
+    // Read-side queries for My Cases ("Cases I Approved")
+    // ------------------------------------------------------------------
+
+    /**
+     * The distinct case ids ({@code CASE_ID} = Flowable process instance id)
+     * on which the given username recorded at least one audit action
+     * ({@code ENTRY_USER}), most recently acted-on case first. The username
+     * is resolved to its numeric business id through
+     * {@code FLOWABLE_USERS_VW}; an unresolvable user yields an empty list.
+     */
+    List<String> findCaseIdsActedByUser(String username);
+
+    /**
+     * Whether the given username recorded at least one audit action on the
+     * case - the server-side ownership check that lets a user open a case
+     * they acted on in the My Cases details dialog.
+     */
+    boolean hasUserActedOnCase(String username, String caseId);
+
+    /**
+     * The numeric business user id ({@code FLOWABLE_USERS_VW.ID_}) behind a
+     * Flowable username, or {@code null} when unresolvable. Exposed so other
+     * services can query the audit tables without duplicating the lookup.
+     */
+    Integer resolveNumericUserId(String username);
 }

@@ -1,4 +1,4 @@
-<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+﻿<ui:composition xmlns="http://www.w3.org/1999/xhtml"
                       xmlns:h="jakarta.faces.html"
                       xmlns:ui="jakarta.faces.facelets">
     <!-- Side menu: brand, role-aware navigation, sign-out lives in the header.
@@ -17,6 +17,13 @@
                 </h:link>
                 <h:link outcome="/processes" styleClass="nav-item #{activeMenu == 'processes' ? 'active' : ''}">
                     <i class="pi pi-list"/><span>#{labels['menu.processes']}</span>
+                </h:link>
+
+                <!-- Read-only follow-up of the process instances the logged-in
+                     user started; ownership enforced server-side in
+                     MyCasesService on every query. -->
+                <h:link outcome="/my-cases" styleClass="nav-item #{activeMenu == 'my-cases' ? 'active' : ''}">
+                    <i class="pi pi-briefcase"/><span>#{labels['menu.myCases']}</span>
                 </h:link>
                 <div class="nav-label">#{labels['menu.requests']}</div>
                 <h:link outcome="/start-clearance" styleClass="nav-item #{activeMenu == 'start-clearance' ? 'active' : ''}">
