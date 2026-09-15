@@ -26,7 +26,9 @@ import static com.example.approval.processes.clearance.ClearanceConstants.*;
  * <ul>
  *   <li><b>create</b> - sends the "task is waiting" e-mail via
  *       {@link NotificationService} and writes the {@code TASK_ASSIGNED}
- *       audit row via {@link BpmAuditService};</li>
+ *       audit row via {@link BpmAuditService}. Approval tasks mail their
+ *       candidate group (or the single assigned approver); the amendment
+ *       task mails the initiator directly;</li>
  *   <li><b>complete</b> - writes the {@code APPROVED}/{@code REJECTED} audit
  *       row, stores the {@link DepartmentDecision} in the
  *       {@code departmentDecisions} map and raises
@@ -100,7 +102,7 @@ public class ClearanceTaskListener implements TaskListener {
     private void onCreated(DelegateTask task) {
         String stage = stageOf(task);
         String department = departmentOf(task, stage);
-        String candidateGroup = candidateGroupOf(task, department);
+        String candidateGroup = candidateGroupOf(task, stage, department);
         String initiator = str(task.getVariable(VAR_INITIATOR));
         String pid = task.getProcessInstanceId();
 
@@ -118,10 +120,12 @@ public class ClearanceTaskListener implements TaskListener {
         auditService.logTaskAssigned(pid, stage, department, candidateGroup,
                 task.getId(), taskNoteOf(task), initiator);
 
-        // then the notification e-mail (only for approval tasks, not for the
-        // initiator's own amendment/result tasks)
-        boolean notifyApprover = !TASK_AMEND.equals(task.getTaskDefinitionKey());
-        if (notifyApprover) {
+        // then the notification e-mail: approval tasks notify their group /
+        // single assignee, the initiator's own amendment task notifies
+        // exactly the initiator that the request was rejected and returned
+        if (TASK_AMEND.equals(task.getTaskDefinitionKey())) {
+            notifyInitiatorOfAmendment(task, stage, initiator, pid);
+        } else {
             notificationService.send(NotificationMessage.builder()
                     .type(NotificationMessage.Type.TASK_ASSIGNED)
                     .processKey(PROCESS_KEY)
@@ -143,6 +147,37 @@ public class ClearanceTaskListener implements TaskListener {
         }
         log.debug("Clearance task {} created for stage {} / department {}",
                 task.getId(), stage, department);
+    }
+
+    /**
+     * The amendment task belongs to the initiator alone (BPMN
+     * {@code flowable:assignee="${initiator}"}), so exactly that one person
+     * is notified that a rejection returned the request for amendment.
+     *
+     * <p>The message deliberately carries <b>no</b> {@code candidateGroup} /
+     * {@code department} - the initiator is a user, not a SIS group, so the
+     * e-mail resolves through {@code recipientUser} (personal address from
+     * {@code FLOWABLE_USERS_VW}), never through a group lookup.</p>
+     */
+    private void notifyInitiatorOfAmendment(DelegateTask task, String stage,
+            String initiator, String pid) {
+        String rejectedBy = str(task.getVariable(VAR_LAST_REJECTED_DEPARTMENT));
+        String rejectionComment = str(task.getVariable(VAR_LAST_REJECTION_COMMENT));
+        notificationService.send(NotificationMessage.builder()
+                .type(NotificationMessage.Type.TASK_ASSIGNED)
+                .processKey(PROCESS_KEY)
+                .processName(PROCESS_NAME)
+                .processInstanceId(pid)
+                .stage(stage)
+                .taskId(task.getId())
+                .initiator(initiator)
+                .recipientUser(initiator)
+                .subject("[" + PROCESS_NAME + "] Action required: amend your clearance request")
+                .intro("Your clearance request was rejected and returned to you for amendment.")
+                .additionalInfo("Rejected by: " + safe(rejectedBy)
+                        + (rejectionComment == null ? "" : " | Comment: " + rejectionComment)
+                        + " | Please amend and resubmit your request.")
+                .build());
     }
 
     // ------------------------------------------------------------------
@@ -176,7 +211,7 @@ public class ClearanceTaskListener implements TaskListener {
             Map<String, DepartmentDecision> decisions = decisionsOf(task);
             decisions.put(department, new DepartmentDecision(
                     department,
-                    candidateGroupOf(task, department),
+                    candidateGroupOf(task, stage, department),
                     decision,
                     completedBy,
                     comment,
@@ -294,13 +329,24 @@ public class ClearanceTaskListener implements TaskListener {
     }
 
     /**
-     * Candidate group of the task. Department and group share the same
-     * identifier in the Clearance process: the resolver returns group ids
-     * that the BPMN uses directly as candidate groups, so the department
-     * name is the group. (Flowable 7 removed
-     * {@code DelegateTask#getCandidateGroups()}.)
+     * Candidate group of the task as the <b>SIS group id</b>
+     * ({@code ROLE_CODE_}) that {@code FLOWABLE_USERS_VW} /
+     * {@code flowable_groups_vw} can resolve members for. Department and
+     * group share the same identifier in the departmental stage (the
+     * resolver returns role codes the BPMN uses directly as candidate
+     * groups), but the sequential Finance / Admission stages carry display
+     * names as department - those must be translated back to their role
+     * codes ({@code FIN} / {@code REG}), otherwise the group resolves to
+     * zero members and the notification is silently skipped. (Flowable 7
+     * removed {@code DelegateTask#getCandidateGroups()}.)
      */
-    private String candidateGroupOf(DelegateTask task, String department) {
+    private String candidateGroupOf(DelegateTask task, String stage, String department) {
+        if (STAGE_FINANCE.equals(stage)) {
+            return GROUP_FINANCE_ROLE_CODE;
+        }
+        if (STAGE_ADMISSION_AND_REGISTRATION.equals(stage)) {
+            return GROUP_ADMISSION_AND_REGISTRATION_ROLE_CODE;
+        }
         return department;
     }
 

@@ -68,6 +68,17 @@ public final class ClearanceConstants {
     public static final String GROUP_ADMISSION_AND_REGISTRATION = "Admission and Registration Department";
     public static final String GROUP_INTERNAL_AUDIT = "Internal Audit Department";
 
+    /**
+     * SIS role codes ({@code ROLE_CODE_} in {@code FLOWABLE_USERS_VW}) of the
+     * sequential approver groups - exactly the candidate group ids the BPMN
+     * uses ({@code flowable:candidateGroups="FIN" / "REG"}). Notifications
+     * MUST target these ids, never the display names above: a display name
+     * matches no {@code ROLE_CODE_}, so the group would resolve to zero
+     * members and the e-mail would be silently skipped.
+     */
+    public static final String GROUP_FINANCE_ROLE_CODE = "FIN";
+    public static final String GROUP_ADMISSION_AND_REGISTRATION_ROLE_CODE = "REG";
+
     // ------------------------------------------------------------------
     // Process variables
     // ------------------------------------------------------------------
