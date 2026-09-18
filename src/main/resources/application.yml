@@ -150,6 +150,26 @@ notification:
   task-link-paths:
     clearanceLetterProcess: /clearance-task.xhtml
     studentProofCertificateProcess: /student-proof-task.xhtml
+  # -------------------------------------------------------------
+  # ASYNC E-MAIL DISPATCH (see com.example.approval.notification.config.
+  # EmailNotificationAsyncConfig / EmailNotificationAsyncProperties).
+  # Every workflow e-mail is executed on this ONE dedicated bounded
+  # thread pool; the Flowable/JSF request thread only resolves recipients
+  # + renders subject/body and then schedules the mail. SMTP latency or
+  # failures can therefore never block or roll back a workflow operation.
+  # Sizing: workflow notifications (not bulk mail) - 2 warm workers absorb
+  # a parallel department burst; max 4 because SMTP (10s timeouts) is the
+  # bottleneck; queue 200 bounds memory during an SMTP outage (full queue
+  # => submission rejected + logged, workflow continues); 30s graceful
+  # shutdown drain.
+  # -------------------------------------------------------------
+  async:
+    core-pool-size: 2
+    max-pool-size: 4
+    queue-capacity: 200
+    thread-name-prefix: "email-"
+    keep-alive-seconds: 60
+    await-termination-seconds: 30
 
 # Clearance Letter process configuration
 clearance:

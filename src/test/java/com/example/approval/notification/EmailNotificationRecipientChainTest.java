@@ -2,7 +2,9 @@ package com.example.approval.notification;
 
 import com.example.approval.entity.ExternalUser;
 import com.example.approval.mapper.FlowableIdentityMapper;
+import com.example.approval.notification.model.EmailDispatchRequest;
 import com.example.approval.notification.model.NotificationMessage;
+import com.example.approval.notification.service.AsyncEmailDispatcher;
 import com.example.approval.notification.service.NotificationRecipientResolver;
 import com.example.approval.notification.service.impl.EmailNotificationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,9 +14,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 
 import java.util.Arrays;
 import java.util.List;
@@ -26,7 +25,6 @@ import static com.example.approval.processes.clearance.ClearanceConstants.GROUP_
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,10 +37,20 @@ import static org.mockito.Mockito.when;
  *
  * <p>This is the second half of the missing-notification regression: the
  * engine tests ({@code ClearanceNotificationEngineTest}) prove the listener
- * now sends the right <i>targeting fields</i> (role code {@code FIN} /
+ * sends the right <i>targeting fields</i> (role code {@code FIN} /
  * {@code REG}, {@code recipientUser} for the initiator); these tests prove
  * the e-mail service turns those fields into the right personal addresses -
  * never a shared group mailbox.</p>
+ *
+ * <p>Since the async refactor the service no longer touches
+ * {@code JavaMailSender} itself: it resolves everything on the calling
+ * thread and hands an immutable {@link EmailDispatchRequest} to
+ * {@link AsyncEmailDispatcher}. The dispatcher is mocked here, so these
+ * tests verify SYNCHRONOUSLY what payload crosses the async boundary -
+ * recipients, subject and body included. The asynchronous execution itself
+ * (thread, non-blocking, SMTP failure isolation) is covered by
+ * {@code AsyncEmailDispatcherTest} and
+ * {@code EmailNotificationAsyncIntegrationTest}.</p>
  */
 @ExtendWith(MockitoExtension.class)
 class EmailNotificationRecipientChainTest {
@@ -53,26 +61,19 @@ class EmailNotificationRecipientChainTest {
     private FlowableIdentityMapper identityMapper;
 
     @Mock
-    private JavaMailSender mailSender;
-
-    @Mock
-    private ObjectProvider<JavaMailSender> mailSenderProvider;
+    private AsyncEmailDispatcher asyncEmailDispatcher;
 
     private EmailNotificationService notificationService;
 
     @BeforeEach
     void setUp() {
-        // EmailNotificationService resolves the sender ONCE in its
-        // constructor -> the provider must be stubbed before construction.
-        lenient().when(mailSenderProvider.getIfAvailable()).thenReturn(mailSender);
-
         NotificationProperties properties = new NotificationProperties();
         properties.setEnabled(true);
         properties.setAlwaysLog(false);
         properties.setUserEmailDomain(null); // no config fallbacks - DB only
         notificationService = new EmailNotificationService(properties,
                 new NotificationRecipientResolver(identityMapper),
-                mailSenderProvider);
+                asyncEmailDispatcher);
     }
 
     private static ExternalUser member(String username, String email) {
@@ -96,11 +97,12 @@ class EmailNotificationRecipientChainTest {
                 .subject("[Clearance Letter] Approval required by " + department);
     }
 
-    private String[] sentTo() {
-        ArgumentCaptor<SimpleMailMessage> captor =
-                ArgumentCaptor.forClass(SimpleMailMessage.class);
-        verify(mailSender).send(captor.capture());
-        return captor.getValue().getTo();
+    /** The single dispatched payload (there is exactly one send per test). */
+    private EmailDispatchRequest dispatched() {
+        ArgumentCaptor<EmailDispatchRequest> captor =
+                ArgumentCaptor.forClass(EmailDispatchRequest.class);
+        verify(asyncEmailDispatcher).dispatch(captor.capture());
+        return captor.getValue();
     }
 
     // ------------------------------------------------------------------
@@ -117,7 +119,7 @@ class EmailNotificationRecipientChainTest {
 
         notificationService.send(taskAssigned(GROUP_FINANCE_ROLE_CODE, GROUP_FINANCE).build());
 
-        assertThat(sentTo()).containsExactlyInAnyOrder(
+        assertThat(dispatched().getRecipients()).containsExactlyInAnyOrder(
                 "fin.boss@example.edu", "fin.clerk@example.edu");
     }
 
@@ -131,7 +133,7 @@ class EmailNotificationRecipientChainTest {
 
         notificationService.send(taskAssigned(GROUP_FINANCE_ROLE_CODE, GROUP_FINANCE).build());
 
-        assertThat(sentTo()).containsExactlyInAnyOrder(
+        assertThat(dispatched().getRecipients()).containsExactlyInAnyOrder(
                 "shared@example.edu", "fin.clerk@example.edu");
     }
 
@@ -144,7 +146,7 @@ class EmailNotificationRecipientChainTest {
 
         notificationService.send(taskAssigned(GROUP_FINANCE_ROLE_CODE, GROUP_FINANCE).build());
 
-        verify(mailSender, never()).send(any(SimpleMailMessage.class));
+        verify(asyncEmailDispatcher, never()).dispatch(any());
     }
 
     // ------------------------------------------------------------------
@@ -162,7 +164,7 @@ class EmailNotificationRecipientChainTest {
         notificationService.send(taskAssigned(GROUP_ADMISSION_AND_REGISTRATION_ROLE_CODE,
                 GROUP_ADMISSION_AND_REGISTRATION).build());
 
-        assertThat(sentTo()).containsExactlyInAnyOrder(
+        assertThat(dispatched().getRecipients()).containsExactlyInAnyOrder(
                 "reg.head@example.edu", "reg.officer@example.edu");
     }
 
@@ -180,7 +182,7 @@ class EmailNotificationRecipientChainTest {
                 .assigneeUser("fin.boss")
                 .build());
 
-        assertThat(sentTo()).containsExactly("fin.boss@example.edu");
+        assertThat(dispatched().getRecipients()).containsExactly("fin.boss@example.edu");
     }
 
     // ------------------------------------------------------------------
@@ -206,7 +208,15 @@ class EmailNotificationRecipientChainTest {
                 .intro("Your clearance request was rejected and returned to you for amendment.")
                 .build());
 
-        assertThat(sentTo()).containsExactly("student.test@example.edu");
+        EmailDispatchRequest dispatched = dispatched();
+        assertThat(dispatched.getRecipients()).containsExactly("student.test@example.edu");
+        assertThat(dispatched.getSubject())
+                .isEqualTo("[Clearance Letter] Action required: amend your clearance request");
+        assertThat(dispatched.getProcessInstanceId()).isEqualTo("pid-1");
+        assertThat(dispatched.getTaskId()).isEqualTo("task-9");
+        assertThat(dispatched.getNotificationType()).isEqualTo("TASK_ASSIGNED");
+        assertThat(dispatched.getBody())
+                .contains("Your clearance request was rejected and returned to you for amendment.");
     }
 
     @Test
@@ -223,7 +233,7 @@ class EmailNotificationRecipientChainTest {
                 .subject("[Clearance Letter] amend")
                 .build());
 
-        verify(mailSender, never()).send(any(SimpleMailMessage.class));
+        verify(asyncEmailDispatcher, never()).dispatch(any());
     }
 
     // ------------------------------------------------------------------
@@ -238,17 +248,19 @@ class EmailNotificationRecipientChainTest {
 
         notificationService.send(taskAssigned(GROUP_FINANCE_ROLE_CODE, GROUP_FINANCE).build());
 
-        verify(mailSender, never()).send(any(SimpleMailMessage.class));
+        verify(asyncEmailDispatcher, never()).dispatch(any());
     }
 
     @Test
-    @DisplayName("SMTP failure never propagates to the workflow")
-    void smtpFailure_neverThrows() {
+    @DisplayName("Queue rejection during scheduling never propagates to the workflow")
+    void schedulingRejection_neverThrows() {
         when(identityMapper.findMembersByGroup(GROUP_FINANCE_ROLE_CODE))
                 .thenReturn(List.of(member("fin.boss", "fin.boss@example.edu")));
 
-        doThrow(new RuntimeException("SMTP down"))
-                .when(mailSender).send(any(SimpleMailMessage.class));
+        // bounded executor queue full (SMTP outage) -> rejection surfaces at
+        // the dispatch() call and MUST be swallowed by the service
+        doThrow(new java.util.concurrent.RejectedExecutionException("queue full"))
+                .when(asyncEmailDispatcher).dispatch(any());
 
         notificationService.send(taskAssigned(GROUP_FINANCE_ROLE_CODE, GROUP_FINANCE).build());
         // no exception expected - e-mail is infrastructure, not workflow

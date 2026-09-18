@@ -1,20 +1,20 @@
 package com.example.approval.notification.service.impl;
 
 import com.example.approval.notification.NotificationProperties;
+import com.example.approval.notification.model.EmailDispatchRequest;
 import com.example.approval.notification.model.GroupEmailResolution;
 import com.example.approval.notification.model.NotificationMessage;
+import com.example.approval.notification.service.AsyncEmailDispatcher;
 import com.example.approval.notification.service.NotificationRecipientResolver;
 import com.example.approval.notification.service.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * SMTP-backed implementation of the global {@link NotificationService}.
@@ -39,9 +39,22 @@ import java.util.Map;
  * the per-process {@code notification.task-link-paths} mapping. When no mail
  * server is configured at all, notifications degrade to log output.</p>
  *
+ * <p><b>Asynchronous dispatch (durable architecture rule):</b> this service
+ * performs everything that needs Flowable/SIS/database state - recipient
+ * resolution and subject/body rendering - ON THE CALLING (Flowable/JSF)
+ * thread, then hands a fully materialized, immutable
+ * {@link EmailDispatchRequest} to {@link AsyncEmailDispatcher}, which
+ * executes the SMTP call on the dedicated bounded
+ * {@code emailNotificationExecutor} thread pool. {@code send(...)} therefore
+ * returns as soon as the mail is SCHEDULED; it never blocks the workflow
+ * thread waiting for SMTP. Callers are never responsible for asynchrony -
+ * any current or future user of {@code NotificationService} gets it
+ * automatically.</p>
+ *
  * <p><b>Failure tolerance:</b> e-mail is infrastructure, not workflow. Every
- * send / lookup failure is caught and logged so the Flowable transaction (task
- * creation, completion) is never rolled back because of a mail or SIS
+ * lookup / scheduling failure is caught and logged here, and SMTP failures
+ * are caught and logged inside the dispatcher - so the Flowable transaction
+ * (task creation, completion) is never rolled back because of a mail or SIS
  * outage.</p>
  */
 @Service
@@ -53,14 +66,14 @@ public class EmailNotificationService implements NotificationService {
 
     private final NotificationRecipientResolver recipientResolver;
 
-    private final JavaMailSender mailSender;
+    private final AsyncEmailDispatcher asyncEmailDispatcher;
 
     public EmailNotificationService(NotificationProperties properties,
                                     NotificationRecipientResolver recipientResolver,
-                                    ObjectProvider<JavaMailSender> mailSenderProvider) {
+                                    AsyncEmailDispatcher asyncEmailDispatcher) {
         this.properties = properties;
         this.recipientResolver = recipientResolver;
-        this.mailSender = mailSenderProvider.getIfAvailable();
+        this.asyncEmailDispatcher = asyncEmailDispatcher;
     }
 
     @Override
@@ -73,11 +86,59 @@ public class EmailNotificationService implements NotificationService {
             return;
         }
 
+        // Everything below needs the original (Flowable/SIS) context, so it
+        // runs synchronously BEFORE the async boundary.
         List<String> recipients = resolveRecipients(message);
         String subject = subjectOf(message);
         String body = renderBody(message);
 
-        sendMail(recipients, subject, body);
+        if (recipients.isEmpty()) {
+            log.warn("No recipient resolved - notification skipped. Subject: '{}'", subject);
+            return;
+        }
+
+        EmailDispatchRequest request = EmailDispatchRequest.builder()
+                .processInstanceId(message.getProcessInstanceId())
+                .taskId(message.getTaskId())
+                .notificationType(message.getType() != null ? message.getType().name() : null)
+                .recipients(recipients)
+                .subject(subject)
+                .body(body)
+                .build();
+
+        scheduleDispatch(request);
+    }
+
+    /**
+     * Schedules the prepared e-mail on the dedicated executor. Rejection by
+     * the bounded queue (SMTP outage) is logged here on the caller thread -
+     * it must NEVER propagate into the Flowable transaction.
+     */
+    private void scheduleDispatch(EmailDispatchRequest request) {
+        try {
+            asyncEmailDispatcher.dispatch(request);
+            log.info("E-mail scheduled asynchronously (processInstanceId='{}', taskId='{}', "
+                            + "type '{}', {} recipient(s), subject '{}')",
+                    request.getProcessInstanceId(), request.getTaskId(),
+                    request.getNotificationType(), request.getRecipientCount(),
+                    request.getSubject());
+        } catch (RejectedExecutionException e) {
+            log.error("E-mail NOT scheduled - notification executor queue is full "
+                            + "(processInstanceId='{}', taskId='{}', type '{}', "
+                            + "{} recipient(s), subject '{}'): {}",
+                    request.getProcessInstanceId(), request.getTaskId(),
+                    request.getNotificationType(), request.getRecipientCount(),
+                    request.getSubject(), e.getMessage());
+        } catch (Exception e) {
+            // Defensive: any other scheduling problem (e.g. proxy/executor
+            // misconfiguration) must not roll back the workflow either.
+            log.error("E-mail could not be scheduled "
+                            + "(processInstanceId='{}', taskId='{}', type '{}', "
+                            + "{} recipient(s), subject '{}'): {}",
+                    request.getProcessInstanceId(), request.getTaskId(),
+                    request.getNotificationType(), request.getRecipientCount(),
+                    request.getSubject(), e.getMessage(), e);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -240,32 +301,6 @@ public class EmailNotificationService implements NotificationService {
     // ------------------------------------------------------------------
     // helpers
     // ------------------------------------------------------------------
-
-    private void sendMail(List<String> recipients, String subject, String body) {
-        if (recipients == null || recipients.isEmpty()) {
-            log.warn("No recipient resolved - notification skipped. Subject: '{}'", subject);
-            return;
-        }
-        String[] to = recipients.toArray(new String[0]);
-        if (properties.isAlwaysLog()) {
-            log.info("[NOTIFICATION] to='{}' subject='{}'\n{}", String.join(", ", recipients), subject, body);
-        }
-        if (mailSender != null) {
-            try {
-                SimpleMailMessage message = new SimpleMailMessage();
-                message.setFrom(properties.getFrom());
-                message.setTo(to);
-                message.setSubject(subject);
-                message.setText(body);
-                mailSender.send(message);
-            } catch (Exception e) {
-                log.error("Failed to send notification '{}' to '{}': {}",
-                        subject, recipients, e.getMessage(), e);
-            }
-        } else {
-            log.info("No JavaMailSender configured - notification only logged (subject '{}')", subject);
-        }
-    }
 
     private String buildTaskLink(NotificationMessage message) {
         if (message.getTaskId() == null) {

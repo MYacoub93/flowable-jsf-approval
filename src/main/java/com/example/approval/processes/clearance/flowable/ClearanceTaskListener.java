@@ -236,6 +236,44 @@ public class ClearanceTaskListener implements TaskListener {
             log.info("Clearance {} round {}: {} {} by {}",
                     pid, round, department, decision, completedBy);
         }
+
+        // Future extension point: runs only after the Admission &
+        // Registration submission itself was fully processed (decision
+        // recorded + audit row written). Never called for department or
+        // Finance completions, the amendment task, task creation or
+        // assignment - and it fires again on every later round that
+        // reaches Admission again after an amendment/resubmission.
+        if (STAGE_ADMISSION_AND_REGISTRATION.equals(stage)) {
+            handleAdmissionSubmission(task);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // post-Admission submission extension point (placeholder)
+    // ------------------------------------------------------------------
+
+    /**
+     * Placeholder extension point invoked immediately after the Admission &
+     * Registration approval task was completed/submitted and its decision
+     * and audit row were recorded successfully - the final departmental
+     * submission of the Clearance flow, both in the initial run and in
+     * every round that reaches Admission again after amendment/resubmission.
+     * Any decision (approve or reject) counts as a submission.
+     *
+     * <p>Intentionally empty: future post-Admission business logic (e.g.
+     * downstream SIS processing) goes here. Do not move existing
+     * completion/audit logic into this method, and keep the invocation at
+     * the very end of {@link #onCompleted}.</p>
+     *
+     * <p>Protected so engine-level regression tests can observe the hook by
+     * subclassing (see {@code ClearanceAdmissionSubmissionHookTest}).</p>
+     *
+     * @param task the completed Admission & Registration task - its
+     *             variables (initiator, decision, comment, completedBy,
+     *             ...) are still readable
+     */
+    protected void handleAdmissionSubmission(DelegateTask task) {
+        // TODO: Implement post-Admission submission processing.
     }
 
     // ------------------------------------------------------------------
