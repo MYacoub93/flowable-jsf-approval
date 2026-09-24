@@ -251,11 +251,15 @@ public class BpmAuditServiceImpl implements BpmAuditService {
             case BpmAuditConstants.ACTION_REJECTED ->
                     BpmAuditAction.of(department, BpmAuditAction.ActionType.REJECTION);
             case BpmAuditConstants.ACTION_REQUEST_AMENDED -> BpmAuditAction.APPLICANT_CONTINUATION;
+            case BpmAuditConstants.ACTION_TASK_CLAIMED ->
+                    BpmAuditAction.of(department, BpmAuditAction.ActionType.TASK_RECEIVED);
             case BpmAuditConstants.ACTION_TASK_CANCELLED -> BpmAuditAction.ENTERED;
         case BpmAuditConstants.ACTION_TASK_DELEGATED -> BpmAuditAction.ENTERED;
             case BpmAuditConstants.ACTION_PROCESS_COMPLETED -> BpmAuditAction.APPLICANT_VIEWED_FINAL_RESULT;
             case BpmAuditConstants.ACTION_FYI_CREATED -> BpmAuditAction.ENTERED;
             case BpmAuditConstants.ACTION_ATTACHMENT_UPLOADED -> BpmAuditAction.ENTERED;
+            case BpmAuditConstants.ACTION_TRANSACTION_SERVICE_FAILURE ->
+                    BpmAuditAction.TRANSACTION_SERVICE_FAILURE;
             case BpmAuditConstants.ACTION_FYI_ACKNOWLEDGED -> BpmAuditAction.ENTERED;
             case BpmAuditConstants.ACTION_RESULT_ACKNOWLEDGED -> BpmAuditAction.APPLICANT_VIEWED_FINAL_RESULT;
             default -> BpmAuditAction.ENTERED;

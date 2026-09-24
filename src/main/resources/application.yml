@@ -150,6 +150,7 @@ notification:
   task-link-paths:
     clearanceLetterProcess: /clearance-task.xhtml
     studentProofCertificateProcess: /student-proof-task.xhtml
+    semesterWithdrawlProcess: /semester-withdrawl-task.xhtml
   # -------------------------------------------------------------
   # ASYNC E-MAIL DISPATCH (see com.example.approval.notification.config.
   # EmailNotificationAsyncConfig / EmailNotificationAsyncProperties).

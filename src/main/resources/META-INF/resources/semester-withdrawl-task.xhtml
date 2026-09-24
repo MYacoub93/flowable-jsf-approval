@@ -1,0 +1,216 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
+<ui:composition template="/templates/portal.xhtml">
+    <ui:param name="activeMenu" value="dashboard"/>
+
+    <ui:define name="title">#{labels['withdrawal.taskTitle']} - #{labels['app.title']}</ui:define>
+    <ui:define name="pageTitle">#{labels['withdrawal.taskTitle']}</ui:define>
+
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <div class="-empty-state empty-state">
+                <i class="pi pi-lock"/>
+                <div class="empty-title">#{labels['login.notSignedIn.title']}</div>
+                <p>#{labels['withdrawal.notSignedIn.text']}</p>
+                <p:button outcome="/login" value="#{labels['login.goToSignIn']}" icon="pi pi-sign-in"/>
+            </div>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
+            <div class="page-head">
+                <div>
+                    <h1>#{labels['withdrawal.taskTitle']}</h1>
+                    <p class="page-sub">#{withdrawalTaskBean.task.name}</p>
+                </div>
+            </div>
+
+            <h:form id="withdrawalTaskForm">
+                <p:messages autoUpdate="true" closable="true"/>
+
+                <h:panelGroup rendered="#{withdrawalTaskBean.task == null}">
+                    <div class="-empty-state empty-state">
+                        <i class="pi pi-search"/>
+                        <div class="empty-title">#{labels['withdrawal.taskNotFound.title']}</div>
+                        <p><h:link outcome="dashboard" value="#{labels['withdrawal.backToDashboard']}"/></p>
+                    </div>
+                </h:panelGroup>
+
+                <!-- ============================================= -->
+                <!-- Request summary (shown on EVERY task view)     -->
+                <!-- ============================================= -->
+                <h:panelGroup rendered="#{withdrawalTaskBean.task != null}" layout="block">
+                    <p:panel header="#{labels['withdrawal.studentInfo']}">
+                        <dl class="detail-list">
+                            <dt>#{labels['withdrawal.studentId']}</dt>
+                            <dd>#{withdrawalTaskBean.studentId}</dd>
+                            <dt>#{labels['withdrawal.studentName']}</dt>
+                            <dd>#{withdrawalTaskBean.studentName}</dd>
+                            <dt>#{labels['withdrawal.gpa']}</dt>
+                            <dd>#{empty withdrawalTaskBean.gpa ? '-' : withdrawalTaskBean.gpa}</dd>
+                            <dt>#{labels['withdrawal.currentSemester']}</dt>
+                            <dd>#{empty withdrawalTaskBean.currentSemester ? '-' : withdrawalTaskBean.currentSemester}</dd>
+                            <dt>#{labels['withdrawal.reason']}</dt>
+                            <dd>#{empty withdrawalTaskBean.withdrawalReason ? '-' : withdrawalTaskBean.withdrawalReason}</dd>
+                            <dt>#{labels['withdrawal.semester']}</dt>
+                            <dd>#{empty withdrawalTaskBean.withdrawalSemester ? '-' : withdrawalTaskBean.withdrawalSemester}</dd>
+                            <dt>#{labels['withdrawal.note']}</dt>
+                            <dd>#{empty withdrawalTaskBean.studentNote ? '-' : withdrawalTaskBean.studentNote}</dd>
+                        </dl>
+                    </p:panel>
+
+                    <!-- Approval results so far (amendment + result screens) -->
+                    <p:panel header="#{labels['withdrawal.approvalHistory']}" style="margin-top:16px;"
+                             rendered="#{not empty withdrawalTaskBean.approvalResults}">
+                        <p:dataTable var="r" value="#{withdrawalTaskBean.approvalResults}"
+                                     lazy="false" paginator="false">
+                            <p:column headerText="#{labels['withdrawal.party']}">
+                                <h:outputText value="#{r.partyName}"/>
+                            </p:column>
+                            <p:column headerText="#{labels['withdrawal.decision']}">
+                                <p:tag value="#{r.approved ? labels['withdrawal.approve'] : labels['withdrawal.reject']}"
+                                       severity="#{r.approved ? 'success' : 'danger'}"/>
+                            </p:column>
+                            <p:column headerText="#{labels['withdrawal.approver']}">
+                                <h:outputText value="#{r.completedBy}"/>
+                            </p:column>
+                            <p:column headerText="#{labels['withdrawal.comment']}">
+                                <h:outputText value="#{empty r.comment ? '-' : r.comment}"/>
+                            </p:column>
+                        </p:dataTable>
+                    </p:panel>
+                </h:panelGroup>
+
+                <!-- ============================================= -->
+                <!-- Approval / FYI action panel                    -->
+                <!-- ============================================= -->
+                <p:panel header="#{labels['withdrawal.approvalPanel']}" style="margin-top:16px;"
+                         rendered="#{withdrawalTaskBean.approvalTask or withdrawalTaskBean.fyiTask}">
+                    <p class="field-hint">#{labels['withdrawal.partyLabel']}: <b>#{withdrawalTaskBean.approvalPartyLabel}</b></p>
+
+                    <!-- claim button for unassigned group tasks -->
+                    <h:panelGroup rendered="#{withdrawalTaskBean.claimable}" layout="block">
+                        <div class="action-bar" style="margin-bottom:12px;">
+                            <p:commandButton value="#{labels['withdrawal.claim']}" icon="pi pi-user-plus"
+                                             action="#{withdrawalTaskBean.claim}"
+                                             update="withdrawalTaskForm"/>
+                        </div>
+                    </h:panelGroup>
+
+                    <h:panelGroup rendered="#{!withdrawalTaskBean.claimable}" layout="block">
+                        <h:panelGroup rendered="#{withdrawalTaskBean.approvalTask}" layout="block">
+                            <div class="form-grid">
+                                <div class="field">
+                                    <p:outputLabel for="decision" value="#{labels['withdrawal.decision']}"/>
+                                    <p:selectOneRadio id="decision" value="#{withdrawalTaskBean.decision}">
+                                        <f:selectItem itemLabel="#{labels['withdrawal.approve']}" itemValue="approve"/>
+                                        <f:selectItem itemLabel="#{labels['withdrawal.reject']}" itemValue="reject"/>
+                                    </p:selectOneRadio>
+                                    <p:message for="decision"/>
+                                </div>
+                                <div class="field full">
+                                    <p:outputLabel for="approverComment" value="#{labels['withdrawal.comment']}"/>
+                                    <p:inputTextarea id="approverComment" rows="3"
+                                                     value="#{withdrawalTaskBean.comment}"
+                                                     maxlength="1000" autoResize="true"/>
+                                    <p class="field-hint">#{labels['withdrawal.rejectionHint']}</p>
+                                </div>
+                            </div>
+                            <div class="action-bar" style="margin-top:14px;">
+                                <p:commandButton value="#{labels['withdrawal.submitDecision']}" icon="pi pi-check"
+                                                 action="#{withdrawalTaskBean.submitDecision}"
+                                                 styleClass="ui-button-success"/>
+                            </div>
+                        </h:panelGroup>
+
+                        <!-- REG final FYI -->
+                        <h:panelGroup rendered="#{withdrawalTaskBean.fyiTask}" layout="block">
+                            <p class="field-hint">#{labels['withdrawal.fyiHint']}</p>
+                            <div class="action-bar" style="margin-top:14px;">
+                                <p:commandButton value="#{labels['withdrawal.acknowledge']}" icon="pi pi-check"
+                                                 action="#{withdrawalTaskBean.completeFyi}"
+                                                 styleClass="ui-button-success"/>
+                            </div>
+                        </h:panelGroup>
+                    </h:panelGroup>
+                </p:panel>
+
+                <!-- ============================================= -->
+                <!-- Student amendment panel                        -->
+                <!-- ============================================= -->
+                <p:panel header="#{labels['withdrawal.amendmentPanel']}" style="margin-top:16px;"
+                         rendered="#{withdrawalTaskBean.amendmentTask}">
+                    <div class="form-grid">
+                        <div class="field">
+                            <p:outputLabel for="amendmentReason" value="#{labels['withdrawal.reason']}"/>
+                            <p:selectOneMenu id="amendmentReason"
+                                             value="#{withdrawalTaskBean.withdrawalReasonCode}"
+                                             required="true"
+                                             requiredMessage="#{labels['withdrawal.reasonRequired']}">
+                                <f:selectItem itemLabel="#{labels['withdrawal.selectReason']}" noSelectionOption="true"/>
+                                <f:selectItems value="#{withdrawalTaskBean.reasons}"
+                                               var="reason"
+                                               itemLabel="#{sessionInfoBean.language eq 'ar' ? reason.reasonDesc : reason.reasonDescS}"
+                                               itemValue="#{reason.reasonCode}"/>
+                            </p:selectOneMenu>
+                            <p:message for="amendmentReason"/>
+                        </div>
+                        <div class="field">
+                            <p:outputLabel for="amendmentSemester" value="#{labels['withdrawal.semester']}"/>
+                            <p:selectOneMenu id="amendmentSemester"
+                                             value="#{withdrawalTaskBean.withdrawalSemesterCode}"
+                                             required="true"
+                                             requiredMessage="#{labels['withdrawal.semesterRequired']}">
+                                <f:selectItem itemLabel="#{labels['withdrawal.selectSemester']}" noSelectionOption="true"/>
+                                <f:selectItems value="#{withdrawalTaskBean.semesters}"
+                                               var="sem"
+                                               itemLabel="#{sessionInfoBean.language eq 'ar' ? sem.semesterDesc : sem.semesterDescS}"
+                                               itemValue="#{sem.semester}"/>
+                            </p:selectOneMenu>
+                            <p:message for="amendmentSemester"/>
+                        </div>
+                        <div class="field full">
+                            <p:outputLabel for="amendmentStudentNote" value="#{labels['withdrawal.note']}"/>
+                            <p:inputTextarea id="amendmentStudentNote" rows="3"
+                                             value="#{withdrawalTaskBean.studentNote}"
+                                             maxlength="1000" autoResize="true"/>
+                        </div>
+                        <div class="field full">
+                            <p:outputLabel for="amendmentNotes" value="#{labels['withdrawal.amendmentNotes']}"/>
+                            <p:inputTextarea id="amendmentNotes" rows="3"
+                                             value="#{withdrawalTaskBean.amendmentNotes}"
+                                             maxlength="1000" autoResize="true"/>
+                        </div>
+                    </div>
+                    <div class="action-bar" style="margin-top:14px;">
+                        <p:commandButton value="#{labels['withdrawal.resubmit']}" icon="pi pi-send"
+                                         action="#{withdrawalTaskBean.submitAmendment}"
+                                         styleClass="ui-button-success"/>
+                    </div>
+                </p:panel>
+
+                <!-- ============================================= -->
+                <!-- Student final result panel                     -->
+                <!-- ============================================= -->
+                <p:panel header="#{labels['withdrawal.resultPanel']}" style="margin-top:16px;"
+                         rendered="#{withdrawalTaskBean.resultTask}">
+                    <p class="success-box">#{labels['withdrawal.resultSuccess']}</p>
+                    <dl class="detail-list">
+                        <dt>#{labels['withdrawal.sisResult']}</dt>
+                        <dd>#{empty withdrawalTaskBean.withdrawalMessage ? '-' : withdrawalTaskBean.withdrawalMessage}</dd>
+                    </dl>
+                    <div class="action-bar" style="margin-top:14px;">
+                        <p:tag value="#{labels['withdrawal.resultSuccess']}" styleClass="success-tag"/>
+                        <p:commandButton value="#{labels['withdrawal.acknowledge']}" icon="pi pi-check"
+                                         action="#{withdrawalTaskBean.acknowledgeResult}"
+                                         styleClass="ui-button-success"/>
+                    </div>
+                </p:panel>
+            </h:form>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>
+</html>

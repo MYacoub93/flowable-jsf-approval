@@ -44,6 +44,8 @@ public final class BpmAuditConstants {
     public static final String ACTION_PROCESS_STARTED = "PROCESS_STARTED";
     public static final String ACTION_DEPARTMENTS_RESOLVED = "DEPARTMENTS_RESOLVED";
     public static final String ACTION_TASK_ASSIGNED = "TASK_ASSIGNED";
+    /** A candidate-group task was claimed by a single user (RECEIVED -> CLAIMED). */
+    public static final String ACTION_TASK_CLAIMED = "TASK_CLAIMED";
     public static final String ACTION_APPROVED = "APPROVED";
     public static final String ACTION_REJECTED = "REJECTED";
     public static final String ACTION_REQUEST_AMENDED = "REQUEST_AMENDED";
@@ -60,6 +62,12 @@ public final class BpmAuditConstants {
      * column carries the file info.
      */
     public static final String ACTION_ATTACHMENT_UPLOADED = "ATTACHMENT_UPLOADED";
+    /**
+     * Semantic action key: a backing transaction service (SIS stored
+     * procedure) failed while executing an approved request. Mapped to
+     * {@link BpmAuditAction#TRANSACTION_SERVICE_FAILURE} (code 108).
+     */
+    public static final String ACTION_TRANSACTION_SERVICE_FAILURE = "TRANSACTION_SERVICE_FAILURE";
 
     // ------------------------------------------------------------------
     // Action codes (BPM_ACTIONS lookup - PRE-POPULATED table, codes 0-163)

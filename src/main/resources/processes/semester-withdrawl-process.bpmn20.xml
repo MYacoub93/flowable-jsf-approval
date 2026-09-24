@@ -1,0 +1,299 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://flowable.org/bpmn"
+             typeLanguage="http://www.w3.org/2001/XMLSchema"
+             expressionLanguage="http://www.w3.org/1999/XPath">
+
+  <!-- ===================================================================
+       Semester Withdrawal (process key: semester-withdrawl - exact
+       spelling required)
+
+       - Only STD members may start (candidateStarterGroups + service
+         check). The SIS presubmit validation
+         (BPM_PKG.check_presubmit_bpm_service) runs in
+         SemesterWithdrawalService BEFORE this process is started - the
+         process instance is never created when status == 0.
+       - REG approval (approve / reject) first; rejection routes to the
+         student Amendment task like every other rejection.
+       - resolveApprovers computes the dynamic parallel set: dean (DEN),
+         STD_AFF, LIB, HC and - female students only - Housing. Already
+         approved parties are filtered out on every later round
+         (Clearance resubmission pattern).
+       - One multi-instance PARALLEL user task creates an approval task
+         per pending party; candidateGroups=${approvalGroup}. The dean
+         task is additionally assigned to the dean resolved from the SIS
+         (getDeanOfCollage) by the shared withdrawalTaskListener.
+       - The stage is a SYNCHRONIZATION BARRIER: completionCondition
+         ${nrOfCompletedInstances == nrOfInstances} - the stage only
+         continues after EVERY applicable party submitted; a rejection
+         never cancels sibling tasks, so the Amendment task can never
+         exist while a parallel task is still pending.
+       - Any rejection -> student Amendment -> resolveApprovers again
+         (loop). All approved -> FIN -> approve routes to the final REG
+         FYI task, then executeWithdrawal calls
+         bpm_pkg.withdrawal_student_semester; result==1 routes to the
+         student success result task, otherwise to the auditable
+         failure notice (never a false success).
+       =================================================================== -->
+  <process id="semester-withdrawl" name="Semester Withdrawal" isExecutable="true"
+           flowable:candidateStarterGroups="STD">
+
+    <documentation>Student-initiated semester withdrawal with REG approval, gender-aware parallel approvals (dynamic dean), amendment loop, FIN approval, final REG FYI and SIS withdrawal execution.</documentation>
+
+    <startEvent id="startWithdrawal" name="Semester withdrawal request started (STD)"
+                flowable:formKey="start-semester-withdrawl">
+      <extensionElements>
+        <flowable:executionListener event="start"
+              expression="${withdrawalProcessHandler.processStarted(execution)}"/>
+      </extensionElements>
+    </startEvent>
+
+    <serviceTask id="resolveApprovers" name="Resolve Parallel Approvers"
+                 flowable:expression="${withdrawalProcessHandler.resolveApprovers(execution)}">
+      <documentation>
+        Builds the parallel approver list: dean (DEN), Student Affairs (STD_AFF),
+        Library (LIB), Health Care (HC) plus Internal Housing for female students
+        only (gender from the SIS student snapshot). Parties that already approved
+        in an earlier round are filtered out (cumulative approvedParties). Runs
+        before EVERY approval round so the party set is always dynamic.
+      </documentation>
+    </serviceTask>
+
+    <userTask id="regApprovalTask" name="Approval: Admission and Registration"
+              flowable:candidateGroups="REG"
+              flowable:formKey="semester-withdrawl-task">
+      <documentation>
+        Admission and Registration (REG) reviews the withdrawal request first.
+        Approve / Reject; a rejection routes to the student amendment task.
+      </documentation>
+      <extensionElements>
+        <flowable:taskListener event="create"
+              delegateExpression="${withdrawalTaskListener}"/>
+        <flowable:taskListener event="complete"
+              delegateExpression="${withdrawalTaskListener}"/>
+        <flowable:taskListener event="delete"
+              delegateExpression="${withdrawalTaskListener}"/>
+      </extensionElements>
+    </userTask>
+
+    <exclusiveGateway id="gatewayRegDecision" name="REG approved?" default="flowRegRejected"/>
+
+    <!-- Empty parallelApprovers (every party already approved, e.g. after a
+         FIN rejection triggered the resubmission) must NOT reach the
+         multi-instance stage: the whole parallel stage is skipped. -->
+    <exclusiveGateway id="gatewayApproversPending" name="Approvers still pending?"
+                      default="flowNoPendingApprovers"/>
+
+    <userTask id="parallelApprovalTask" name="Approval: ${approvalGroup}"
+              flowable:candidateGroups="${approvalGroup}"
+              flowable:formKey="semester-withdrawl-task">
+      <documentation>
+        One instance per PENDING party (parallel). Approve / Reject. The shared
+        withdrawalTaskListener sends the TASK_ASSIGNED e-mail + audit on create,
+        dynamically assigns the dean task to the resolved dean (getDeanOfCollage)
+        and records the decision on complete. SYNCHRONIZATION BARRIER: the
+        completion condition requires nrOfCompletedInstances == nrOfInstances,
+        so every applicable parallel task must be submitted before the stage can
+        be left; a rejection never cancels still-open sibling tasks.
+      </documentation>
+      <extensionElements>
+        <flowable:taskListener event="create"
+              delegateExpression="${withdrawalTaskListener}"/>
+        <flowable:taskListener event="complete"
+              delegateExpression="${withdrawalTaskListener}"/>
+        <flowable:taskListener event="delete"
+              delegateExpression="${withdrawalTaskListener}"/>
+      </extensionElements>
+      <multiInstanceLoopCharacteristics isSequential="false"
+          flowable:collection="${parallelApprovers}"
+          flowable:elementVariable="approvalGroup">
+        <completionCondition>${nrOfCompletedInstances == nrOfInstances}</completionCondition>
+      </multiInstanceLoopCharacteristics>
+    </userTask>
+
+    <serviceTask id="evaluateParallelStage" name="Evaluate Parallel Stage"
+                 flowable:expression="${withdrawalProcessHandler.evaluateParallelStage(execution)}">
+      <documentation>
+        Runs AFTER the synchronization barrier released: carries approved
+        parties into the cumulative approvedParties variable and records the
+        first rejection for the amendment form. The rejection gateway below is
+        only evaluated after every applicable task finished.
+      </documentation>
+    </serviceTask>
+
+    <exclusiveGateway id="gatewayAllApproved" name="Any parallel rejection?" default="flowAllApproved"/>
+
+    <userTask id="amendmentTask" name="Amend Semester Withdrawal Request"
+              flowable:assignee="${initiator}"
+              flowable:formKey="semester-withdrawl-task">
+      <documentation>
+        Created only after ALL applicable parallel tasks finished and at least
+        one was rejected (or after a REG / FIN rejection). The student sees every
+        party's decision (approvalResults) incl. rejection reasons, amends the
+        request (reason / semester / note) and resubmits; resolveApprovers then
+        re-circulates only to the parties that did not approve yet.
+      </documentation>
+      <extensionElements>
+        <flowable:taskListener event="create"
+              delegateExpression="${withdrawalTaskListener}"/>
+        <flowable:taskListener event="complete"
+              delegateExpression="${withdrawalTaskListener}"/>
+      </extensionElements>
+    </userTask>
+
+    <serviceTask id="recordAmendment" name="Record Amendment"
+                 flowable:expression="${withdrawalProcessHandler.recordAmendment(execution)}">
+      <documentation>Writes the REQUEST_AMENDED audit row and loops back to resolveApprovers.</documentation>
+    </serviceTask>
+
+    <userTask id="financeApprovalTask" name="Approval: Financial Department"
+              flowable:candidateGroups="FIN"
+              flowable:formKey="semester-withdrawl-task">
+      <documentation>
+        Financial Department (FIN) approval after ALL parallel approvers
+        approved. Approve / Reject; a rejection routes to the amendment task.
+      </documentation>
+      <extensionElements>
+        <flowable:taskListener event="create"
+              delegateExpression="${withdrawalTaskListener}"/>
+        <flowable:taskListener event="complete"
+              delegateExpression="${withdrawalTaskListener}"/>
+        <flowable:taskListener event="delete"
+              delegateExpression="${withdrawalTaskListener}"/>
+      </extensionElements>
+    </userTask>
+
+    <exclusiveGateway id="gatewayFinanceDecision" name="FIN approved?" default="flowFinanceRejected"/>
+
+    <userTask id="regFyiTask" name="FYI: All approvals completed (Admission and Registration)"
+              flowable:candidateGroups="REG"
+              flowable:formKey="semester-withdrawl-task">
+      <documentation>
+        Final FYI task for Admission and Registration: all parallel approvals
+        and FIN approved; completing it triggers the SIS withdrawal execution.
+      </documentation>
+      <extensionElements>
+        <flowable:taskListener event="create"
+              delegateExpression="${withdrawalTaskListener}"/>
+        <flowable:taskListener event="complete"
+              delegateExpression="${withdrawalTaskListener}"/>
+      </extensionElements>
+    </userTask>
+
+    <serviceTask id="executeWithdrawal" name="Execute Semester Withdrawal (SIS)"
+                 flowable:expression="${withdrawalProcessHandler.executeWithdrawal(execution)}">
+      <documentation>
+        Calls bpm_pkg.withdrawal_student_semester with studentId / semester /
+        lang and evaluates the OUT parameters result + message. Only
+        result == 1 counts as success; any failure is audited
+        (TRANSACTION_SERVICE_FAILURE) and routed to the failure notice.
+      </documentation>
+    </serviceTask>
+
+    <exclusiveGateway id="gatewayWithdrawalResult" name="SIS withdrawal successful?"
+                      default="flowWithdrawalFailure"/>
+
+    <userTask id="studentResultTask" name="Semester Withdrawal Completed"
+              flowable:assignee="${initiator}"
+              flowable:formKey="semester-withdrawl-task">
+      <documentation>
+        Final student task: successful semester withdrawal confirmation
+        displaying the original request and all approval results plus the SIS
+        message. Completing it ends the process.
+      </documentation>
+      <extensionElements>
+        <flowable:taskListener event="create"
+              delegateExpression="${withdrawalTaskListener}"/>
+        <flowable:taskListener event="complete"
+              delegateExpression="${withdrawalTaskListener}"/>
+      </extensionElements>
+    </userTask>
+
+    <serviceTask id="completeWithdrawalFailure" name="Record Withdrawal Failure"
+                 flowable:expression="${withdrawalProcessHandler.completeWithdrawalFailure(execution)}">
+      <documentation>
+        Audited failure path: writes the TRANSACTION_SERVICE_FAILURE /
+        PROCESS_COMPLETED audit rows, e-mails the initiator and creates a
+        standalone failure-notice task. The process ends without a success
+        result.
+      </documentation>
+    </serviceTask>
+
+    <endEvent id="endWithdrawal" name="Semester withdrawal finished"/>
+
+    <sequenceFlow id="flowStart" sourceRef="startWithdrawal" targetRef="regApprovalTask"/>
+
+    <sequenceFlow id="flowRegToGateway" sourceRef="regApprovalTask" targetRef="gatewayRegDecision"/>
+    <sequenceFlow id="flowRegApproved" name="approve"
+                  sourceRef="gatewayRegDecision" targetRef="resolveApprovers">
+      <conditionExpression xsi:type="tFormalExpression">
+        ${decision == 'approve'}
+      </conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flowRegRejected" name="reject"
+                  sourceRef="gatewayRegDecision" targetRef="recordRegRejection"/>
+
+    <serviceTask id="recordRegRejection" name="Record REG Rejection"
+                 flowable:expression="${withdrawalProcessHandler.recordStageRejection(execution, 'ADMISSION_AND_REGISTRATION', 'Admission and Registration Department')}">
+      <documentation>Records the REG rejection details for the amendment form.</documentation>
+    </serviceTask>
+    <sequenceFlow id="flowRegRejectionToAmendment" sourceRef="recordRegRejection" targetRef="amendmentTask"/>
+
+    <sequenceFlow id="flowResolvedToGuard" sourceRef="resolveApprovers" targetRef="gatewayApproversPending"/>
+    <sequenceFlow id="flowPending" name="pending"
+                  sourceRef="gatewayApproversPending" targetRef="parallelApprovalTask">
+      <conditionExpression xsi:type="tFormalExpression">
+        ${!parallelApprovers.isEmpty()}
+      </conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flowNoPendingApprovers" name="none pending"
+                  sourceRef="gatewayApproversPending" targetRef="financeApprovalTask"/>
+
+    <sequenceFlow id="flowParallelToEvaluate" sourceRef="parallelApprovalTask" targetRef="evaluateParallelStage"/>
+    <sequenceFlow id="flowEvaluateToGateway" sourceRef="evaluateParallelStage" targetRef="gatewayAllApproved"/>
+    <sequenceFlow id="flowRejectedToAmendment" name="reject"
+                  sourceRef="gatewayAllApproved" targetRef="amendmentTask">
+      <conditionExpression xsi:type="tFormalExpression">
+        ${anyApprovalRejected}
+      </conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flowAllApproved" name="all approved"
+                  sourceRef="gatewayAllApproved" targetRef="financeApprovalTask"/>
+
+    <sequenceFlow id="flowAmendmentToRecord" sourceRef="amendmentTask" targetRef="recordAmendment"/>
+    <sequenceFlow id="flowAmendmentLoopBack" sourceRef="recordAmendment" targetRef="resolveApprovers"/>
+
+    <sequenceFlow id="flowFinanceToGateway" sourceRef="financeApprovalTask" targetRef="gatewayFinanceDecision"/>
+    <sequenceFlow id="flowFinanceApproved" name="approve"
+                  sourceRef="gatewayFinanceDecision" targetRef="regFyiTask">
+      <conditionExpression xsi:type="tFormalExpression">
+        ${decision == 'approve'}
+      </conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flowFinanceRejected" name="reject"
+                  sourceRef="gatewayFinanceDecision" targetRef="recordFinanceRejection"/>
+
+    <serviceTask id="recordFinanceRejection" name="Record FIN Rejection"
+                 flowable:expression="${withdrawalProcessHandler.recordStageRejection(execution, 'FINANCE', 'Financial Department')}">
+      <documentation>Records the FIN rejection details for the amendment form.</documentation>
+    </serviceTask>
+    <sequenceFlow id="flowFinanceRejectionToAmendment" sourceRef="recordFinanceRejection" targetRef="amendmentTask"/>
+
+    <sequenceFlow id="flowFyiToExecute" sourceRef="regFyiTask" targetRef="executeWithdrawal"/>
+
+    <sequenceFlow id="flowExecuteToGateway" sourceRef="executeWithdrawal" targetRef="gatewayWithdrawalResult"/>
+    <sequenceFlow id="flowWithdrawalSuccess" name="result == 1"
+                  sourceRef="gatewayWithdrawalResult" targetRef="studentResultTask">
+      <conditionExpression xsi:type="tFormalExpression">
+        ${withdrawalResult == 1}
+      </conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="flowWithdrawalFailure" name="failure"
+                  sourceRef="gatewayWithdrawalResult" targetRef="completeWithdrawalFailure"/>
+
+    <sequenceFlow id="flowResultToEnd" sourceRef="studentResultTask" targetRef="endWithdrawal"/>
+    <sequenceFlow id="flowFailureToEnd" sourceRef="completeWithdrawalFailure" targetRef="endWithdrawal"/>
+  </process>
+</definitions>

@@ -896,12 +896,72 @@
         select bpm_pkg.check_bpm_service_payment(#{studentId},#{semester},#{documentCode}) from dual
         
     </select>
-    <select id="checkBpmPresumbitService"        
+    
+
+    <select id="processSemesterWithdrawal"
+            statementType="CALLABLE"
+            useCache="false"
+            resultType="string"
+            parameterType="map">
+
+        {call bpm_pkg.withdrawal_student_semester(
+            #{studentId, jdbcType=NUMERIC, mode=IN},
+            #{semester, jdbcType=NUMERIC, mode=IN},
+            #{lang, jdbcType=NUMERIC, mode=IN},
+            #{result, jdbcType=NUMERIC, mode=OUT},
+            #{message, jdbcType=VARCHAR, mode=OUT})}
+
+    </select>
+
+
+    <!-- ============================================================
+         Semester Withdrawal process (semester-withdrawl) statements
+         ============================================================ -->
+
+    <select id="getTransactionReasons"
+            statementType="PREPARED"
+            resultType="ReasonsBean"
+            parameterType="map"
+            useCache="false">
+
+        select reason_code reasonCode,
+        reason_desc reasonDesc,
+        reason_Desc_s reasonDescS
+        from sis_reasons
+        where reason_type = 2
+        order by 1
+
+    </select>
+
+    <select id="getTransactionSemester"
+            statementType="PREPARED"
+            resultType="SemesterBean"
+            parameterType="map"
+            useCache="false">
+
+        select max(semester) semester,
+        sis_getters.get_semester_Desc(max(semester), #{arabicLang}) semesterDesc,
+        sis_getters.get_semester_Desc(max(semester),#{englishLang}) semesterDescS
+        from sis_semesters
+        where nvl(is_prepared, 0) = 1
+
+        union
+
+        select sis_getters.get_semester semester,
+        sis_getters.get_semester_Desc(sis_getters.get_semester, #{arabicLang}) semesterDesc,
+        sis_getters.get_semester_Desc(sis_getters.get_semester, #{englishLang}) semesterDescS
+        from dual
+
+        order by 1
+
+    </select>
+
+    <select id="checkBpmPresumbitService"
             statementType="CALLABLE"
             useCache="false"
             parameterType="map"
             resultType="map">
-        
+
         {call BPM_PKG.check_presubmit_bpm_service(
         #{studentId, jdbcType=NUMERIC, mode=IN},
         #{semester, jdbcType=NUMERIC, mode=IN},
@@ -913,144 +973,6 @@
         #{lang, jdbcType=NUMERIC, mode=IN},
         #{msg, jdbcType=VARCHAR, mode=OUT},
         #{status, jdbcType=NUMERIC, mode=OUT})}
-        
-    </select>
-    
-    <select id="processServicePaymentClaim"        
-            statementType="CALLABLE"
-            useCache="false"
-            parameterType="map"
-            resultType="map">
-        
-        {call BPM_PKG.insert_student_claims(
-        #{userId, jdbcType=NUMERIC, mode=IN},
-        #{documentCode, jdbcType=NUMERIC, mode=IN},
-        #{lang, jdbcType=NUMERIC, mode=IN},
-        #{msg, jdbcType=VARCHAR, mode=OUT},
-        #{status, jdbcType=NUMERIC, mode=OUT})}
-        
-    </select>
-
-
-
-    <select id="getFinancialSemesters"
-            resultType="String"
-            parameterType="string"
-            useCache="false">
-
-        select semester 
-        from   sas_financial_calendar
-        where nvl(is_closed, 0) = 0 and
-        semester &gt; (select nvl(max( semester) , 0)
-        from   sas_financial_calendar
-        where nvl(is_closed, 0) = 1 )
-        order by semester desc
 
     </select>
-    
-
-    <select id="getSectionManagerStaffs"
-            resultType="UserInfoBean"
-            parameterType="String"
-            useCache="false">
-
-        select a.staff_id staffId,
-        nvl(hrs_pkg.get_staff_name(a.staff_id,4),hrs_pkg.get_staff_name_s(a.staff_id,4)) staffName,
-        nvl(hrs_pkg.get_staff_name_s(a.staff_id,4),hrs_pkg.get_staff_name(a.staff_id,4)) staffNameS, 
-        sam_account_name samAccountName,
-        a.section_no sectionNo,
-        nvl(section_desc,SECTION_DESC_S) sectionDesc,
-        nvl(section_desc_S,SECTION_DESC) sectionDescS
-        from   hrs_staff a, hrs_sections b
-        where  a.section_no = b.section_no
-        and    a.section_no = #{sectionNo}
-        and    a.staff_id  != #{staffId}
-        and    HRS_PKG.IS_ON_DUTY(a.staff_id) = 1
-
-    </select>
-    
-    <select id="checkIfUserManager"
-            resultType="String"
-            parameterType="String"
-            useCache="false">
-
-        select count(1)
-        from   hrs_sections
-        where  staff_id = #{staffId}
-
-    </select>
-    
-    <select id="checkParentSection"
-            resultType="String"
-            parameterType="String"
-            useCache="false">
-
-        select count(1)
-        from   hrs_sections
-        where  parent_section = #{sectionNo}
-
-    </select>
-    
-    <select id="getUserManagerialSection"
-            resultType="String"
-            parameterType="String"
-            useCache="false">
-
-        select section_no
-        from hrs_Sections
-        where section_no  in ( select section_no
-        from   hrs_sections a
-        connect by prior section_no = a.parent_section
-        start with staff_id = #{staffId})
-        order by 1
-
-    </select>
-    
-    <select id="getHrsSectionHeads"
-            resultType="UserInfoBean"
-            parameterType="String"
-            useCache="false">
-
-        SELECT b.staff_id staffId,
-        b.first_name firstName,
-        b.last_name lastName,
-        b.first_name
-        || ' '
-        || b.father_name
-        || ' '
-        || b.mid_name
-        || ' '
-        || b.last_name
-        staffName,
-        b.first_name_s
-        || ' '
-        || b.father_name_s
-        || ' '
-        || b.mid_name_s
-        || ' '
-        || b.last_name_s
-        staffNameS,
-        TO_CHAR (b.begin_work_date, 'dd-mm-yyyy') workStartDate,
-        lower(b.sam_account_name) samAccountName,
-        a.section_no sectionNo,
-        nvl(section_desc,SECTION_DESC_S) sectionDesc,
-        nvl(section_desc_S,SECTION_DESC) sectionDescS,
-        d.STATUS_DESC statusDesc,
-        d.STATUS_DESC_S statusDescS,
-        b.category_code userType,
-        e.category_desc roleDesc,
-        e.category_desc_s roleDescS,
-        c.JOB_NAME jobName,
-        c.JOB_NAME_S jobNameS,
-        b.E_MAIL email,
-        b.MOBILE mobile
-        from   hrs_sections a, hrs_staff b ,hrs_assign_status d, hrs_employment_categories e, hrs_jobs c
-        where  a.staff_id        = b.staff_id(+)
-        AND    d.status_code(+)  = b.status_code
-        AND    e.category_code   = b.category_code
-        AND    c.job_no          = b.job_no
-        and    parent_section    = #{sectionNo}
-
-    </select>
-    
 </mapper>

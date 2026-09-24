@@ -1,0 +1,117 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:p="http://primefaces.org/ui">
+<ui:composition template="/templates/portal.xhtml">
+    <ui:param name="activeMenu" value="start-semester-withdrawl"/>
+
+    <ui:define name="title">#{labels['withdrawal.browserTitle']} - #{labels['app.title']}</ui:define>
+    <ui:define name="pageTitle">#{labels['withdrawal.pageTitle']}</ui:define>
+
+    <ui:define name="content">
+        <h:panelGroup rendered="#{!loginBean.loggedIn}" layout="block">
+            <div class="-empty-state empty-state">
+                <i class="pi pi-lock"/>
+                <div class="empty-title">#{labels['login.notSignedIn.title']}</div>
+                <p>#{labels['withdrawal.notSignedIn.text']}</p>
+                <p:button outcome="/login" value="#{labels['login.goToSignIn']}" icon="pi pi-sign-in"/>
+            </div>
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{loginBean.loggedIn}" layout="block">
+            <div class="page-head">
+                <div>
+                    <h1>#{labels['withdrawal.pageTitle']}</h1>
+                    <p class="page-sub">#{labels['withdrawal.pageSub']}</p>
+                </div>
+            </div>
+
+            <!-- Student information (read-only, loaded from the Oracle SIS for the logged-in student) -->
+            <p:panel header="#{labels['withdrawal.studentInfo']}">
+                <h:panelGroup rendered="#{startSemesterWithdrawalBean.studentInfoMissing}" layout="block">
+                    <div class="-empty-state empty-state">
+                        <i class="pi pi-exclamation-triangle"/>
+                        <div class="empty-title">#{labels['withdrawal.noStudent.title']}</div>
+                        <p>#{labels['withdrawal.noStudent.text']}</p>
+                    </div>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{!startSemesterWithdrawalBean.studentInfoMissing}" layout="block">
+                    <dl class="detail-list">
+                        <dt>#{labels['withdrawal.studentId']}</dt>
+                        <dd>#{startSemesterWithdrawalBean.studentId}</dd>
+                        <dt>#{labels['withdrawal.studentName']}</dt>
+                        <dd>#{startSemesterWithdrawalBean.studentName}</dd>
+                        <dt>#{labels['withdrawal.gpa']}</dt>
+                        <dd>#{empty startSemesterWithdrawalBean.gpa ? '-' : startSemesterWithdrawalBean.gpa}</dd>
+                        <dt>#{labels['withdrawal.currentSemester']}</dt>
+                        <dd>#{empty startSemesterWithdrawalBean.currentSemester ? '-' : startSemesterWithdrawalBean.currentSemester}</dd>
+                    </dl>
+                </h:panelGroup>
+            </p:panel>
+
+            <h:form id="startSemesterWithdrawalForm" style="margin-top:16px;"
+                    rendered="#{startSemesterWithdrawalBean.canStart}">
+                <p:panel header="#{labels['withdrawal.requestDetails']}">
+                    <p:messages autoUpdate="true" closable="true"/>
+
+                    <div class="form-grid">
+                        <!-- withdrawl reason (required dropdown, sis_reasons type 2) -->
+                        <div class="field">
+                            <p:outputLabel for="withdrawalReason" value="#{labels['withdrawal.reason']}"/>
+                            <p:selectOneMenu id="withdrawalReason"
+                                             value="#{startSemesterWithdrawalBean.withdrawalReason}"
+                                             required="true"
+                                             requiredMessage="#{labels['withdrawal.reasonRequired']}">
+                                <f:selectItem itemLabel="#{labels['withdrawal.selectReason']}" noSelectionOption="true"/>
+                                <f:selectItems value="#{startSemesterWithdrawalBean.reasons}"
+                                               var="reason"
+                                               itemLabel="#{sessionInfoBean.language eq 'ar' ? reason.reasonDesc : reason.reasonDescS}"
+                                               itemValue="#{reason.reasonCode}"/>
+                                <p:ajax event="change" update="withdrawalReasonMsg"/>
+                            </p:selectOneMenu>
+                            <p:message for="withdrawalReason" id="withdrawalReasonMsg"/>
+                        </div>
+
+                        <!-- withdrawl semester (required dropdown, prepared semesters + current) -->
+                        <div class="field">
+                            <p:outputLabel for="withdrawalSemester" value="#{labels['withdrawal.semester']}"/>
+                            <p:selectOneMenu id="withdrawalSemester"
+                                             value="#{startSemesterWithdrawalBean.withdrawalSemester}"
+                                             required="true"
+                                             requiredMessage="#{labels['withdrawal.semesterRequired']}">
+                                <f:selectItem itemLabel="#{labels['withdrawal.selectSemester']}" noSelectionOption="true"/>
+                                <f:selectItems value="#{startSemesterWithdrawalBean.semesters}"
+                                               var="sem"
+                                               itemLabel="#{sessionInfoBean.language eq 'ar' ? sem.semesterDesc : sem.semesterDescS}"
+                                               itemValue="#{sem.semester}"/>
+                                <p:ajax event="change" update="withdrawalSemesterMsg"/>
+                            </p:selectOneMenu>
+                            <p:message for="withdrawalSemester" id="withdrawalSemesterMsg"/>
+                        </div>
+
+                        <!-- student note (optional textarea) -->
+                        <div class="field full">
+                            <p:outputLabel for="studentNote" value="#{labels['withdrawal.note']}"/>
+                            <p:inputTextarea id="studentNote" rows="4"
+                                             value="#{startSemesterWithdrawalBean.studentNote}"
+                                             counter="noteCounter" counterTemplate="#{labels['proof.characters']}"
+                                             maxlength="1000" autoResize="true"/>
+                            <h:panelGroup id="noteCounter" styleClass="field-hint"/>
+                        </div>
+                    </div>
+
+                    <div class="action-bar" style="margin-top:18px;">
+                        <p:commandButton value="#{labels['withdrawal.submit']}" icon="pi pi-send"
+                                         action="#{startSemesterWithdrawalBean.submit}"
+                                         styleClass="ui-button-success"/>
+                        <p:button outcome="/dashboard" value="#{labels['common.cancel']}" icon="pi pi-times"
+                                  styleClass="ui-button-secondary ui-button-outlined"/>
+                    </div>
+                </p:panel>
+            </h:form>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>
+</html>

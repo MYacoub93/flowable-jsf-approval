@@ -110,8 +110,50 @@ public class CommonService{
         return commonMapper.getDepartmentCode(facultyNo, deptNo);
     }
 
-    public String getCollegeCode(String facultyNo) {
+        public String getCollegeCode(String facultyNo) {
         return commonMapper.getCollegeCode(facultyNo);
+    }
+
+    // ------------------------------------------------------------------
+    // Semester Withdrawal process (semester-withdrawl) lookups + SIS calls
+    // ------------------------------------------------------------------
+
+    /**
+     * Withdrawal reasons of the {@code semester-withdrawl} process
+     * ({@code sis_reasons} where {@code reason_type = 2}), bilingual.
+     */
+    public List<ReasonsBean> getTransactionReasons() {
+        return commonMapper.getTransactionReasons();
+    }
+
+    /**
+     * Semesters selectable for a semester-withdrawl request (prepared
+     * semesters + the current semester), bilingual descriptions.
+     */
+    public List<SemesterBean> getTransactionSemester() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("arabicLang", CoreConstants.INT_ARABIC_LOCALE);
+        map.put("englishLang", CoreConstants.INT_ENGLISH_LOCALE);
+        return commonMapper.getTransactionSemester(map);
+    }
+
+    /**
+     * SIS presubmit validation {@code BPM_PKG.check_presubmit_bpm_service}.
+     * Must run BEFORE the Flowable process instance is attempted; the returned
+     * map carries the OUT parameters {@code msg} and {@code status}
+     * ({@code status == 1} = allowed, {@code 0} = rejected with reason).
+     */
+    public Map<String, Object> checkBpmPresumbitService(Map<String, Object> params) {
+        return commonMapper.checkBpmPresumbitService(params);
+    }
+
+    /**
+     * Executes {@code bpm_pkg.withdrawal_student_semester} in SIS. The
+     * returned map carries the OUT parameters {@code result} (1 = success)
+     * and {@code message}; callers MUST evaluate {@code result}.
+     */
+    public Map<String, Object> processSemesterWithdrawal(Map<String, Object> params) {
+        return commonMapper.processSemesterWithdrawal(params);
     }
 
     public List<String> getUserDepts(String userId) {

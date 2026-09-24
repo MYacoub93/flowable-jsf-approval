@@ -4,7 +4,9 @@ import com.example.approval.origin.beans.DepartmentBean;
 import com.example.approval.origin.beans.EmployeeInfoBean;
 import com.example.approval.origin.beans.FacultyBean;
 import com.example.approval.origin.beans.GroupBean;
+import com.example.approval.origin.beans.ReasonsBean;
 import com.example.approval.origin.beans.RoleBean;
+import com.example.approval.origin.beans.SemesterBean;
 import com.example.approval.origin.beans.StaffInfoBean;
 import com.example.approval.origin.beans.StudentInfoBean;
 import com.example.approval.origin.beans.UserBean;
@@ -139,4 +141,49 @@ public interface CommonMapper {
     UserBean checkUserAvailability(@Param("username") String username);
 
     void processSynchUser(@Param("username") String username);
+
+    /**
+     * Withdrawal / transaction reasons of the Semester Withdrawal process
+     * ({@code sis_reasons}, {@code reason_type = 2}). Bilingual row:
+     * {@code reasonCode} (stored value), {@code reasonDesc} (English) and
+     * {@code reasonDescS} (Arabic).
+     */
+    List<ReasonsBean> getTransactionReasons();
+
+    /**
+     * Semesters selectable for a Semester Withdrawal request: all prepared
+     * semesters plus the current SIS semester, each with bilingual
+     * descriptions ({@code semesterDesc} English / {@code semesterDescS}
+     * Arabic).
+     *
+     * <p>map keys: {@code arabicLang} / {@code englishLang} (the SIS
+     * language codes, e.g. {@code CoreConstants.INT_ARABIC_LOCALE} /
+     * {@code INT_ENGLISH_LOCALE} - the distinct keys required by the
+     * {@code sis_getters.get_semester_Desc} signature).</p>
+     */
+    List<SemesterBean> getTransactionSemester(Map<String, Object> params);
+
+    /**
+     * Callable wrapper of {@code BPM_PKG.check_presubmit_bpm_service} -
+     * the pre-submit validation every student transaction must pass
+     * <b>before</b> its Flowable process instance is created.
+     *
+     * <p>map keys (IN): {@code studentId}, {@code semester},
+     * {@code documentCode}, {@code courseNo}, {@code courseEdition},
+     * {@code activityCode}, {@code section}, {@code lang};
+     * (OUT): {@code status} ({@code 1} = ok) and {@code msg}
+     * (localized rejection message to display to the student).</p>
+     */
+    Map<String, Object> checkBpmPresumbitService(Map<String, Object> params);
+
+    /**
+     * Callable wrapper of {@code bpm_pkg.withdrawal_student_semester} -
+     * executes the actual SIS semester withdrawal after all approvals and
+     * the final Admission and Registration FYI completed.
+     *
+     * <p>map keys (IN): {@code studentId}, {@code semester}, {@code lang};
+     * (OUT): {@code result} ({@code 1} = success) and {@code message}
+     * (localized result message).</p>
+     */
+    Map<String, Object> processSemesterWithdrawal(Map<String, Object> params);
 }
